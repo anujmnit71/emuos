@@ -5,9 +5,10 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import emu.hw.CPU;
-import emu.hw.CPU.Interupt;
 import emu.hw.MMU;
 
 /**
@@ -16,11 +17,37 @@ import emu.hw.MMU;
  *
  */
 public class Kernel {
+	/**
+	 * For tracing
+	 */
+	static Logger trace = Logger.getLogger("emu.os");
+	/**
+	 * CPU instance
+	 */
 	CPU cpu;
+	public CPU getCpu() {
+		return cpu;
+	}
+
+	public MMU getMmu() {
+		return mmu;
+	}
+
+	/**
+	 * MMU instance
+	 */
 	MMU mmu;
-	Interupt i;
+	/**
+	 * The current process (or job)
+	 */
 	Process p;
+	/**
+	 * The buffered read for reading the input data
+	 */
 	BufferedReader br;
+	/**
+	 * The writer for writing the output file.
+	 */
 	BufferedWriter wr;
 	
 	/**
@@ -32,15 +59,12 @@ public class Kernel {
 		String inputFile = args[0];
 		String outputFile = args[1];
 		
-		//TODO IO Create streams
-		
 		Kernel emu;
 		try {
 			emu = new Kernel(inputFile, outputFile);
 			emu.start();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			trace.log(Level.SEVERE, "IOException", e);
 		}
 
 	}
@@ -52,41 +76,63 @@ public class Kernel {
 	 * @throws IOException
 	 */
 	public Kernel(String inputFile, String outputFile) throws IOException {
-		br = new BufferedReader(new FileReader(inputFile));
 		
+		//Init HW
+		cpu = new CPU();
+		mmu = new MMU();
+
+		//Init I/O
+		br = new BufferedReader(new FileReader(inputFile));
 		wr = new BufferedWriter(new FileWriter(outputFile));
 
-		cpu = new CPU();
-		cpu.setSi(CPU.Interupt.TERMINATE);
-		
-		mmu = new MMU();
 	}
 	
 	/**
-	 * 
+	 * Starts the OS
 	 * @throws IOException
 	 */
 	public void start() throws IOException {
-		switch (cpu.getSi()) {
-		case READ:
-			mmu.write(cpu.getIrValue(), br.readLine());
-		case WRITE:
-			p.write(mmu.read(cpu.getIrValue()));
-		case TERMINATE:
-			terminate();
-		default:
-			
+		trace.info("start()-->");
+		try {
+			cpu.setSi(CPU.Interupt.TERMINATE);
+			masterMode();
+		} finally {
+			br.close();
+			wr.close();
 		}
 	}
 	
 	/**
-	 * 
+	 * Called when control needs to be passed back to the OS
+	 * @throws IOException
 	 */
-	public void load() {
-
-		//TODO check for eof
-		
-		p = new Process(br, wr);
+	public void masterMode() throws IOException {
+		trace.info("masterMode()-->");
+		switch (cpu.getSi()) {
+		case READ:
+			mmu.writeBlock(cpu.getIrValue(), br.readLine());
+		case WRITE:
+			p.write(mmu.readBlock(cpu.getIrValue()));
+		case TERMINATE:
+			terminate();
+		}
+	}
+	
+	/**
+	 * Starts new process.
+	 * @throws IOException 
+	 */
+	public void load() throws IOException {
+		trace.info("load()-->");
+		String jobData = br.readLine();
+		if (jobData != null && jobData.startsWith(Process.JOB_START)) {
+			trace.info("load(): Loading job "+jobData);
+			p = new Process(this, jobData, br, wr);
+			p.execute();
+		}
+		else {
+			trace.info("load(): No Job to load, exiting");
+		}
 	}
 	
 	/**
@@ -94,11 +140,8 @@ public class Kernel {
 	 * @throws IOException
 	 */
 	public void terminate() throws IOException {
+		trace.info("terminate()-->");
 		wr.write("\n\n");
 		load();
 	}
-	
-
-	
-	
 }
