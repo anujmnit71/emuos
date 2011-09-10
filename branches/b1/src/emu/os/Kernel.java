@@ -56,6 +56,11 @@ public class Kernel {
 	 */
 	public static final void main(String[] args) {
 		
+		if (args.length != 2) {
+			trace.severe("I/O files missing.");
+			System.exit(1);
+		}
+		
 		String inputFile = args[0];
 		String outputFile = args[1];
 		
@@ -108,30 +113,62 @@ public class Kernel {
 	 */
 	public void masterMode() throws IOException {
 		trace.info("masterMode()-->");
+		trace.info("masterMode(): si="+cpu.getSi());
+		trace.info("masterMode(): p="+p);
 		switch (cpu.getSi()) {
 		case READ:
 			mmu.writeBlock(cpu.getIrValue(), br.readLine());
+			cpu.setSi(CPU.Interupt.TERMINATE);
+			//continue process execution
+			p.execute();
 		case WRITE:
 			p.write(mmu.readBlock(cpu.getIrValue()));
+			cpu.setSi(CPU.Interupt.TERMINATE);
+			//continue process execution
+			p.execute();
 		case TERMINATE:
 			terminate();
 		}
 	}
 	
 	/**
-	 * Starts new process.
+	 * Loads the program into memory and starts execution.
 	 * @throws IOException 
 	 */
 	public void load() throws IOException {
+		
 		trace.info("load()-->");
+		
 		String jobData = br.readLine();
+
 		if (jobData != null && jobData.startsWith(Process.JOB_START)) {
+
 			trace.info("load(): Loading job "+jobData);
-			p = new Process(this, jobData, br, wr);
-			p.execute();
+			
+			//Parse Job Data
+			int id = Integer.parseInt(jobData.substring(4, 8));
+			int maxTime = Integer.parseInt(jobData.substring(8, 12));
+			int maxPrints = Integer.parseInt(jobData.substring(12, 16));
+			
+			//reads program lines
+			String programLine = br.readLine();
+			int base = 0;
+			
+			//Write each block of program lines into memory
+			while (!programLine.equals(Process.DATA_START)) {
+				trace.info("loading block");
+				mmu.writeBlock(base, programLine);
+				base+=10;
+				programLine = br.readLine();
+			}
+			
+			p = new Process(this, base, id, maxTime, maxPrints, br, wr);
+			p.startExecution();
 		}
 		else {
 			trace.info("load(): No Job to load, exiting");
+			trace.info("\n"+mmu.toString());
+			System.exit(0);
 		}
 	}
 	
