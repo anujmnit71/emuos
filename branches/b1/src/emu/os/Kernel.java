@@ -5,8 +5,11 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import emu.hw.CPU;
 import emu.hw.MMU;
@@ -20,7 +23,7 @@ public class Kernel {
 	/**
 	 * For tracing
 	 */
-	static Logger trace = Logger.getLogger("emu.os");
+	static Logger trace = Logger.getLogger("emuos");
 	/**
 	 * CPU instance
 	 */
@@ -56,12 +59,24 @@ public class Kernel {
 		String inputFile = args[0];
 		String outputFile = args[1];
 		
+		try {
+		    // Create an appending file handler
+		    FileHandler handler = new FileHandler("emuos.log");
+		    handler.setFormatter(new SimpleFormatter());
+
+		    // Add to the desired logger
+		    trace.addHandler(handler);
+		} catch (IOException e) {
+		}
+		
 		Kernel emu;
 		try {
 			emu = new Kernel(inputFile, outputFile);
 			emu.start();
-		} catch (IOException e) {
-			trace.log(Level.SEVERE, "IOException", e);
+		} catch (IOException ioe) {
+			trace.log(Level.SEVERE, "IOException", ioe);
+		} catch (Exception e){
+			trace.log(Level.SEVERE, "Exception", e);
 		}
 
 	}
@@ -110,17 +125,20 @@ public class Kernel {
 		switch (cpu.getSi()) {
 		case READ:
 			mmu.writeBlock(cpu.getIrValue(), br.readLine());
-			cpu.setSi(CPU.Interupt.TERMINATE);
-			//continue process execution
-			p.execute();
+			cpu.setSi(CPU.Interupt.CONTINUE);
+			break;
 		case WRITE:
 			p.write(mmu.readBlock(cpu.getIrValue()));
-			cpu.setSi(CPU.Interupt.TERMINATE);
-			//continue process execution
-			p.execute();
+			cpu.setSi(CPU.Interupt.CONTINUE);
+			break;
 		case TERMINATE:
 			terminate();
+			break;
+		case CONTINUE:
+			//continue process execution
+			p.execute();
 		}
+		trace.info("masterMode()<--");
 	}
 	
 	/**
@@ -134,10 +152,12 @@ public class Kernel {
 		String nextLine = br.readLine();
 
 		//Check for EOJ
-		if (nextLine.startsWith(Process.JOB_END)) {
+		if (nextLine.startsWith(Process.JOB_END)
+				|| nextLine.startsWith(Process.JOB_END_ALT)) {
 			trace.info("load(): Finished job "+p.id);
 			//read next line
 			nextLine = br.readLine();
+			trace.info(nextLine);
 		}
 		
 		if (nextLine == null) {
@@ -160,6 +180,7 @@ public class Kernel {
 			while (programLine != null) {
 				
 				if (programLine.equals(Process.JOB_END) 
+						|| programLine.equals(Process.JOB_END_ALT)
 						|| programLine.equals(Process.JOB_START)) {
 					trace.info("breaking on "+programLine);
 					break;
@@ -176,9 +197,16 @@ public class Kernel {
 
 		}
 		else {
-			trace.severe("Program error");
+			trace.severe("load() Program error or end of Job Deck");
+			ArrayList<String> buf = p.getOutputBuffer();
+			for (String line : buf) {
+				 wr.write(line);
+				 wr.newLine();
+			}
+			wr.close();
 			exit();
 		}
+		trace.info("load()<--");
 	}
 	
 	/**
@@ -189,6 +217,7 @@ public class Kernel {
 		trace.info("terminate()-->");
 		wr.write("\n\n");
 		load();
+		trace.info("terminate()<--");
 	}
 	
 	/**
@@ -214,5 +243,11 @@ public class Kernel {
 	 */
 	public MMU getMmu() {
 		return mmu;
+	}
+
+	public void slaveMode() {
+		cpu.fetch(mmu);
+		cpu.increment();
+		cpu.execute(mmu);		
 	}
 }
