@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
+import emu.hw.CPU;
+
 /**
  * 
  * @author b.j.drew@gmail.com
@@ -15,11 +17,12 @@ public class Process {
 	/**
 	 * For tracing
 	 */
-	static Logger trace = Logger.getLogger("emu.os");
+	static Logger trace = Logger.getLogger("emuos");
 	
 	public static final String JOB_START = "$AMJ";
 	public static final String DATA_START = "$DTA";
 	public static final String JOB_END = "$EOJ";
+	public static final String JOB_END_ALT = "$END";
 	
 	/**
 	 * Buffers the program output
@@ -73,6 +76,7 @@ public class Process {
 	public void startExecution() throws IOException {
 		trace.info("startExecution()-->");
 		kernel.getCpu().setIc(0);
+		kernel.getCpu().setSi(CPU.Interupt.TERMINATE);
 		execute();
 	}
 	
@@ -82,8 +86,12 @@ public class Process {
 	 */
 	public void execute() throws IOException {
 		trace.info("execute()-->");
+		while(true){
 		//testing how we could return to master mode during execution
-		kernel.masterMode();
+			kernel.slaveMode();
+			kernel.masterMode();
+		}
+		
 	}
 	
 	/**
@@ -92,6 +100,14 @@ public class Process {
 	 */
 	public void write(String data) {
 		outputBuffer.add(data);
+	}
+	
+	/**
+	 * return output buffer to caller
+	 * @return
+	 */
+	public ArrayList<String> getOutputBuffer() {
+		return outputBuffer;
 	}
 	
 	/**
