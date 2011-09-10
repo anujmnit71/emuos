@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -30,29 +29,41 @@ public class Process {
 	 * The kernel
 	 */
 	Kernel kernel;
+	/**
+	 * The address where data can be loaded.
+	 */
+	int baseDataAddr;
+	/**
+	 * Process ID 
+	 */
+	int id;
+	/**
+	 * Max number of time units of execution
+	 */
+	int maxTime;
+	/**
+	 * Max number of prints
+	 */
+	int maxPrints;
+	
 	//TODO ProcessControlBlock
 	
 	/**
 	 * 
 	 * @param kernel Reference to the kernel instance 
+	 * @param maxPrints2 
 	 * @param jobData The job id
 	 * @param program The input stream from which we obtain the program lines
 	 * @param output The output stream we write to.
 	 */
-	public Process(Kernel kernel, String jobData, BufferedReader program, BufferedWriter output) {
-		trace.info("new Process for "+jobData);
+	public Process(Kernel kernel, int baseDataAddr, int id, int maxTime, int maxPrints, BufferedReader program, BufferedWriter output) {
+		trace.info("id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints+", baseDataAddr="+baseDataAddr);
 		outputBuffer = new ArrayList<String>();
-		try {
-			this.kernel = kernel;
-			String jobLine = program.readLine();
-			
-			jobLine.toCharArray();
-			//parse job line
-			
-			//loop until $DTA, load instructions into MMU
-		} catch (IOException e) {
-			trace.log(Level.SEVERE, "", e);
-		}
+		this.kernel = kernel;
+		this.baseDataAddr = baseDataAddr;
+		this.id = id;
+		this.maxTime = maxTime;
+		this.maxPrints = maxPrints;
 	}
 	
 	/**
@@ -60,6 +71,7 @@ public class Process {
 	 * @throws IOException 
 	 */
 	public void startExecution() throws IOException {
+		trace.info("startExecution()-->");
 		kernel.getCpu().setIc(0);
 		execute();
 	}
@@ -69,6 +81,7 @@ public class Process {
 	 * @throws IOException 
 	 */
 	public void execute() throws IOException {
+		trace.info("execute()-->");
 		//testing how we could return to master mode during execution
 		kernel.masterMode();
 	}
