@@ -148,7 +148,7 @@ public class Kernel {
 			trace.info("load(): Loading job "+nextLine);
 			
 			//Parse Job Data
-			int id = Integer.parseInt(nextLine.substring(4, 8));
+			String id = nextLine.substring(4, 8);
 			int maxTime = Integer.parseInt(nextLine.substring(8, 12));
 			int maxPrints = Integer.parseInt(nextLine.substring(12, 16));
 			
