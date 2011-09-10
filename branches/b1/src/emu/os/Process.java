@@ -36,7 +36,7 @@ public class Process {
 	/**
 	 * Process ID 
 	 */
-	int id;
+	String id;
 	/**
 	 * Max number of time units of execution
 	 */
@@ -56,7 +56,7 @@ public class Process {
 	 * @param program The input stream from which we obtain the program lines
 	 * @param output The output stream we write to.
 	 */
-	public Process(Kernel kernel, int baseDataAddr, int id, int maxTime, int maxPrints, BufferedReader program, BufferedWriter output) {
+	public Process(Kernel kernel, int baseDataAddr, String id, int maxTime, int maxPrints, BufferedReader program, BufferedWriter output) {
 		trace.info("id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints+", baseDataAddr="+baseDataAddr);
 		outputBuffer = new ArrayList<String>();
 		this.kernel = kernel;
