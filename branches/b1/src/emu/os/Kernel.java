@@ -25,14 +25,6 @@ public class Kernel {
 	 * CPU instance
 	 */
 	CPU cpu;
-	public CPU getCpu() {
-		return cpu;
-	}
-
-	public MMU getMmu() {
-		return mmu;
-	}
-
 	/**
 	 * MMU instance
 	 */
@@ -51,7 +43,7 @@ public class Kernel {
 	BufferedWriter wr;
 	
 	/**
-	 * 
+	 * Starts EmuOS
 	 * @param args
 	 */
 	public static final void main(String[] args) {
@@ -75,7 +67,7 @@ public class Kernel {
 	}
 	
 	/**
-	 * 
+	 * Constructor
 	 * @param inputFile
 	 * @param outputFile
 	 * @throws IOException
@@ -139,46 +131,88 @@ public class Kernel {
 		
 		trace.info("load()-->");
 		
-		String jobData = br.readLine();
+		String nextLine = br.readLine();
 
-		if (jobData != null && jobData.startsWith(Process.JOB_START)) {
-
-			trace.info("load(): Loading job "+jobData);
+		//Check for EOJ
+		if (nextLine.startsWith(Process.JOB_END)) {
+			trace.info("load(): Finished job "+p.id);
+			//read next line
+			nextLine = br.readLine();
+		}
+		
+		if (nextLine == null) {
+			trace.info("load(): No more jobs, exiting");
+			exit();
+		}
+		else if (nextLine.startsWith(Process.JOB_START)) {
+			trace.info("load(): Loading job "+nextLine);
 			
 			//Parse Job Data
-			int id = Integer.parseInt(jobData.substring(4, 8));
-			int maxTime = Integer.parseInt(jobData.substring(8, 12));
-			int maxPrints = Integer.parseInt(jobData.substring(12, 16));
+			int id = Integer.parseInt(nextLine.substring(4, 8));
+			int maxTime = Integer.parseInt(nextLine.substring(8, 12));
+			int maxPrints = Integer.parseInt(nextLine.substring(12, 16));
 			
 			//reads program lines
 			String programLine = br.readLine();
 			int base = 0;
 			
 			//Write each block of program lines into memory
-			while (!programLine.equals(Process.DATA_START)) {
-				trace.info("loading block");
+			while (programLine != null) {
+				
+				if (programLine.equals(Process.JOB_END) 
+						|| programLine.equals(Process.JOB_START)) {
+					trace.info("breaking on "+programLine);
+					break;
+				}
+				else if (programLine.equals(Process.DATA_START)) {
+					p = new Process(this, base, id, maxTime, maxPrints, br, wr);
+					p.startExecution();
+				}
+
 				mmu.writeBlock(base, programLine);
 				base+=10;
 				programLine = br.readLine();
 			}
-			
-			p = new Process(this, base, id, maxTime, maxPrints, br, wr);
-			p.startExecution();
+
 		}
 		else {
-			trace.info("load(): No Job to load, exiting");
-			trace.info("\n"+mmu.toString());
-			System.exit(0);
+			trace.severe("Program error");
+			exit();
 		}
 	}
 	
 	/**
-	 * 
+	 * Called on program termination.
 	 * @throws IOException
 	 */
 	public void terminate() throws IOException {
 		trace.info("terminate()-->");
 		wr.write("\n\n");
 		load();
+	}
+	
+	/**
+	 * Halts the OS
+	 */
+	public void exit() {
+		//Dump memory
+		trace.info("\n"+mmu.toString());
+		System.exit(0);
+	}
+	
+	/**
+	 * Returns the CPU
+	 * @return
+	 */
+	public CPU getCpu() {
+		return cpu;
+	}
+
+	/**
+	 * Returns the MMU
+	 * @return
+	 */
+	public MMU getMmu() {
+		return mmu;
 	}
 }
