@@ -154,13 +154,17 @@ public class Kernel {
 		//Check for EOJ
 		if (nextLine.startsWith(Process.JOB_END)
 				|| nextLine.startsWith(Process.JOB_END_ALT)) {
+			
+			writeBuffer();
+			
 			trace.info("load(): Finished job "+p.id);
+			
 			//read next line
 			nextLine = br.readLine();
 			trace.info(nextLine);
 		}
 		
-		if (nextLine == null) {
+		if (nextLine == null || nextLine.isEmpty()) {
 			trace.info("load(): No more jobs, exiting");
 			exit();
 		}
@@ -172,7 +176,7 @@ public class Kernel {
 			int maxTime = Integer.parseInt(nextLine.substring(8, 12));
 			int maxPrints = Integer.parseInt(nextLine.substring(12, 16));
 			
-			//reads program lines
+			//Reads first program line
 			String programLine = br.readLine();
 			int base = 0;
 			
@@ -188,6 +192,7 @@ public class Kernel {
 				else if (programLine.equals(Process.DATA_START)) {
 					p = new Process(this, base, id, maxTime, maxPrints, br, wr);
 					p.startExecution();
+					break;
 				}
 
 				mmu.writeBlock(base, programLine);
@@ -198,12 +203,6 @@ public class Kernel {
 		}
 		else {
 			trace.severe("load() Program error or end of Job Deck");
-			ArrayList<String> buf = p.getOutputBuffer();
-			for (String line : buf) {
-				 wr.write(line);
-				 wr.newLine();
-			}
-			wr.close();
 			exit();
 		}
 		trace.info("load()<--");
@@ -249,5 +248,26 @@ public class Kernel {
 		cpu.fetch(mmu);
 		cpu.increment();
 		cpu.execute(mmu);		
+	}
+	
+	/**
+	 * Writes the process state and buffer to the output file
+	 * @throws IOException
+	 */
+	public void writeBuffer() throws IOException {
+		trace.info("writeBuffer()-->");
+		wr.write(p.id+"    Normal Execution\n");
+		wr.write(cpu.toString());
+		//TODO write process time and lines printed: maybe something like: wr.write(p.getTime()+" "+p.getLines());
+		wr.newLine();
+		wr.newLine();
+		wr.newLine();
+		
+		ArrayList<String> buf = p.getOutputBuffer();
+		for (String line : buf) {
+			 wr.write(line);
+			 wr.newLine();
+		}
+		wr.flush();
 	}
 }

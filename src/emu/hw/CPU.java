@@ -157,4 +157,8 @@ public class CPU {
 		 ic++;
 		 trace.info("increment(): "+ic);
 	}
+	
+	public String toString() {
+		return ic+" "+ir+" "+gr+" "+c;
+	}
 }
