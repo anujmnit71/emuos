@@ -161,7 +161,7 @@ public class Kernel {
 			if (nextLine.startsWith(Process.JOB_END)
 					|| nextLine.startsWith(Process.JOB_END_ALT)) {
 				
-				writeBuffer();
+				writeProccess();
 				
 				trace.info("load(): Finished job "+p.id);
 				
@@ -269,10 +269,10 @@ public class Kernel {
 	 * Writes the process state and buffer to the output file
 	 * @throws IOException
 	 */
-	public void writeBuffer() throws IOException {
+	public void writeProccess() throws IOException {
 		trace.info("writeBuffer()-->");
 		wr.write(p.id+"    Normal Execution\n");
-		wr.write(cpu.toString());
+		wr.write(cpu.getState());
 		//TODO write process time and lines printed: maybe something like: wr.write(p.getTime()+" "+p.getLines());
 		wr.newLine();
 		wr.newLine();
