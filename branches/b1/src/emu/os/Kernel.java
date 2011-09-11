@@ -111,6 +111,11 @@ public class Kernel {
 		} finally {
 			br.close();
 			wr.close();
+			//Dump memory
+			trace.info("\n"+mmu.toString());
+			//Dump memory
+			trace.info("\n"+cpu.toString());
+
 		}
 	}
 	
@@ -121,7 +126,6 @@ public class Kernel {
 	public void masterMode() throws IOException {
 		trace.info("masterMode()-->");
 		trace.info("masterMode(): si="+cpu.getSi());
-		trace.info("masterMode(): p="+p);
 		switch (cpu.getSi()) {
 		case READ:
 			mmu.writeBlock(cpu.getIrValue(), br.readLine());
@@ -136,6 +140,7 @@ public class Kernel {
 			break;
 		case CONTINUE:
 			//continue process execution
+			trace.info("masterMode(): continuing process "+p.id);
 			p.execute();
 		}
 		trace.info("masterMode()<--");
@@ -151,60 +156,72 @@ public class Kernel {
 		
 		String nextLine = br.readLine();
 
-		//Check for EOJ
-		if (nextLine.startsWith(Process.JOB_END)
-				|| nextLine.startsWith(Process.JOB_END_ALT)) {
-			
-			writeBuffer();
-			
-			trace.info("load(): Finished job "+p.id);
-			
-			//read next line
-			nextLine = br.readLine();
-			trace.info(nextLine);
-		}
-		
-		if (nextLine == null || nextLine.isEmpty()) {
-			trace.info("load(): No more jobs, exiting");
-			exit();
-		}
-		else if (nextLine.startsWith(Process.JOB_START)) {
-			trace.info("load(): Loading job "+nextLine);
-			
-			//Parse Job Data
-			String id = nextLine.substring(4, 8);
-			int maxTime = Integer.parseInt(nextLine.substring(8, 12));
-			int maxPrints = Integer.parseInt(nextLine.substring(12, 16));
-			
-			//Reads first program line
-			String programLine = br.readLine();
-			int base = 0;
-			
-			//Write each block of program lines into memory
-			while (programLine != null) {
+		while (nextLine != null) {
+			//Check for EOJ
+			if (nextLine.startsWith(Process.JOB_END)
+					|| nextLine.startsWith(Process.JOB_END_ALT)) {
 				
-				if (programLine.equals(Process.JOB_END) 
-						|| programLine.equals(Process.JOB_END_ALT)
-						|| programLine.equals(Process.JOB_START)) {
-					trace.info("breaking on "+programLine);
-					break;
-				}
-				else if (programLine.equals(Process.DATA_START)) {
-					p = new Process(this, base, id, maxTime, maxPrints, br, wr);
-					p.startExecution();
-					break;
-				}
-
-				mmu.writeBlock(base, programLine);
-				base+=10;
-				programLine = br.readLine();
+				writeBuffer();
+				
+				trace.info("load(): Finished job "+p.id);
+				
+				//read next line
+				nextLine = br.readLine();
+				trace.info(nextLine);
 			}
+			
+			if (nextLine == null || nextLine.isEmpty()) {
+				trace.info("load(): skipping empty line...");
+				nextLine = br.readLine();
+				//exit();
+				continue;
+			}
+			else if (nextLine.startsWith(Process.JOB_START)) {
+				trace.info("load(): Loading job "+nextLine);
+				
+				//Clear memory
+				mmu.clear();
+				
+				//Parse Job Data
+				String id = nextLine.substring(4, 8);
+				int maxTime = Integer.parseInt(nextLine.substring(8, 12));
+				int maxPrints = Integer.parseInt(nextLine.substring(12, 16));
+				
+				//Reads first program line
+				String programLine = br.readLine();
+				int base = 0;
+				
+				//Write each block of program lines into memory
+				while (programLine != null) {
+					
+					if (programLine.equals(Process.JOB_END) 
+							|| programLine.equals(Process.JOB_END_ALT)
+							|| programLine.equals(Process.JOB_START)) {
+						trace.info("breaking on "+programLine);
+						break;
+					}
+					else if (programLine.equals(Process.DATA_START)) {
+						p = new Process(this, base, id, maxTime, maxPrints, br, wr);
+						p.startExecution();
+						break;
+					}
 
+					mmu.writeBlock(base, programLine);
+					base+=10;
+					programLine = br.readLine();
+				}
+
+			}
+			else {
+				trace.info("Unexpected line:"+nextLine);
+				trace.severe("load() Program error for "+p.id);
+				nextLine = br.readLine();
+			}
 		}
-		else {
-			trace.severe("load() Program error or end of Job Deck");
-			exit();
-		}
+
+		trace.info("load(): No more jobs, exiting");
+		exit();
+
 		trace.info("load()<--");
 	}
 	
@@ -223,8 +240,6 @@ public class Kernel {
 	 * Halts the OS
 	 */
 	public void exit() {
-		//Dump memory
-		trace.info("\n"+mmu.toString());
 		System.exit(0);
 	}
 	
