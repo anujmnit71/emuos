@@ -126,15 +126,14 @@ public class CPU {
 	}
 	
 	public void execute(MMU memory) {
-		trace.info("execute(): ir = "+ir+" gr = "+gr+" toggle = "+c);
+		trace.info("execute(): "+toString());
+		
 		if (ir.startsWith(LOAD)) {
 			gr = memory.load(getIrValue());
 		}else if (ir.startsWith(STORE)) {
 			memory.store(getIrValue(),gr);
 		}else if (ir.startsWith(COMPARE)) {
-			if (memory.load(getIrValue()).equals(gr)){
-				c = Boolean.TRUE;
-			}
+			c = memory.load(getIrValue()).equals(gr);
 		}else if (ir.startsWith(BRANCH)) {
 			if (c) {
 				ic = getIrValue();
@@ -158,7 +157,19 @@ public class CPU {
 		 trace.info("increment(): "+ic);
 	}
 	
+	/**
+	 * String representation of the the current state.
+	 */
 	public String toString() {
+		return "ic="+ic+" ir="+ir+" gr="+gr+" toggle="+c;
+		
+	}
+	
+	/**
+	 * Returns state without labels.
+	 * @return
+	 */
+	public String getState() {
 		return ic+" "+ir+" "+gr+" "+c;
 	}
 }
