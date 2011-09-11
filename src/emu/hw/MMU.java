@@ -2,6 +2,8 @@ package emu.hw;
 
 import java.util.logging.Logger;
 
+import emu.util.Utilities;
+
 /**
  * Memory Management Unit
  * 
@@ -32,6 +34,9 @@ public class MMU {
 	public void writeBlock(int addr, String data) {
 
 		trace.info("writeBlock(): "+addr+":"+data);
+		
+		//Ensure the string in 40 chars in length
+		data = Utilities.padStringToLength(data, " ", 40, false);
 		
 		int blockAddr = getBlockAddr(addr);
 		
@@ -114,5 +119,12 @@ public class MMU {
 			dump += i+"\n";
 		}
 		return dump;
+	}
+	
+	/**
+	 * Clears memory.
+	 */
+	public void clear() {
+		memory = new char[100][4];
 	}
 }
