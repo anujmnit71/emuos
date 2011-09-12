@@ -2,6 +2,8 @@ package emu.hw;
 
 import java.util.logging.Logger;
 
+import emu.util.Utilities;
+
 /**
  * Memory Management Unit
  * 
@@ -12,7 +14,7 @@ public class MMU {
 	/**
 	 * For tracing
 	 */
-	Logger trace = Logger.getLogger("emu.hw");
+	Logger trace = Logger.getLogger("emuos");
 	/**
 	 * Memory array
 	 */
@@ -22,7 +24,7 @@ public class MMU {
 	 * Constructor 
 	 */
 	public MMU() {
-		 memory = new char[100][4];
+		memory = new char[100][4];
 	}
 	
 	/**
@@ -32,6 +34,9 @@ public class MMU {
 	public void writeBlock(int addr, String data) {
 
 		trace.info("writeBlock(): "+addr+":"+data);
+		
+		//Ensure the string in 40 chars in length
+		data = Utilities.padStringToLength(data, " ", 40, false);
 		
 		int blockAddr = getBlockAddr(addr);
 		
@@ -90,6 +95,7 @@ public class MMU {
 	 * @param addr
 	 */
 	public void store(int addr, String data) {
+		//trace.info("store <"+data+"> at "+addr);
 		memory[addr] = data.toCharArray();
 	}
 	
@@ -97,10 +103,28 @@ public class MMU {
 	 * Dumps the memory contents to a single string
 	 */
 	public String toString() {
-		String dump = "";
-		for (char[] c : memory) {
-			dump += new String(c)+"\n";
+		int i;
+		String dump = "0   |1   |2   |3   |4   |5   |6   |7   |8   |9   |\n";
+		for ( i = 0; i < memory.length; i=i+10) {
+			dump += new String(memory[i])+" ";
+			dump += new String(memory[i+1])+" ";
+			dump += new String(memory[i+2])+" ";
+			dump += new String(memory[i+3])+" ";
+			dump += new String(memory[i+4])+" ";
+			dump += new String(memory[i+5])+" ";
+			dump += new String(memory[i+6])+" ";
+			dump += new String(memory[i+7])+" ";
+			dump += new String(memory[i+8])+" ";
+			dump += new String(memory[i+9])+"|";
+			dump += i+"\n";
 		}
 		return dump;
+	}
+	
+	/**
+	 * Clears memory.
+	 */
+	public void clear() {
+		memory = new char[100][4];
 	}
 }
