@@ -45,9 +45,18 @@ public class Process {
 	 */
 	int maxTime;
 	/**
+	 * Current execution time
+	 */
+	int currTime;
+	/**
 	 * Max number of prints
 	 */
 	int maxPrints;
+	/**
+	 * Current number of prints
+	 */
+	int currPrints;
+	
 	
 	//TODO ProcessControlBlock
 	
@@ -67,6 +76,8 @@ public class Process {
 		this.id = id;
 		this.maxTime = maxTime;
 		this.maxPrints = maxPrints;
+		currPrints = 0;
+		currTime = 0;
 	}
 	
 	/**
@@ -77,21 +88,7 @@ public class Process {
 		trace.info("startExecution()-->");
 		kernel.getCpu().setIc(0);
 		kernel.getCpu().setSi(CPU.Interupt.TERMINATE);
-		execute();
-	}
-	
-	/**
-	 * Main execution loop
-	 * @throws IOException 
-	 */
-	public void execute() throws IOException {
-		trace.info("execute()-->");
-		while(true){
-		//testing how we could return to master mode during execution
-			kernel.slaveMode();
-			kernel.masterMode();
-		}
-		
+		trace.info("startExecution()<--");
 	}
 	
 	/**
@@ -118,5 +115,46 @@ public class Process {
 	public String read(int addr) {
 		//TODO Implement
 		return null;
+	}
+	
+	/**
+	 * Increment time count and throw exception if max time limit is exceeded
+	 * @throws SoftwareInterruptException
+	 */
+	public void incrementTimeCount() throws SoftwareInterruptException {
+		if (currTime <= maxTime) {
+			currTime++;
+		} else {
+			throw new SoftwareInterruptException(1);
+		}
+	}
+	
+	/**
+	 * get the running time of a process.
+	 * @return
+	 */
+	public int getTime() {
+		return currTime;
+	}
+	
+	
+	/**
+	 * Increment print count and throw exception if max print limit is exceeded
+	 * @throws SoftwareInterruptException
+	 */
+	public void incrementPrintCount() throws SoftwareInterruptException {
+		if (currPrints <= maxPrints) {
+			currPrints++;
+		} else {
+			throw new SoftwareInterruptException(2);
+		}
+	}
+	
+	/**
+	 * get the number of printed lines of a process
+	 * @return
+	 */
+	public int getLines() {
+		return currPrints;		
 	}
 }

@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 import emu.hw.CPU;
+import emu.hw.HardwareInterruptException;
 import emu.hw.MMU;
 
 /**
@@ -44,7 +45,10 @@ public class Kernel {
 	 * The writer for writing the output file.
 	 */
 	BufferedWriter wr;
-	
+	/**
+	 * Boot sector
+	 */
+	String bootSector = "H                                       ";
 	/**
 	 * Starts EmuOS
 	 * @param args
@@ -107,6 +111,7 @@ public class Kernel {
 		trace.info("start()-->");
 		try {
 			cpu.setSi(CPU.Interupt.TERMINATE);
+			boot();
 			masterMode();
 		} finally {
 			br.close();
@@ -124,33 +129,60 @@ public class Kernel {
 	 * @throws IOException
 	 */
 	public void masterMode() throws IOException {
+		boolean done = false;
 		trace.info("masterMode()-->");
 		trace.info("masterMode(): si="+cpu.getSi());
-		switch (cpu.getSi()) {
-		case READ:
-			mmu.writeBlock(cpu.getIrValue(), br.readLine());
-			cpu.setSi(CPU.Interupt.CONTINUE);
-			break;
-		case WRITE:
-			p.write(mmu.readBlock(cpu.getIrValue()));
-			cpu.setSi(CPU.Interupt.CONTINUE);
-			break;
-		case TERMINATE:
-			terminate();
-			break;
-		case CONTINUE:
-			//continue process execution
-			trace.info("masterMode(): continuing process "+p.id);
-			p.execute();
+		while (!done) {
+			try {
+				slaveMode();
+				p.incrementTimeCount();
+			}
+			catch (HardwareInterruptException hire){
+				trace.log(Level.SEVERE, "HardwareInteruptException", hire);
+				switch (hire.getInterupt()) {
+					case READ:
+						mmu.writeBlock(cpu.getIrValue(), br.readLine());
+						break;
+					case WRITE:
+					try {
+						p.incrementPrintCount();
+					} catch (SoftwareInterruptException e) {
+						trace.log(Level.SEVERE, "SoftwareInteruptException", e);
+						String msg = "ABNORMAL END CODE = "+e.getAbEndCode();
+						trace.info(msg);
+						p.write(msg);
+						done = terminate();
+					}
+						p.write(mmu.readBlock(cpu.getIrValue()));
+						break;
+					case TERMINATE:
+						done = terminate();
+						break;
+				}
+			}
+			catch (SoftwareInterruptException sire) {
+				trace.log(Level.SEVERE, "SoftwareInteruptException", sire);
+				String msg = "ABNORMAL END CODE = "+sire.getAbEndCode();
+				trace.info(msg);
+				p.write(msg);
+				done = terminate();
+			}
 		}
+
 		trace.info("masterMode()<--");
+	}
+	/**
+	 * load the halt instruction into memory 
+	 */
+	public void boot() {
+		mmu.writeBlock(0, bootSector);
 	}
 	
 	/**
 	 * Loads the program into memory and starts execution.
 	 * @throws IOException 
 	 */
-	public void load() throws IOException {
+	public boolean load() throws IOException {
 		
 		trace.info("load()-->");
 		
@@ -203,7 +235,7 @@ public class Kernel {
 					else if (programLine.equals(Process.DATA_START)) {
 						p = new Process(this, base, id, maxTime, maxPrints, br, wr);
 						p.startExecution();
-						break;
+						return false;
 					}
 
 					mmu.writeBlock(base, programLine);
@@ -220,20 +252,22 @@ public class Kernel {
 		}
 
 		trace.info("load(): No more jobs, exiting");
-		exit();
 
 		trace.info("load()<--");
+		return true;
 	}
 	
 	/**
 	 * Called on program termination.
 	 * @throws IOException
 	 */
-	public void terminate() throws IOException {
+	public boolean terminate() throws IOException {
+		boolean retval=false;
 		trace.info("terminate()-->");
 		wr.write("\n\n");
-		load();
-		trace.info("terminate()<--");
+		retval = load();
+		trace.info("terminate("+retval+")<--");
+		return retval;
 	}
 	
 	/**
@@ -259,10 +293,10 @@ public class Kernel {
 		return mmu;
 	}
 
-	public void slaveMode() {
+	public void slaveMode() throws HardwareInterruptException {
 		cpu.fetch(mmu);
 		cpu.increment();
-		cpu.execute(mmu);		
+		cpu.execute(mmu);
 	}
 	
 	/**
@@ -273,7 +307,7 @@ public class Kernel {
 		trace.info("writeBuffer()-->");
 		wr.write(p.id+"    Normal Execution\n");
 		wr.write(cpu.getState());
-		//TODO write process time and lines printed: maybe something like: wr.write(p.getTime()+" "+p.getLines());
+		wr.write("    "+p.getTime()+"    "+p.getLines());
 		wr.newLine();
 		wr.newLine();
 		wr.newLine();
