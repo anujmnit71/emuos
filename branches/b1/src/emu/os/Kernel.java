@@ -148,7 +148,7 @@ public class Kernel {
 						p.incrementPrintCount();
 					} catch (SoftwareInterruptException e) {
 						trace.log(Level.SEVERE, "SoftwareInteruptException", e);
-						String msg = "ABNORMAL END CODE = "+e.getAbEndCode();
+						String msg = e.getMessage();
 						trace.info(msg);
 						p.write(msg);
 						done = terminate();
@@ -162,7 +162,7 @@ public class Kernel {
 			}
 			catch (SoftwareInterruptException sire) {
 				trace.log(Level.SEVERE, "SoftwareInteruptException", sire);
-				String msg = "ABNORMAL END CODE = "+sire.getAbEndCode();
+				String msg = sire.getMessage();
 				trace.info(msg);
 				p.write(msg);
 				done = terminate();
