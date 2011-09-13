@@ -24,8 +24,10 @@ public class SoftwareInterruptException extends Exception {
 	 * generic message string for Software Interrupt
 	 */
 	private static final String MESSAGE = "Abnormal Termination: ";
-	private static final String ERR2 = "Maximum lines exceeded";
 	private static final String ERR1 = "Maximum time exceeded";
+	private static final String ERR2 = "Maximum lines exceeded";
+	private static final String ERR3 = "Invalid GR value";
+	private static final String DEFAULT = "Unknown Error";
 	/**
 	 * 
 	 * @param code
@@ -39,10 +41,21 @@ public class SoftwareInterruptException extends Exception {
 	}
 	
 	public String getMessage() {
-		if (ErrCode == 1)
-			return MESSAGE + ERR1;
-		else 
-			return MESSAGE + ERR2;
+		String retval = MESSAGE;
+		switch (ErrCode) {
+		case 1:
+			retval += ERR1;
+			break;
+		case 2:
+			retval += ERR2;
+			break;
+		case 3:
+			retval += ERR3;
+			break;
+			default:
+			retval += DEFAULT;					
+		}
+		return retval;
 	}
 
 }

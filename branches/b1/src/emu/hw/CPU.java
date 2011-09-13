@@ -2,6 +2,8 @@ package emu.hw;
 
 import java.util.logging.Logger;
 
+import emu.os.SoftwareInterruptException;
+
 /**
  * CPU Data Structure
  * @author b.j.drew@gmail.com
@@ -125,13 +127,17 @@ public class CPU {
 		return Integer.parseInt(ir.substring(2,4));
 	}
 	
-	public void execute(MMU memory) throws HardwareInterruptException{
+	public void execute(MMU memory) throws HardwareInterruptException, SoftwareInterruptException{
 		trace.info("execute(): "+toString());
 		
 		if (ir.startsWith(LOAD)) {
 			gr = memory.load(getIrValue());
 		}else if (ir.startsWith(STORE)) {
-			memory.store(getIrValue(),gr);
+			if (gr == null) {
+				throw new SoftwareInterruptException(3);
+			} else {
+				memory.store(getIrValue(),gr);
+			}
 		}else if (ir.startsWith(COMPARE)) {
 			c = memory.load(getIrValue()).equals(gr);
 		}else if (ir.startsWith(BRANCH)) {
@@ -140,13 +146,13 @@ public class CPU {
 			}			
 		}else if (ir.startsWith(GET)) {
 			si = Interupt.READ;
-			throw new HardwareInterruptException(si);
+			throw new HardwareInterruptException();
 		}else if (ir.startsWith(PUT)) {
 			si = Interupt.WRITE;
-			throw new HardwareInterruptException(si);
+			throw new HardwareInterruptException();
 		}else if (ir.startsWith(HALT)) {
 			si = Interupt.TERMINATE;	
-			throw new HardwareInterruptException(si);
+			throw new HardwareInterruptException();
 		}
 	}
 

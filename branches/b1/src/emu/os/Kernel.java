@@ -139,7 +139,7 @@ public class Kernel {
 			}
 			catch (HardwareInterruptException hire){
 				trace.log(Level.SEVERE, "HardwareInteruptException", hire);
-				switch (hire.getInterupt()) {
+				switch (cpu.getSi()) {
 					case READ:
 						mmu.writeBlock(cpu.getIrValue(), br.readLine());
 						break;
@@ -293,7 +293,7 @@ public class Kernel {
 		return mmu;
 	}
 
-	public void slaveMode() throws HardwareInterruptException {
+	public void slaveMode() throws HardwareInterruptException, SoftwareInterruptException {
 		cpu.fetch(mmu);
 		cpu.increment();
 		cpu.execute(mmu);
