@@ -52,7 +52,7 @@ public class CPU {
 	 *
 	 */
 	public enum Interupt {
-	    READ, WRITE, TERMINATE, CONTINUE
+	    READ, WRITE, TERMINATE
 	}
 	
 	/**
@@ -125,7 +125,7 @@ public class CPU {
 		return Integer.parseInt(ir.substring(2,4));
 	}
 	
-	public void execute(MMU memory) {
+	public void execute(MMU memory) throws HardwareInterruptException{
 		trace.info("execute(): "+toString());
 		
 		if (ir.startsWith(LOAD)) {
@@ -139,11 +139,14 @@ public class CPU {
 				ic = getIrValue();
 			}			
 		}else if (ir.startsWith(GET)) {
-			si = Interupt.READ;			
+			si = Interupt.READ;
+			throw new HardwareInterruptException(si);
 		}else if (ir.startsWith(PUT)) {
 			si = Interupt.WRITE;
+			throw new HardwareInterruptException(si);
 		}else if (ir.startsWith(HALT)) {
-			si = Interupt.TERMINATE;			
+			si = Interupt.TERMINATE;	
+			throw new HardwareInterruptException(si);
 		}
 	}
 
@@ -170,6 +173,6 @@ public class CPU {
 	 * @return
 	 */
 	public String getState() {
-		return ic+" "+ir+" "+gr+" "+c;
+		return ic+"    "+ir+"    "+gr+"    "+c;
 	}
 }

@@ -16,6 +16,10 @@ public class MMU {
 	 */
 	Logger trace = Logger.getLogger("emuos");
 	/**
+	 * blanks to initialize memeory to
+	 */
+	public static final String BLANKS = "    ";
+	/**
 	 * Memory array
 	 */
 	char [][] memory; 
@@ -126,5 +130,8 @@ public class MMU {
 	 */
 	public void clear() {
 		memory = new char[100][4];
+		for (int i = 0; i < memory.length; i++) {
+				memory[i] = BLANKS.toCharArray();
+		}
 	}
 }
