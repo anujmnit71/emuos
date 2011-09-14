@@ -60,7 +60,7 @@ public class Process {
 	/**
 	 * Message describing how the process terminated
 	 */
-	String terminationState;
+	String terminationStatus;
 	
 	//TODO ProcessControlBlock
 	
@@ -92,7 +92,7 @@ public class Process {
 		trace.info("startExecution()-->");
 		kernel.getCpu().setIc(0);
 		kernel.getCpu().setSi(CPU.Interupt.TERMINATE);
-		setTerminationState("Normal Execution");
+		setTerminationStatus("Normal Execution");
 		trace.info("startExecution()<--");
 	}
 	
@@ -166,14 +166,14 @@ public class Process {
 	 * 
 	 * @param msg
 	 */
-	public void setTerminationState(String msg) {
-		terminationState = msg;
+	public void setTerminationStatus(String msg) {
+		terminationStatus = msg;
 	}
 	/**
 	 * 
 	 * @return
 	 */
-	public String getTerminationState() {
-		return terminationState;
+	public String getTerminationStatus() {
+		return terminationStatus;
 	}
 }

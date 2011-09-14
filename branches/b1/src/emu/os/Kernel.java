@@ -150,7 +150,7 @@ public class Kernel {
 						trace.log(Level.SEVERE, "SoftwareInteruptException", e);
 						String msg = e.getMessage();
 						trace.info(msg);
-						p.setTerminationState(msg);
+						p.setTerminationStatus(msg);
 						done = terminate();
 					}
 						p.write(mmu.readBlock(cpu.getIrValue()));
@@ -164,7 +164,7 @@ public class Kernel {
 				trace.log(Level.SEVERE, "SoftwareInteruptException", sire);
 				String msg = sire.getMessage();
 				trace.info(msg);
-				p.setTerminationState(msg);
+				p.setTerminationStatus(msg);
 				done = terminate();
 			}
 		}
@@ -305,7 +305,7 @@ public class Kernel {
 	 */
 	public void writeProccess() throws IOException {
 		trace.info("writeBuffer()-->");
-		wr.write(p.id+"    "+p.getTerminationState()+"\n");
+		wr.write(p.id+"    "+p.getTerminationStatus()+"\n");
 		wr.write(cpu.getState());
 		wr.write("    "+p.getTime()+"    "+p.getLines());
 		wr.newLine();
