@@ -1,10 +1,18 @@
+/**
+ * Group 5
+ * EmuOS: An Emulated Operating System
+ * 
+ * MSCS 515
+ */
 package emu.os;
 
 import java.util.logging.Logger;
 
 /**
  * Software Interrupt Handler for emuos
- * @author wmosley
+ * @author b.j.drew@gmail.com
+ * @author willaim.mosley@gmail.com
+ * @author claytonannam@gmail.com
  *
  */
 @SuppressWarnings("serial")
@@ -19,6 +27,9 @@ public class SoftwareInterruptException extends Exception {
 	 * along with a brief explanation.
 	 */
 	SoftwareInterruptReason ErrValue; 
+	/**
+	 * Enumeration of the different exception reasons. 
+	 */
 	public enum SoftwareInterruptReason {
 	    MAXTIME ("Max time exceeded"),
 	    MAXLINES("Max output lines exceeded"),
@@ -32,10 +43,12 @@ public class SoftwareInterruptException extends Exception {
 	    }
 	    private String reason() {return reason;}
 	}
+
 	/**
 	 * generic message string for Software Interrupt
 	 */
 	private static final String MESSAGE = "AbEnd: ";
+
 	/**
 	 * 
 	 * @param code
@@ -46,6 +59,9 @@ public class SoftwareInterruptException extends Exception {
 		ErrValue = reason;
 	}
 
+	/**
+	 * 
+	 */
 	public String getMessage() {
 		String retval = MESSAGE;
 		retval += ErrValue.reason();
