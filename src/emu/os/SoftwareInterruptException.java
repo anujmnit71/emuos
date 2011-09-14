@@ -15,9 +15,8 @@ public class SoftwareInterruptException extends Exception {
 	 */
 	Logger trace = Logger.getLogger("emuos");
 	/**
-	 * Error Code
-	 * 1. Maximum time exceeded
-	 * 2. Maximum lines exceeded
+	 * SoftwareInterruptReason contains the different interrupt types
+	 * along with a brief explanation.
 	 */
 	SoftwareInterruptReason ErrValue; 
 	public enum SoftwareInterruptReason {
