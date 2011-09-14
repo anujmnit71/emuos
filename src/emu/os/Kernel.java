@@ -1,3 +1,9 @@
+/**
+ * Group 5
+ * EmuOS: An Emulated Operating System
+ * 
+ * MSCS 515
+ */
 package emu.os;
 
 import java.io.BufferedReader;
@@ -18,7 +24,9 @@ import emu.hw.MMU;
 /**
  * Kernel for EmuOS
  * @author b.j.drew@gmail.com
- *
+ * @author willaim.mosley@gmail.com
+ * @author claytonannam@gmail.com
+ * 
  */
 public class Kernel {
 	/**
@@ -38,7 +46,7 @@ public class Kernel {
 	 */
 	Process p;
 	/**
-	 * The buffered read for reading the input data
+	 * The buffered reader for reading the input data
 	 */
 	BufferedReader br;
 	/**
@@ -293,6 +301,11 @@ public class Kernel {
 		return mmu;
 	}
 
+	/**
+	 * Slave execution cycle 
+	 * @throws HardwareInterruptException
+	 * @throws SoftwareInterruptException
+	 */
 	public void slaveMode() throws HardwareInterruptException, SoftwareInterruptException {
 		cpu.fetch(mmu);
 		cpu.increment();

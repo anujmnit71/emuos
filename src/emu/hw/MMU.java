@@ -1,3 +1,9 @@
+/**
+ * Group 5
+ * EmuOS: An Emulated Operating System
+ * 
+ * MSCS 515
+ */
 package emu.hw;
 
 import java.util.logging.Logger;
@@ -6,8 +12,9 @@ import emu.util.Utilities;
 
 /**
  * Memory Management Unit
- * 
  * @author b.j.drew@gmail.com
+ * @author willaim.mosley@gmail.com
+ * @author claytonannam@gmail.com
  *
  */
 public class MMU {

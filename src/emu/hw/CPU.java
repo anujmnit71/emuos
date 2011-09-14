@@ -1,3 +1,9 @@
+/**
+ * Group 5
+ * EmuOS: An Emulated Operating System
+ * 
+ * MSCS 515
+ */
 package emu.hw;
 
 import java.util.logging.Logger;
@@ -8,6 +14,8 @@ import emu.os.SoftwareInterruptException.SoftwareInterruptReason;
 /**
  * CPU Data Structure
  * @author b.j.drew@gmail.com
+ * @author willaim.mosley@gmail.com
+ * @author claytonannam@gmail.com
  *
  */
 public class CPU {
@@ -128,6 +136,12 @@ public class CPU {
 		return Integer.parseInt(ir.substring(2,4));
 	}
 	
+	/**
+	 * Execute an instruction
+	 * @param memory
+	 * @throws HardwareInterruptException
+	 * @throws SoftwareInterruptException
+	 */
 	public void execute(MMU memory) throws HardwareInterruptException, SoftwareInterruptException{
 		trace.info("execute(): "+toString());
 		
@@ -159,11 +173,18 @@ public class CPU {
 		}
 	}
 
+	/**
+	 * Load an instruction into IR 
+	 * @param memory
+	 */
 	public void fetch(MMU memory) {
 		ir = memory.load(ic);
 		trace.info("fetch(): "+ir+" from address "+ic);
 	}
-
+	
+	/**
+	 * Increment the instruction counter.
+	 */
 	public void increment() {
 		 ic++;
 		 trace.info("increment(): "+ic);

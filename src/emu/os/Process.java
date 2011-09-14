@@ -1,3 +1,9 @@
+/**
+ * Group 5
+ * EmuOS: An Emulated Operating System
+ * 
+ * MSCS 515
+ */
 package emu.os;
 
 import java.io.BufferedReader;
@@ -12,6 +18,8 @@ import emu.os.SoftwareInterruptException.SoftwareInterruptReason;
 /**
  * 
  * @author b.j.drew@gmail.com
+ * @author willaim.mosley@gmail.com
+ * @author claytonannam@gmail.com
  *
  */
 public class Process {
@@ -110,16 +118,6 @@ public class Process {
 	 */
 	public ArrayList<String> getOutputBuffer() {
 		return outputBuffer;
-	}
-	
-	/**
-	 * Reads from program memory
-	 * @param addr
-	 * @return
-	 */
-	public String read(int addr) {
-		//TODO Implement
-		return null;
 	}
 	
 	/**
