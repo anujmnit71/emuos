@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.logging.Logger;
 
 import emu.hw.CPU;
+import emu.os.SoftwareInterruptException.SoftwareInterruptReason;
 
 /**
  * 
@@ -56,7 +57,10 @@ public class Process {
 	 * Current number of prints
 	 */
 	int currPrints;
-	
+	/**
+	 * Message describing how the process terminated
+	 */
+	String terminationState;
 	
 	//TODO ProcessControlBlock
 	
@@ -88,6 +92,7 @@ public class Process {
 		trace.info("startExecution()-->");
 		kernel.getCpu().setIc(0);
 		kernel.getCpu().setSi(CPU.Interupt.TERMINATE);
+		setTerminationState("Normal Execution");
 		trace.info("startExecution()<--");
 	}
 	
@@ -125,7 +130,7 @@ public class Process {
 		if (currTime <= maxTime) {
 			currTime++;
 		} else {
-			throw new SoftwareInterruptException(1);
+			throw new SoftwareInterruptException(SoftwareInterruptReason.MAXTIME);
 		}
 	}
 	
@@ -146,7 +151,7 @@ public class Process {
 		if (currPrints <= maxPrints) {
 			currPrints++;
 		} else {
-			throw new SoftwareInterruptException(2);
+			throw new SoftwareInterruptException(SoftwareInterruptReason.MAXLINES);
 		}
 	}
 	
@@ -156,5 +161,19 @@ public class Process {
 	 */
 	public int getLines() {
 		return currPrints;		
+	}
+	/**
+	 * 
+	 * @param msg
+	 */
+	public void setTerminationState(String msg) {
+		terminationState = msg;
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public String getTerminationState() {
+		return terminationState;
 	}
 }
