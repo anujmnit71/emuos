@@ -3,6 +3,7 @@ package emu.hw;
 import java.util.logging.Logger;
 
 import emu.os.SoftwareInterruptException;
+import emu.os.SoftwareInterruptException.SoftwareInterruptReason;
 
 /**
  * CPU Data Structure
@@ -134,7 +135,7 @@ public class CPU {
 			gr = memory.load(getIrValue());
 		}else if (ir.startsWith(STORE)) {
 			if (gr == null) {
-				throw new SoftwareInterruptException(3);
+				throw new SoftwareInterruptException(SoftwareInterruptReason.BADGR);
 			} else {
 				memory.store(getIrValue(),gr);
 			}
@@ -153,6 +154,8 @@ public class CPU {
 		}else if (ir.startsWith(HALT)) {
 			si = Interupt.TERMINATE;	
 			throw new HardwareInterruptException();
+		}else {
+			throw new SoftwareInterruptException(SoftwareInterruptReason.OPCODE);
 		}
 	}
 

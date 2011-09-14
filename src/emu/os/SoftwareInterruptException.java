@@ -19,42 +19,37 @@ public class SoftwareInterruptException extends Exception {
 	 * 1. Maximum time exceeded
 	 * 2. Maximum lines exceeded
 	 */
-	int ErrCode;
+	SoftwareInterruptReason ErrValue; 
+	public enum SoftwareInterruptReason {
+	    MAXTIME ("Max time exceeded"),
+	    MAXLINES("Max output lines exceeded"),
+	    BADGR   ("Invalid GR value"),
+	    OPCODE  ("Invalid OPCODE"),
+	    UNKNOWN ("Unknown Error");
+	    
+	    private final String reason;
+	    SoftwareInterruptReason(String message) {
+	    	reason = message;
+	    }
+	    private String reason() {return reason;}
+	}
 	/**
 	 * generic message string for Software Interrupt
 	 */
-	private static final String MESSAGE = "Abnormal Termination: ";
-	private static final String ERR1 = "Maximum time exceeded";
-	private static final String ERR2 = "Maximum lines exceeded";
-	private static final String ERR3 = "Invalid GR value";
-	private static final String DEFAULT = "Unknown Error";
+	private static final String MESSAGE = "AbEnd: ";
 	/**
 	 * 
 	 * @param code
 	 */
-	public SoftwareInterruptException(int code) {
-		ErrCode = code;
+	public SoftwareInterruptException(SoftwareInterruptReason reason) {
+		if (reason == null)
+			reason = SoftwareInterruptReason.UNKNOWN;
+		ErrValue = reason;
 	}
-	
-	public int getAbEndCode() {
-		return ErrCode;
-	}
-	
+
 	public String getMessage() {
 		String retval = MESSAGE;
-		switch (ErrCode) {
-		case 1:
-			retval += ERR1;
-			break;
-		case 2:
-			retval += ERR2;
-			break;
-		case 3:
-			retval += ERR3;
-			break;
-			default:
-			retval += DEFAULT;					
-		}
+		retval += ErrValue.reason();
 		return retval;
 	}
 
