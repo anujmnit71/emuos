@@ -32,10 +32,18 @@ public class PhysicalMemory {
 	char [][] memory; 
 	
 	/**
+	 * variables containing size of memory
+	 */
+	int size;
+	int wordLength;
+	
+	/**
 	 * Constructor 
 	 */
 	public PhysicalMemory(int size, int wordLength) {
-		memory = new char[size][wordLength];
+		this.size = size;
+		this.wordLength = wordLength;
+		clear();
 	}
 	
 	/**
@@ -136,9 +144,17 @@ public class PhysicalMemory {
 	 * Clears memory.
 	 */
 	public void clear() {
-		memory = new char[100][4];
+		memory = new char[size][wordLength];
 		for (int i = 0; i < memory.length; i++) {
 				memory[i] = BLANKS.toCharArray();
 		}
+	}
+
+	/**
+	 * Determine if page fault is valid or invalid
+	 */
+	public boolean validatePageFault() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 }
