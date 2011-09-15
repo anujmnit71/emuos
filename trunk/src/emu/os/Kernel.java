@@ -19,7 +19,7 @@ import java.util.logging.SimpleFormatter;
 
 import emu.hw.CPU;
 import emu.hw.HardwareInterruptException;
-import emu.hw.MMU;
+import emu.hw.PhysicalMemory;
 
 /**
  * Kernel for EmuOS
@@ -40,7 +40,7 @@ public class Kernel {
 	/**
 	 * MMU instance
 	 */
-	MMU mmu;
+	PhysicalMemory mmu;
 	/**
 	 * The current process (or job)
 	 */
@@ -103,7 +103,7 @@ public class Kernel {
 		
 		//Init HW
 		cpu = new CPU();
-		mmu = new MMU();
+		mmu = new PhysicalMemory(300,4);
 
 		//Init I/O
 		br = new BufferedReader(new FileReader(inputFile));
@@ -297,7 +297,7 @@ public class Kernel {
 	 * Returns the MMU
 	 * @return
 	 */
-	public MMU getMmu() {
+	public PhysicalMemory getMmu() {
 		return mmu;
 	}
 
