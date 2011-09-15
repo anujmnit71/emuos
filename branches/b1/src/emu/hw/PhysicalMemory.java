@@ -11,13 +11,13 @@ import java.util.logging.Logger;
 import emu.util.Utilities;
 
 /**
- * Memory Management Unit
+ * Representation of Physical Memory
  * @author b.j.drew@gmail.com
  * @author willaim.mosley@gmail.com
  * @author claytonannam@gmail.com
  *
  */
-public class MMU {
+public class PhysicalMemory {
 	/**
 	 * For tracing
 	 */
@@ -34,8 +34,8 @@ public class MMU {
 	/**
 	 * Constructor 
 	 */
-	public MMU() {
-		memory = new char[100][4];
+	public PhysicalMemory(int size, int wordLength) {
+		memory = new char[size][wordLength];
 	}
 	
 	/**
