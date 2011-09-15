@@ -142,7 +142,7 @@ public class CPU {
 	 * @throws HardwareInterruptException
 	 * @throws SoftwareInterruptException
 	 */
-	public void execute(MMU memory) throws HardwareInterruptException, SoftwareInterruptException{
+	public void execute(PhysicalMemory memory) throws HardwareInterruptException, SoftwareInterruptException{
 		trace.info("execute(): "+toString());
 		
 		if (ir.startsWith(LOAD)) {
@@ -177,7 +177,7 @@ public class CPU {
 	 * Load an instruction into IR 
 	 * @param memory
 	 */
-	public void fetch(MMU memory) {
+	public void fetch(PhysicalMemory memory) {
 		ir = memory.load(ic);
 		trace.info("fetch(): "+ir+" from address "+ic);
 	}
