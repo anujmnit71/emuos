@@ -1,6 +1,6 @@
 package emu.test;
 
-import emu.hw.MMU;
+import emu.hw.PhysicalMemory;
 
 public class MemTest {
 
@@ -8,7 +8,7 @@ public class MemTest {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		MMU mmu = new MMU();
+		PhysicalMemory mmu = new PhysicalMemory(100,4);
 		mmu.store(0, "LR12");
 		mmu.store(20, "PD12");
 		mmu.store(99, "GD02");
