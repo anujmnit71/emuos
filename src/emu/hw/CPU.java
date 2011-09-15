@@ -1,10 +1,21 @@
+/**
+ * Group 5
+ * EmuOS: An Emulated Operating System
+ * 
+ * MSCS 515
+ */
 package emu.hw;
 
 import java.util.logging.Logger;
 
+import emu.os.SoftwareInterruptException;
+import emu.os.SoftwareInterruptException.SoftwareInterruptReason;
+
 /**
  * CPU Data Structure
  * @author b.j.drew@gmail.com
+ * @author willaim.mosley@gmail.com
+ * @author claytonannam@gmail.com
  *
  */
 public class CPU {
@@ -52,7 +63,7 @@ public class CPU {
 	 *
 	 */
 	public enum Interupt {
-	    READ, WRITE, TERMINATE, CONTINUE
+	    READ, WRITE, TERMINATE
 	}
 	
 	/**
@@ -125,13 +136,23 @@ public class CPU {
 		return Integer.parseInt(ir.substring(2,4));
 	}
 	
-	public void execute(MMU memory) {
+	/**
+	 * Execute an instruction
+	 * @param memory
+	 * @throws HardwareInterruptException
+	 * @throws SoftwareInterruptException
+	 */
+	public void execute(MMU memory) throws HardwareInterruptException, SoftwareInterruptException{
 		trace.info("execute(): "+toString());
 		
 		if (ir.startsWith(LOAD)) {
 			gr = memory.load(getIrValue());
 		}else if (ir.startsWith(STORE)) {
-			memory.store(getIrValue(),gr);
+			if (gr == null) {
+				throw new SoftwareInterruptException(SoftwareInterruptReason.BADGR);
+			} else {
+				memory.store(getIrValue(),gr);
+			}
 		}else if (ir.startsWith(COMPARE)) {
 			c = memory.load(getIrValue()).equals(gr);
 		}else if (ir.startsWith(BRANCH)) {
@@ -139,19 +160,31 @@ public class CPU {
 				ic = getIrValue();
 			}			
 		}else if (ir.startsWith(GET)) {
-			si = Interupt.READ;			
+			si = Interupt.READ;
+			throw new HardwareInterruptException();
 		}else if (ir.startsWith(PUT)) {
 			si = Interupt.WRITE;
+			throw new HardwareInterruptException();
 		}else if (ir.startsWith(HALT)) {
-			si = Interupt.TERMINATE;			
+			si = Interupt.TERMINATE;	
+			throw new HardwareInterruptException();
+		}else {
+			throw new SoftwareInterruptException(SoftwareInterruptReason.OPCODE);
 		}
 	}
 
+	/**
+	 * Load an instruction into IR 
+	 * @param memory
+	 */
 	public void fetch(MMU memory) {
 		ir = memory.load(ic);
 		trace.info("fetch(): "+ir+" from address "+ic);
 	}
-
+	
+	/**
+	 * Increment the instruction counter.
+	 */
 	public void increment() {
 		 ic++;
 		 trace.info("increment(): "+ic);
@@ -170,6 +203,6 @@ public class CPU {
 	 * @return
 	 */
 	public String getState() {
-		return ic+" "+ir+" "+gr+" "+c;
+		return ic+"    "+ir+"    "+gr+"    "+c;
 	}
 }

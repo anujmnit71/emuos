@@ -1,3 +1,9 @@
+/**
+ * Group 5
+ * EmuOS: An Emulated Operating System
+ * 
+ * MSCS 515
+ */
 package emu.hw;
 
 import java.util.logging.Logger;
@@ -6,8 +12,9 @@ import emu.util.Utilities;
 
 /**
  * Memory Management Unit
- * 
  * @author b.j.drew@gmail.com
+ * @author willaim.mosley@gmail.com
+ * @author claytonannam@gmail.com
  *
  */
 public class MMU {
@@ -15,6 +22,10 @@ public class MMU {
 	 * For tracing
 	 */
 	Logger trace = Logger.getLogger("emuos");
+	/**
+	 * blanks to initialize memeory to
+	 */
+	public static final String BLANKS = "    ";
 	/**
 	 * Memory array
 	 */
@@ -126,5 +137,8 @@ public class MMU {
 	 */
 	public void clear() {
 		memory = new char[100][4];
+		for (int i = 0; i < memory.length; i++) {
+				memory[i] = BLANKS.toCharArray();
+		}
 	}
 }
