@@ -6,10 +6,8 @@
  */
 package emu.hw;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import emu.os.SoftwareInterruptException;
-import emu.os.SoftwareInterruptException.SoftwareInterruptReason;
 
 /**
  * CPU Data Structure
@@ -26,13 +24,13 @@ public class CPU {
 	/**
 	 * Instructions
 	 */
-	public static final String LOAD = "LR";
-	public static final String STORE = "SR";
+	public static final String LOAD    = "LR";
+	public static final String STORE   = "SR";
 	public static final String COMPARE = "CR";
-	public static final String BRANCH = "BT";
-	public static final String GET = "GD";
-	public static final String PUT = "PD";
-	public static final String HALT = "H";
+	public static final String BRANCH  = "BT";
+	public static final String GET     = "GD";
+	public static final String PUT     = "PD";
+	public static final String HALT    = "H   ";
 	/**
 	 * Instruction Register
 	 */
@@ -42,6 +40,10 @@ public class CPU {
 	 */
 	String gr;
 	/**
+	 * Page Table Register
+	 */
+	String ptr;
+	/**
 	 * Toggle 
 	 */
 	boolean c;
@@ -50,20 +52,91 @@ public class CPU {
 	 */
 	int ic;
 	/**
+	 * cpu clock
+	 */
+	int clock;
+	/**
 	 * System interrupt
 	 */
-	Interupt si;
+	Interrupt si;
+	/**
+	 * Program interrupt	
+	 */
+	Interrupt pi;
+	/**
+	 * time interrupt
+	 */
+	Interrupt ti;
+	/** 
+	 * input and output interrupt
+	 */
+	Interrupt ioi;
 	
 	/**
-	 * The CPU supports three types of interupts
-	 * READ, to read data from input
-	 * WRITE, to write data to output
-	 * TERMINATE to load the next job or terminate execution
+	 * All interrupts are grouped together. Their types are verified upon setting when set.
+	 * value represents what is specified in the phase 2 doc
+	 * retval is what a function will return if an interrupt is thrown
+	 * type is the type of interrupt 
+	 * errorCode is the error message to which the interrupt corresponds 
 	 * @author wmosley
 	 *
 	 */
-	public enum Interupt {
-	    READ, WRITE, TERMINATE
+	public enum Interrupt {
+		CLEAR           ( 0,515, InterruptType.MASTER    , -1),
+		WRONGTYPE       (-1,525, InterruptType.MASTER    , -1),
+	    READ            ( 1,516, InterruptType.SUPERVISOR, -1),
+	    WRITE           ( 2,517, InterruptType.SUPERVISOR, -1),
+	    TERMINATE       ( 3,518, InterruptType.SUPERVISOR, -1),
+		UNKNOWN         (-1,519, InterruptType.DEFAULT   , -1),
+		IO              ( 1,520, InterruptType.IO        , -1),
+		TIME_ERROR      ( 2,521, InterruptType.TIME      , 3),
+		OPERATION_ERROR ( 1,522, InterruptType.PROGRAM   , 4),
+		OPERAND_ERROR   ( 2,523, InterruptType.PROGRAM   , 5),
+		PAGE_FAULT      ( 3,524, InterruptType.PROGRAM   , 6);
+		private int value;
+		private int retval;
+		InterruptType type;
+		int errorCode;
+
+		Interrupt (int value, int retval,InterruptType type, int errorCode) {
+			this.value = value;
+			this.retval = retval;
+			this.type = type;
+			this.errorCode = errorCode;
+		}
+		public int getValue() {
+			return value;
+		}
+		public int getErrorCode(){
+			return errorCode;
+		}
+		public InterruptType getType(){
+			return type;
+		}
+		public int getRetval(){
+			return retval;
+		}
+		public static Interrupt set(int irValue) {
+			for (Interrupt i: values()) {
+				if (i.getRetval() == irValue) return i;
+			}
+			return CLEAR;
+		}
+		
+	}
+	
+	/**
+	 * All the valid interrupt types
+	 * @author wmosley
+	 *
+	 */
+	public enum InterruptType {
+		MASTER,
+		SUPERVISOR,
+		PROGRAM,
+		TIME,
+		IO,
+		DEFAULT;
 	}
 	
 	/**
@@ -111,29 +184,149 @@ public class CPU {
 	public void setIc(int ic) {
 		this.ic = ic;
 	}
+	/**
+	 * get the cpu clock
+	 */
+	public int getClock() {
+		return clock;
+	}
 
 	/**
 	 * get Interupt type
 	 * @return
 	 */
-	public Interupt getSi() {
+	public Interrupt getSi() {
 		return si;
 	}
 
 	/**
-	 * set Interupt type
+	 * set Interrupt type
 	 * @param si
 	 */
-	public void setSi(Interupt si) {
-		this.si = si;
+	public void setSi(Interrupt si) {
+		if (si.getType().equals(InterruptType.SUPERVISOR)
+				|| si.getType().equals(InterruptType.MASTER))
+			this.si = si;
+		else {
+			trace.log(Level.SEVERE,"you tried to set the incorrect interrupt for Supervisor Interrupt: " +si);
+			this.pi = Interrupt.WRONGTYPE;
+		}
+	}
+	
+	/**
+	 * set supervisor interrupt based on integer value
+	 * @param value
+	 */
+	public void setSi(int value) {
+		Interrupt i = Interrupt.set(value);
+		setSi(i);
+	}
+	
+	/**
+	 * get ProgramInterrupt type
+	 * @return
+	 */
+	public Interrupt getPi() {
+		return pi;
+	}
+
+	/**
+	 * set ProgramInterrupt type
+	 * @param si
+	 */
+	public void setPi(Interrupt pi) {
+		if (pi.getType().equals(InterruptType.PROGRAM)
+				|| pi.getType().equals(InterruptType.MASTER))
+			this.pi = pi;
+		else {
+			trace.log(Level.SEVERE,"you tried to set the incorrect interrupt for Program Interrupt: " +pi);
+			this.pi = Interrupt.WRONGTYPE;
+		}
+	}
+	
+	/** 
+	 * set program interrupt based on integer value
+	 * @param value
+	 */
+	public void setPi(int value) {
+		Interrupt i = Interrupt.set(value);
+		setPi(i);
+	}
+	
+	/**
+	 * get Interrupt type
+	 * @return
+	 */
+	public Interrupt getTi() {
+		return ti;
+	}
+
+	/**
+	 * set TimeInterrupt type
+	 * @param si
+	 */
+	public void setTi(Interrupt ti) {
+		if (ti.getType().equals(InterruptType.TIME)
+				|| ti.getType().equals(InterruptType.MASTER))
+			this.ti = ti;
+		else {
+			trace.log(Level.SEVERE,"you tried to set the incorrect interrupt for Time Interrupt: " +ti);
+			this.ti = Interrupt.WRONGTYPE;
+		}
+	}
+	
+	/**
+	 * set time interrupt based on integer value
+	 * @param value
+	 */
+	public void setTi(int value) {
+		Interrupt i = Interrupt.set(value);
+		setTi(i);
+	}
+	
+	/**
+	 * get Interrupt type
+	 * @return
+	 */
+	public Interrupt getIOi() {
+		return ioi;
+	}
+
+	/**
+	 * set TimeInterrupt type
+	 * @param si
+	 */
+	public void setIOi(Interrupt ioi) {
+		if (ioi.getType().equals(InterruptType.IO)
+				|| ioi.getType().equals(InterruptType.MASTER))
+			this.ioi = ioi;
+		else {
+			trace.log(Level.SEVERE,"you tried to set the incorrect interrupt for Time Interrupt: " +ioi);
+			this.ioi = Interrupt.WRONGTYPE;
+		}
+	}
+	
+	/**
+	 * set IO interrupt based on integer value
+	 * @param value
+	 */
+	public void setIOi(int value) {
+		Interrupt i = Interrupt.set(value);
+		setIOi(i);
 	}
 	
 	/**
 	 * get instruction in instruction register
 	 * @return
+	 * @throws HardwareInterruptException 
 	 */
 	public int getIrValue() {
-		return Integer.parseInt(ir.substring(2,4));
+		int retval = Integer.parseInt(ir.substring(2,4));	
+		trace.info("getIrValue(): retval "+retval);
+		if (retval < 0 || retval > 100){
+			retval = Interrupt.OPERAND_ERROR.getRetval();
+		}
+		return retval;
 	}
 	
 	/**
@@ -142,37 +335,57 @@ public class CPU {
 	 * @throws HardwareInterruptException
 	 * @throws SoftwareInterruptException
 	 */
-	public void execute(PhysicalMemory memory) throws HardwareInterruptException, SoftwareInterruptException{
+	public void execute(PhysicalMemory memory) throws HardwareInterruptException {
 		trace.info("execute(): "+toString());
-		
+		clock++;
+		int irValue = 0;
 		if (ir.startsWith(LOAD)) {
-			gr = memory.load(getIrValue());
+			irValue = getIrValue();
+			pi = Interrupt.set(irValue);
+			if (pi == Interrupt.CLEAR)
+				gr = memory.load(irValue);
 		}else if (ir.startsWith(STORE)) {
-			if (gr == null) {
-				throw new SoftwareInterruptException(SoftwareInterruptReason.BADGR);
-			} else {
-				memory.store(getIrValue(),gr);
+			if (gr == null)
+				pi = Interrupt.OPERAND_ERROR;
+			else {
+				irValue = getIrValue();
+				pi = Interrupt.set(irValue);
+					if (pi == Interrupt.CLEAR)
+						memory.store(irValue,gr);
 			}
 		}else if (ir.startsWith(COMPARE)) {
-			c = memory.load(getIrValue()).equals(gr);
+			irValue = getIrValue();
+			pi = Interrupt.set(irValue);
+				if (pi == Interrupt.CLEAR)
+					c = memory.load(irValue).equals(gr);
 		}else if (ir.startsWith(BRANCH)) {
 			if (c) {
-				ic = getIrValue();
+				irValue = getIrValue();
+				pi = Interrupt.set(irValue);
+					if (pi == Interrupt.CLEAR)
+						ic = irValue;
 			}			
 		}else if (ir.startsWith(GET)) {
-			si = Interupt.READ;
-			throw new HardwareInterruptException();
+			si = Interrupt.READ;
 		}else if (ir.startsWith(PUT)) {
-			si = Interupt.WRITE;
-			throw new HardwareInterruptException();
+			si = Interrupt.WRITE;
 		}else if (ir.startsWith(HALT)) {
-			si = Interupt.TERMINATE;	
-			throw new HardwareInterruptException();
+			si = Interrupt.TERMINATE;	
 		}else {
-			throw new SoftwareInterruptException(SoftwareInterruptReason.OPCODE);
+			pi = Interrupt.OPERATION_ERROR;
+		}
+		
+		/*
+		 * wait until all instructions have been handled before throwing
+		 * exception
+		 */
+		if (ti != Interrupt.CLEAR
+				|| si != Interrupt.CLEAR
+				|| pi != Interrupt.CLEAR){
+			throw new HardwareInterruptException();
 		}
 	}
-
+	
 	/**
 	 * Load an instruction into IR 
 	 * @param memory

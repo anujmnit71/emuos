@@ -13,7 +13,8 @@ import java.util.ArrayList;
 import java.util.logging.Logger;
 
 import emu.hw.CPU;
-import emu.os.SoftwareInterruptException.SoftwareInterruptReason;
+import emu.hw.CPU.Interrupt;
+import emu.hw.HardwareInterruptException;
 
 /**
  * 
@@ -66,6 +67,10 @@ public class Process {
 	 */
 	int currPrints;
 	/**
+	 * was there an error in this process
+	 */
+	boolean errorInProcess;
+	/**
 	 * Message describing how the process terminated
 	 */
 	String terminationStatus;
@@ -88,6 +93,7 @@ public class Process {
 		this.id = id;
 		this.maxTime = maxTime;
 		this.maxPrints = maxPrints;
+		this.errorInProcess = false;
 		currPrints = 0;
 		currTime = 0;
 	}
@@ -99,7 +105,7 @@ public class Process {
 	public void startExecution() throws IOException {
 		trace.info("startExecution()-->");
 		kernel.getCpu().setIc(0);
-		kernel.getCpu().setSi(CPU.Interupt.TERMINATE);
+		kernel.getCpu().setSi(CPU.Interrupt.TERMINATE);
 		setTerminationStatus("Normal Execution");
 		trace.info("startExecution()<--");
 	}
@@ -122,14 +128,29 @@ public class Process {
 	
 	/**
 	 * Increment time count and throw exception if max time limit is exceeded
-	 * @throws SoftwareInterruptException
+	 * @throws HardwareInterruptException if there is an error
 	 */
-	public void incrementTimeCount() throws SoftwareInterruptException {
+	public void incrementTimeCountSlave() throws HardwareInterruptException {
 		if (currTime <= maxTime) {
 			currTime++;
 		} else {
-			throw new SoftwareInterruptException(SoftwareInterruptReason.MAXTIME);
+			kernel.getCpu().setTi(Interrupt.TIME_ERROR);
+			throw new HardwareInterruptException();
 		}
+	}
+	
+	/**
+	 * Increment time count and throw exception if max time limit is exceeded
+	 * return false if there is an error
+	 */
+	public boolean incrementTimeCountMaster()  {
+		if (currTime <= maxTime) {
+			currTime++;
+		} else {
+			kernel.getCpu().setTi(Interrupt.TIME_ERROR);
+			return false;
+		}
+		return true;
 	}
 	
 	/**
@@ -139,18 +160,20 @@ public class Process {
 	public int getTime() {
 		return currTime;
 	}
-	
-	
+		
 	/**
 	 * Increment print count and throw exception if max print limit is exceeded
 	 * @throws SoftwareInterruptException
 	 */
-	public void incrementPrintCount() throws SoftwareInterruptException {
+	public boolean incrementPrintCount() {
 		if (currPrints <= maxPrints) {
 			currPrints++;
-		} else {
-			throw new SoftwareInterruptException(SoftwareInterruptReason.MAXLINES);
-		}
+			return true;
+		} 
+		
+		kernel.getCpu().setIOi(Interrupt.IO);
+		kernel.setError(2);
+		return false;
 	}
 	
 	/**
@@ -160,18 +183,48 @@ public class Process {
 	public int getLines() {
 		return currPrints;		
 	}
+	
 	/**
-	 * 
+	 * Clear exiting message
 	 * @param msg
 	 */
 	public void setTerminationStatus(String msg) {
 		terminationStatus = msg;
+		trace.info("setTerminationStatus(): "+terminationStatus);
 	}
+	
 	/**
-	 * 
+	 * append incoming message to existing message
+	 * @param msg
+	 */
+	public void appendTerminationStatus(String msg) {
+		terminationStatus += ", " + msg;
+		trace.info("appendTerminationStatus(): "+terminationStatus);
+	}
+	
+	/**
+	 * Return the termination status of process
 	 * @return
 	 */
 	public String getTerminationStatus() {
-		return terminationStatus;
+		trace.info("getTerminationStatus(): "+terminationStatus);
+		return terminationStatus;		
+	}
+	
+	/**
+	 * flag to know that an error message will be displayed
+	 */
+	public void setErrorInProcess(){
+		trace.info("setErrorInProcess()");
+		errorInProcess = true;
+	}
+	
+	/**
+	 * return error status of process
+	 * @return
+	 */
+	public boolean getErrorInProcess(){
+		trace.info("getErrorInProcess(): "+errorInProcess);
+		return errorInProcess;
 	}
 }
