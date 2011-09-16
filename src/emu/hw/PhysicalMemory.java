@@ -74,15 +74,13 @@ public class PhysicalMemory {
 	 */
 	public String readBlock(int addr) {
 		
-		trace.info("readBlock(): "+addr);
-		
 		String block = "";
 		int blockAddr = getBlockAddr(addr);
 		
 		for (int i = 0 ; i < 10 ; i++) {
 			block += new String(memory[blockAddr+i]);
 		}
-		
+		trace.info("readBlock(): "+addr+":"+block);
 		return block;
 	}
 	
