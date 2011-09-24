@@ -59,17 +59,6 @@ public class MMU implements MemoryUnit {
 		// TODO Auto-generated method stub
 		return super.toString();
 	}
-	/**
-	 * 
-	 * @return
-	 * @throws HardwareInterruptException
-	 */
-	public boolean validatePageFault() {
-		// TODO Check IR from CPU, only GD and SR instructions are valid. 
-		//throw new HardwareInterruptException();
-		trace.severe("invalid page fault on addr "+CPU.getInstance().getIrValue());
-		return false;
-	}
 
 	/**
 	 * Translates a logical address
@@ -130,6 +119,17 @@ public class MMU implements MemoryUnit {
 	@Override
 	public void clear() {
 		ram.clear();
+	}
+	
+	/**
+	 * 
+	 * @param pageNumber
+	 * @return The page number
+	 */
+	public int allocatePage(int pageNumber) {
+		int frame = allocateFrame();
+		//Store frame into RAM, update page table entry.
+		return 0;
 	}
 	
 }
