@@ -32,6 +32,10 @@ public class CPU {
 	public static final String PUT     = "PD";
 	public static final String HALT    = "H   ";
 	/**
+	 * Self Reference 
+	 */
+	static CPU ref;
+	/**
 	 * Instruction Register
 	 */
 	String ir;
@@ -42,7 +46,7 @@ public class CPU {
 	/**
 	 * Page Table Register
 	 */
-	String ptr;
+	int ptr;
 	/**
 	 * Toggle 
 	 */
@@ -71,6 +75,7 @@ public class CPU {
 	 * input and output interrupt
 	 */
 	Interrupt ioi;
+	private MMU mmu;
 	
 	/**
 	 * All interrupts are grouped together. Their types are verified upon setting when set.
@@ -125,6 +130,31 @@ public class CPU {
 		
 	}
 	
+	/**
+	 * Initialize CPU
+	 */
+	private CPU() {
+		setSi(Interrupt.TERMINATE);
+		setTi(Interrupt.CLEAR);
+		setPi(Interrupt.CLEAR);
+		setIOi(Interrupt.CLEAR);
+		mmu = new MMU(300,4,10);
+		setPtr(mmu.initPageTable());
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public static CPU getInstance() {
+
+		if (ref == null) {
+			ref = new CPU();
+		}
+
+		return ref;
+		
+	}
 	/**
 	 * All the valid interrupt types
 	 * @author wmosley
@@ -335,7 +365,7 @@ public class CPU {
 	 * @throws HardwareInterruptException
 	 * @throws SoftwareInterruptException
 	 */
-	public void execute(PhysicalMemory memory) throws HardwareInterruptException {
+	public void execute() throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.info("CPU: "+toString());
 		clock++;
@@ -344,7 +374,7 @@ public class CPU {
 			irValue = getIrValue();
 			pi = Interrupt.set(irValue);
 			if (pi == Interrupt.CLEAR)
-				gr = memory.load(irValue);
+				gr = mmu.load(irValue);
 		}else if (ir.startsWith(STORE)) {
 			if (gr == null)
 				pi = Interrupt.OPERAND_ERROR;
@@ -352,13 +382,13 @@ public class CPU {
 				irValue = getIrValue();
 				pi = Interrupt.set(irValue);
 					if (pi == Interrupt.CLEAR)
-						memory.store(irValue,gr);
+						mmu.store(irValue,gr);
 			}
 		}else if (ir.startsWith(COMPARE)) {
 			irValue = getIrValue();
 			pi = Interrupt.set(irValue);
 				if (pi == Interrupt.CLEAR)
-					c = memory.load(irValue).equals(gr);
+					c = mmu.load(irValue).equals(gr);
 		}else if (ir.startsWith(BRANCH)) {
 			if (c) {
 				irValue = getIrValue();
@@ -392,9 +422,10 @@ public class CPU {
 	/**
 	 * Load an instruction into IR 
 	 * @param memory
+	 * @throws HardwareInterruptException 
 	 */
-	public void fetch(PhysicalMemory memory) {
-		ir = memory.load(ic);
+	public void fetch() throws HardwareInterruptException {
+		ir = mmu.load(ic);
 		trace.info(ir+" from address "+ic);
 	}
 	
@@ -421,4 +452,40 @@ public class CPU {
 	public String getState() {
 		return ic+"    "+ir+"    "+gr+"    "+c;
 	}
+	
+	public int getPtr() {
+		return ptr;
+	}
+
+	public void setPtr(int ptr) {
+		this.ptr = ptr;
+	}
+	
+	public String dumpMemory() {
+		return mmu.toString();
+	}
+
+	public boolean validatePageFault() {
+		return mmu.validatePageFault();
+	}
+
+	public void writeBlock(int addr, String data) throws HardwareInterruptException {
+		trace.finer("-->");
+		trace.info(""+addr);
+		mmu.writeBlock(addr, data);
+		trace.finer("<--");
+	}
+
+	public void clearMemory() {
+		mmu.clear();
+	}
+
+	public String readBlock(int addr) throws HardwareInterruptException {
+		return mmu.readBlock(addr);
+	}
+
+	public void writeBootSector(String bootSector) {
+		mmu.writeBootSector(bootSector);		
+	}
+	
 }

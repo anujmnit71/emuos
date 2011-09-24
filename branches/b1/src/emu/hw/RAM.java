@@ -17,7 +17,7 @@ import emu.util.Utilities;
  * @author claytonannam@gmail.com
  *
  */
-public class PhysicalMemory {
+public class RAM implements MemoryUnit {
 	/**
 	 * For tracing
 	 */
@@ -34,45 +34,52 @@ public class PhysicalMemory {
 	/**
 	 * variables containing size of memory
 	 */
-	int size;
-	int wordLength;
+	protected int size;
+	protected int wordLength;
+	protected int wordsInBlock;
+	protected int blockSize;
 	
 	/**
 	 * Constructor 
 	 */
-	public PhysicalMemory(int size, int wordLength) {
+	public RAM(int size, int wordLength, int wordsInBlock) {
+		trace.info("size="+size+", wordsInBlock="+wordLength+", wordsInBlock="+wordsInBlock);
 		this.size = size;
 		this.wordLength = wordLength;
+		this.wordsInBlock = wordsInBlock;
+		blockSize = wordLength*wordsInBlock;
 		clear();
 	}
 	
 	/**
 	 * Write 1 block into memory
 	 * @param addr
+	 * @throws HardwareInterruptException 
 	 */
-	public void writeBlock(int addr, String data) {
-
+	public void writeBlock(int addr, String data) throws HardwareInterruptException {
+		trace.finer("-->");
 		trace.info(addr+"<-"+data);
 		
 		//Ensure the string in 40 chars in length
-		data = Utilities.padStringToLength(data, " ", 40, false);
+		data = Utilities.padStringToLength(data, " ", blockSize, false);
 		
 		int blockAddr = getBlockAddr(addr);
 		
 		for (int i = 0 ; i < 10 ; i++) {
-			String word = data.substring(0,4);
+			String word = data.substring(0,wordLength);
 			store(blockAddr+i, word);
-			data = data.substring(4);
+			data = data.substring(wordLength);
 		}
-		
+		trace.finer("<--");
 	}
 	
 	/**
 	 * Read 1 block from memory
 	 * @param addr
 	 * @return
+	 * @throws HardwareInterruptException 
 	 */
-	public String readBlock(int addr) {
+	public String readBlock(int addr) throws HardwareInterruptException {
 		
 		String block = "";
 		int blockAddr = getBlockAddr(addr);
@@ -102,16 +109,18 @@ public class PhysicalMemory {
 	 * Load a word from memory
 	 * @param addr
 	 * @return
+	 * @throws HardwareInterruptException 
 	 */
-	public String load(int addr) {
+	public String load(int addr) throws HardwareInterruptException {
 		return new String(memory[addr]);
 	}
 	
 	/**
 	 * Store a word into memory
 	 * @param addr
+	 * @throws HardwareInterruptException 
 	 */
-	public void store(int addr, String data) {
+	public void store(int addr, String data) throws HardwareInterruptException {
 		//trace.info("store <"+data+"> at "+addr);
 		memory[addr] = data.toCharArray();
 	}
@@ -146,13 +155,5 @@ public class PhysicalMemory {
 		for (int i = 0; i < memory.length; i++) {
 				memory[i] = BLANKS.toCharArray();
 		}
-	}
-
-	/**
-	 * Determine if page fault is valid or invalid
-	 */
-	public boolean validatePageFault() {
-		// TODO Auto-generated method stub
-		return false;
 	}
 }

@@ -19,7 +19,8 @@ import java.util.logging.Logger;
 import emu.hw.CPU;
 import emu.hw.CPU.Interrupt;
 import emu.hw.HardwareInterruptException;
-import emu.hw.PhysicalMemory;
+import emu.hw.MMU;
+import emu.hw.RAM;
 import emu.util.TraceFormatter;
 
 /**
@@ -34,14 +35,11 @@ public class Kernel {
 	 * For tracing
 	 */
 	static Logger trace;
+	private static Kernel ref;
 	/**
 	 * CPU instance
 	 */
 	CPU cpu;
-	/**
-	 * MMU instance
-	 */
-	PhysicalMemory mmu;
 	/**
 	 * The current process (or job)
 	 */
@@ -134,7 +132,7 @@ public class Kernel {
 		
 		Kernel emu;
 		try {
-			emu = new Kernel(inputFile, outputFile);
+			emu = Kernel.init(inputFile, outputFile);
 			emu.start();
 		} catch (IOException ioe) {
 			trace.log(Level.SEVERE, "IOException", ioe);
@@ -186,16 +184,16 @@ public class Kernel {
 
 	}
 	/**
-	 * Constructor
+	 * Private Constructor
 	 * @param inputFile
 	 * @param outputFile
 	 * @throws IOException
 	 */
-	public Kernel(String inputFile, String outputFile) throws IOException {
+	private Kernel(String inputFile, String outputFile) throws IOException {
 		
 		//Init HW
-		cpu = new CPU();
-		mmu = new PhysicalMemory(300,4);
+		cpu = CPU.getInstance();
+		//mmu = new MMU(300,4,10);
 		processCount = 0;
 
 		//Init I/O
@@ -205,26 +203,39 @@ public class Kernel {
 	}
 	
 	/**
+	 * Returns the Kernel instance.
+	 * @return
+	 */
+	public static Kernel getInstance() {
+		return ref;
+	}
+	
+	/**
+	 * Initialized the Kernel instance
+	 * @param inputFile
+	 * @param outputFile
+	 * @return
+	 * @throws IOException
+	 */
+	public static Kernel init(String inputFile, String outputFile) throws IOException {
+		ref = new Kernel(inputFile, outputFile);
+		return ref;
+	}
+	
+	/**
 	 * Starts the OS
 	 * @throws IOException
 	 */
 	public void start() throws IOException {
 		trace.finer("-->");
 		try {
-			/*
-			 * These values could be set in a constructor for CPU
-			 */
-			cpu.setSi(Interrupt.TERMINATE);
-			cpu.setTi(Interrupt.CLEAR);
-			cpu.setPi(Interrupt.CLEAR);
-			cpu.setIOi(Interrupt.CLEAR);
 			boot();
 			slaveMode();
 		} finally {
 			br.close();
 			wr.close();
 			//Dump memory
-			trace.fine("\n"+mmu.toString());
+			trace.fine("\n"+cpu.dumpMemory());
 			//Dump Kernel stats
 			trace.fine("\n"+toString());
 			//Dump memory
@@ -248,7 +259,7 @@ public class Kernel {
 		 * slaveMode. KernelStatus is used to control flow through this loop.
 		 */
 		trace.finer("-->");
-		trace.fine("Physical Memory:\n"+mmu.toString());
+		trace.fine("Physical Memory:\n"+cpu.dumpMemory());
 		while (status == KernelStatus.INTERRUPT) {
 			trace.info("Beginning of Interrupt Handling loop "+status);
 			trace.info("Interrupts si = "+cpu.getSi()+" pi = "+cpu.getPi()+" ti = "+cpu.getTi()+" ioi = "+cpu.getIOi());
@@ -272,7 +283,7 @@ public class Kernel {
 					break;
 				case TERMINATE:
 					//	Dump memory
-					trace.finer("\n"+mmu.toString());
+					trace.finer("\n"+cpu.dumpMemory());
 					status = terminate();
 					break;
 				}
@@ -298,7 +309,7 @@ public class Kernel {
 					status = KernelStatus.ABORT;
 					break;
 				case PAGE_FAULT:
-					boolean valid = mmu.validatePageFault();
+					boolean valid = cpu.validatePageFault();
 					if (valid){
 						status = KernelStatus.CONTINUE;
 					} else {
@@ -329,7 +340,7 @@ public class Kernel {
 					break;
 				case TERMINATE:
 					//	Dump memory
-					trace.finer("\n"+mmu.toString());
+					trace.finer("\n"+cpu.dumpMemory());
 					status = terminate();
 					break;
 				}
@@ -412,7 +423,9 @@ public class Kernel {
 	 * load the halt instruction into memory 
 	 */
 	public void boot() {
-		mmu.writeBlock(0, bootSector);
+		trace.finer("-->");
+		cpu.writeBootSector(bootSector);
+		trace.finer("<--");
 	}
 	
 	/**
@@ -432,7 +445,7 @@ public class Kernel {
 				
 				writeProccess();
 				
-				trace.info("Finished job "+p.id);
+				trace.info("Finished job "+p.getId());
 				
 				//read next line
 				nextLine = br.readLine();
@@ -449,7 +462,7 @@ public class Kernel {
 				trace.info("Loading job "+nextLine);
 				
 				//Clear memory
-				mmu.clear();
+				cpu.clearMemory();
 				
 				//Parse Job Data
 				String id = nextLine.substring(4, 8);
@@ -470,13 +483,18 @@ public class Kernel {
 						break;
 					}
 					else if (programLine.equals(Process.DATA_START)) {
-						p = new Process(this, base, id, maxTime, maxPrints, br, wr);
+						p = new Process(id, maxTime, maxPrints, br, wr);
 						p.startExecution();
 						processCount++;
 						return retval;
 					}
 
-					mmu.writeBlock(base, programLine);
+					try {
+						cpu.writeBlock(base, programLine);
+					} catch (HardwareInterruptException e) {
+						trace.info("HardwareInterruptException");
+						retval = KernelStatus.INTERRUPT;
+					}
 					base+=10;
 					programLine = br.readLine();
 				}
@@ -484,7 +502,7 @@ public class Kernel {
 			}
 			else {
 				trace.severe("Unexpected line:"+nextLine);
-				trace.severe("Program error for "+p.id);
+				trace.severe("Program error for "+p.getId());
 				nextLine = br.readLine();
 			}
 		}
@@ -521,7 +539,12 @@ public class Kernel {
 		} else {
 			// write data from data card to memory location
 			if (cpu.getPi() == Interrupt.CLEAR) {				
-				mmu.writeBlock(irValue, line);
+				try {
+					cpu.writeBlock(irValue, line);
+				} catch (HardwareInterruptException e) {
+					trace.info("HardwareInterruptException");
+					retval = KernelStatus.INTERRUPT;
+				}
 				cpu.setSi(Interrupt.CLEAR);
 			} else
 				retval = KernelStatus.INTERRUPT;
@@ -551,7 +574,12 @@ public class Kernel {
 			cpu.setPi(irValue);
 			if (cpu.getPi() == Interrupt.CLEAR) {
 				// write data from memeory to the process outputBuffer
-				p.write(mmu.readBlock(irValue));
+				try {
+					p.write(cpu.readBlock(irValue));
+				} catch (HardwareInterruptException e) {
+					trace.info("HardwareInterruptException");
+					retval = KernelStatus.INTERRUPT;
+				}
 				cpu.setSi(Interrupt.CLEAR);
 			} else {
 				retval = KernelStatus.INTERRUPT;
@@ -589,13 +617,13 @@ public class Kernel {
 		return cpu;
 	}
 
-	/**
-	 * Returns the MMU
-	 * @return
-	 */
-	public PhysicalMemory getMmu() {
-		return mmu;
-	}
+//	/**
+//	 * Returns the MMU
+//	 * @return
+//	 */
+//	public RAM getMmu() {
+//		return mmu;
+//	}
 
 	/**
 	 * Slave execution cycle 
@@ -607,9 +635,9 @@ public class Kernel {
 		boolean done = false;
 		while (!done) {
 			try {
-			cpu.fetch(mmu);
+			cpu.fetch();
 			cpu.increment();
-			cpu.execute(mmu);
+			cpu.execute();
 			p.incrementTimeCountSlave();
 			} catch (HardwareInterruptException hie) {
 				trace.info("HW Interrupt");
@@ -625,7 +653,7 @@ public class Kernel {
 	 */
 	public void writeProccess() throws IOException {
 		trace.finer("-->");
-		wr.write(p.id+"    "+p.getTerminationStatus()+"\n");
+		wr.write(p.getId()+"    "+p.getTerminationStatus()+"\n");
 		wr.write(cpu.getState());
 		wr.write("    "+p.getTime()+"    "+p.getLines());
 		wr.newLine();

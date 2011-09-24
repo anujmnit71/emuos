@@ -17,7 +17,7 @@ public class TraceFormatter extends Formatter {
 	public String format(LogRecord l) {
 		String line = sd.format(new Date(l.getMillis())) + " | ";
 		if (l.getSourceClassName() != null) {
-			line += Utilities.padStringToLength(l.getSourceClassName(), " ", 20, false) +" | ";			
+			line += Utilities.padStringToLength(l.getSourceClassName(), " ", 12, false) +" | ";			
 		}
 		if (l.getSourceMethodName() != null) {
 			line += Utilities.padStringToLength(l.getSourceMethodName(), " ", 10, false)+" | ";			
