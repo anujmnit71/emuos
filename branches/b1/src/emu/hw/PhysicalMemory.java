@@ -52,7 +52,7 @@ public class PhysicalMemory {
 	 */
 	public void writeBlock(int addr, String data) {
 
-		trace.info("writeBlock(): "+addr+":"+data);
+		trace.info(addr+"<-"+data);
 		
 		//Ensure the string in 40 chars in length
 		data = Utilities.padStringToLength(data, " ", 40, false);
@@ -80,7 +80,7 @@ public class PhysicalMemory {
 		for (int i = 0 ; i < 10 ; i++) {
 			block += new String(memory[blockAddr+i]);
 		}
-		trace.info("readBlock(): "+addr+":"+block);
+		trace.info(addr+"->"+block);
 		return block;
 	}
 	

@@ -103,11 +103,11 @@ public class Process {
 	 * @throws IOException 
 	 */
 	public void startExecution() throws IOException {
-		trace.info("startExecution()-->");
+		trace.fine("-->");
 		kernel.getCpu().setIc(0);
 		kernel.getCpu().setSi(CPU.Interrupt.TERMINATE);
 		setTerminationStatus("Normal Execution");
-		trace.info("startExecution()<--");
+		trace.fine("<--");
 	}
 	
 	/**
@@ -115,7 +115,10 @@ public class Process {
 	 * @param data
 	 */
 	public void write(String data) {
+		trace.fine("-->");
+		trace.info(""+data);
 		outputBuffer.add(data);
+		trace.fine("<--");
 	}
 	
 	/**
@@ -190,7 +193,7 @@ public class Process {
 	 */
 	public void setTerminationStatus(String msg) {
 		terminationStatus = msg;
-		trace.info("setTerminationStatus(): "+terminationStatus);
+		trace.finer(""+terminationStatus);
 	}
 	
 	/**
@@ -199,7 +202,7 @@ public class Process {
 	 */
 	public void appendTerminationStatus(String msg) {
 		terminationStatus += ", " + msg;
-		trace.info("appendTerminationStatus(): "+terminationStatus);
+		trace.finer(""+terminationStatus);
 	}
 	
 	/**
@@ -207,7 +210,7 @@ public class Process {
 	 * @return
 	 */
 	public String getTerminationStatus() {
-		trace.info("getTerminationStatus(): "+terminationStatus);
+		trace.finer(""+terminationStatus);
 		return terminationStatus;		
 	}
 	
@@ -215,8 +218,8 @@ public class Process {
 	 * flag to know that an error message will be displayed
 	 */
 	public void setErrorInProcess(){
-		trace.info("setErrorInProcess()");
 		errorInProcess = true;
+		trace.finer("<-->");
 	}
 	
 	/**
@@ -224,7 +227,7 @@ public class Process {
 	 * @return
 	 */
 	public boolean getErrorInProcess(){
-		trace.info("getErrorInProcess(): "+errorInProcess);
+		trace.finer("getErrorInProcess(): "+errorInProcess);
 		return errorInProcess;
 	}
 }

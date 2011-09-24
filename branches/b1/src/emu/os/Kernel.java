@@ -15,12 +15,12 @@ import java.util.ArrayList;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 import emu.hw.CPU;
 import emu.hw.CPU.Interrupt;
 import emu.hw.HardwareInterruptException;
 import emu.hw.PhysicalMemory;
+import emu.util.TraceFormatter;
 
 /**
  * Kernel for EmuOS
@@ -33,7 +33,7 @@ public class Kernel {
 	/**
 	 * For tracing
 	 */
-	static Logger trace = Logger.getLogger("emuos");
+	static Logger trace;
 	/**
 	 * CPU instance
 	 */
@@ -121,7 +121,9 @@ public class Kernel {
 	
 	public static final void main(String[] args) {
 		
-		if (args.length != 2) {
+		initTrace(args);
+		
+		if (args.length < 2) {
 			trace.severe("I/O files missing.");
 			System.exit(1);
 		}
@@ -129,15 +131,6 @@ public class Kernel {
 		String inputFile = args[0];
 		String outputFile = args[1];
 		
-		try {
-		    // Create an appending file handler
-		    FileHandler handler = new FileHandler("emuos.log");
-		    handler.setFormatter(new SimpleFormatter());
-
-		    // Add to the desired logger
-		    trace.addHandler(handler);
-		} catch (IOException e) {
-		}
 		
 		Kernel emu;
 		try {
@@ -151,6 +144,47 @@ public class Kernel {
 
 	}
 	
+	/**
+	 * Initialize the trace
+	 * @param args
+	 */
+	private static void initTrace(String[] args) {
+		try {
+			
+			//Create Logger
+			trace = Logger.getLogger("emuos");
+			
+			//Determine log level
+			Level l = Level.INFO;
+			if (args.length > 2) {
+				l = Level.parse(args[2]);	
+			}
+			
+			trace.setLevel(l);
+			
+			//TODO can't seem to get the same formatting/levels into the eclipse console handler
+			//ConsoleHandler ch = new ConsoleHandler();
+			//ch.setFormatter(new TraceFormatter());
+			//trace.addHandler(ch);
+			//ch.setLevel(l);
+
+			//Determine log file
+			String logFile = "emuos.log";
+			if(args.length > 3) {
+				logFile = args[3];
+			}
+			
+			// Create an appending file handler
+		    FileHandler handler = new FileHandler(logFile);
+		    handler.setFormatter(new TraceFormatter());
+		    trace.addHandler(handler);
+		    
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+
+	}
 	/**
 	 * Constructor
 	 * @param inputFile
@@ -175,7 +209,7 @@ public class Kernel {
 	 * @throws IOException
 	 */
 	public void start() throws IOException {
-		trace.info("start()-->");
+		trace.finer("-->");
 		try {
 			/*
 			 * These values could be set in a constructor for CPU
@@ -190,11 +224,11 @@ public class Kernel {
 			br.close();
 			wr.close();
 			//Dump memory
-			trace.info("\n"+mmu.toString());
+			trace.fine("\n"+mmu.toString());
 			//Dump Kernel stats
-			trace.info("\n"+toString());
+			trace.fine("\n"+toString());
 			//Dump memory
-			trace.info("\n"+cpu.toString());
+			trace.fine("\n"+cpu.toString());
 
 		}
 	}
@@ -213,11 +247,11 @@ public class Kernel {
 		 * This is in a loop because new interrupts may be generated while processing request from
 		 * slaveMode. KernelStatus is used to control flow through this loop.
 		 */
-		trace.info("masterMode()-->");
-		trace.info("Physical Memory:\n"+mmu.toString());
+		trace.finer("-->");
+		trace.fine("Physical Memory:\n"+mmu.toString());
 		while (status == KernelStatus.INTERRUPT) {
-			trace.info("masterMode(): Beginning of Interrupt Handling loop "+status);
-			trace.info("masterMode(): Interrupts si = "+cpu.getSi()+" pi = "+cpu.getPi()+" ti = "+cpu.getTi()+" ioi = "+cpu.getIOi());
+			trace.info("Beginning of Interrupt Handling loop "+status);
+			trace.info("Interrupts si = "+cpu.getSi()+" pi = "+cpu.getPi()+" ti = "+cpu.getTi()+" ioi = "+cpu.getIOi());
 			switch (cpu.getTi()) {
 			
 			case CLEAR:
@@ -238,7 +272,7 @@ public class Kernel {
 					break;
 				case TERMINATE:
 					//	Dump memory
-					trace.info("\n"+mmu.toString());
+					trace.finer("\n"+mmu.toString());
 					status = terminate();
 					break;
 				}
@@ -295,7 +329,7 @@ public class Kernel {
 					break;
 				case TERMINATE:
 					//	Dump memory
-					trace.info("\n"+mmu.toString());
+					trace.finer("\n"+mmu.toString());
 					status = terminate();
 					break;
 				}
@@ -355,7 +389,7 @@ public class Kernel {
 					|| cpu.getSi().equals(Interrupt.WRONGTYPE)){
 				return true;
 			}
-			trace.info("masterMode(): Status = "+status+" si = "+cpu.getSi()+" pi = "+cpu.getPi()+" ti = "+cpu.getTi()+" ioi = "+cpu.getIOi());
+			trace.info("Status = "+status+" si = "+cpu.getSi()+" pi = "+cpu.getPi()+" ti = "+cpu.getTi()+" ioi = "+cpu.getIOi());
 			
 			/*
 			 * Normally the loop will restart and eventually find terminate.
@@ -364,13 +398,13 @@ public class Kernel {
 			if (status == KernelStatus.ABORT) {
 				status = terminate();
 			}
-			trace.info("masterMode(): End of Interrupt Handling loop "+status);
+			trace.info("End of Interrupt Handling loop "+status);
 		}
 
 		// Tell slaveMode that there are no more programs to run
 		if (status == KernelStatus.TERMINATE)
 			retval = true;
-		trace.info("masterMode("+retval+")<--");
+		trace.fine(retval+"<--");
 		return retval;
 	}
 	
@@ -387,7 +421,7 @@ public class Kernel {
 	 */
 	public KernelStatus load() throws IOException {
 		KernelStatus retval = KernelStatus.CONTINUE;
-		trace.info("load()-->");
+		trace.finer("-->");
 		
 		String nextLine = br.readLine();
 
@@ -398,7 +432,7 @@ public class Kernel {
 				
 				writeProccess();
 				
-				trace.info("load(): Finished job "+p.id);
+				trace.info("Finished job "+p.id);
 				
 				//read next line
 				nextLine = br.readLine();
@@ -406,13 +440,13 @@ public class Kernel {
 			}
 			
 			if (nextLine == null || nextLine.isEmpty()) {
-				trace.info("load(): skipping empty line...");
+				trace.info("skipping empty line...");
 				nextLine = br.readLine();
 				//exit();
 				continue;
 			}
 			else if (nextLine.startsWith(Process.JOB_START)) {
-				trace.info("load(): Loading job "+nextLine);
+				trace.info("Loading job "+nextLine);
 				
 				//Clear memory
 				mmu.clear();
@@ -449,15 +483,15 @@ public class Kernel {
 
 			}
 			else {
-				trace.info("Unexpected line:"+nextLine);
-				trace.severe("load() Program error for "+p.id);
+				trace.severe("Unexpected line:"+nextLine);
+				trace.severe("Program error for "+p.id);
 				nextLine = br.readLine();
 			}
 		}
 
-		trace.info("load(): No more jobs, exiting");
+		trace.info("No more jobs, exiting");
 		retval = KernelStatus.TERMINATE;
-		trace.info("load()<--");
+		trace.finer("<--");
 		return retval;
 	}
 	
@@ -468,13 +502,13 @@ public class Kernel {
 	 */
 	public KernelStatus read() throws IOException{
 		KernelStatus retval = KernelStatus.CONTINUE;
-		trace.info("read()-->");
+		trace.finer("-->");
 		// get memory location and set interrupt if one exists
 		int irValue = cpu.getIrValue();
 		cpu.setPi(irValue);
 		// read next data card
 		String line = br.readLine();
-		trace.info("read():irValue "+irValue+" pi = "+cpu.getPi());
+		trace.info("irValue "+irValue+" pi = "+cpu.getPi());
 		// If next data card is $END, TERMINATE(1)
 		if (line.startsWith(Process.JOB_END)){
 			setError(1);
@@ -492,7 +526,7 @@ public class Kernel {
 			} else
 				retval = KernelStatus.INTERRUPT;
 		}
-		trace.info("read("+retval+")<--");
+		trace.finer(retval+"<--");
 		return retval;
 	}
 	
@@ -502,7 +536,7 @@ public class Kernel {
 	 */
 	public KernelStatus write(){
 		KernelStatus retval = KernelStatus.CONTINUE;
-		trace.info("write()-->");
+		trace.finer("-->");
 		int irValue = 0;
 		// Increment the line limit counter
 		if (!p.incrementPrintCount()) {
@@ -523,7 +557,7 @@ public class Kernel {
 				retval = KernelStatus.INTERRUPT;
 			}			
 		}
-		trace.info("write("+retval+")<--");
+		trace.finer(retval+"<--");
 		return retval;
 	}
 	
@@ -533,10 +567,10 @@ public class Kernel {
 	 */
 	public KernelStatus terminate() throws IOException {
 		KernelStatus retval = KernelStatus.CONTINUE;
-		trace.info("terminate()-->");
+		trace.finer("-->");
 		wr.write("\n\n");
 		retval = load();
-		trace.info("terminate("+retval+")<--");
+		trace.finer(retval+"<--");
 		return retval;
 	}
 	
@@ -578,7 +612,8 @@ public class Kernel {
 			cpu.execute(mmu);
 			p.incrementTimeCountSlave();
 			} catch (HardwareInterruptException hie) {
-				trace.log(Level.SEVERE, "HardwareInteruptException", hie);
+				trace.info("HW Interrupt");
+				trace.fine("HW Interrupt: pi="+cpu.getPi()+", ti="+ cpu.getTi()+", si="+cpu.getSi());
 				done = masterMode();
 			}
 		}
@@ -589,7 +624,7 @@ public class Kernel {
 	 * @throws IOException
 	 */
 	public void writeProccess() throws IOException {
-		trace.info("writeBuffer()-->");
+		trace.finer("-->");
 		wr.write(p.id+"    "+p.getTerminationStatus()+"\n");
 		wr.write(cpu.getState());
 		wr.write("    "+p.getTime()+"    "+p.getLines());
@@ -603,6 +638,7 @@ public class Kernel {
 			 wr.newLine();
 		}
 		wr.flush();
+		trace.finer("<--");
 	}
 	
 	/**
@@ -622,7 +658,8 @@ public class Kernel {
 	 * @param err
 	 */
 	public void setError(int err) {
-		trace.info("setError("+err+")-->");
+		trace.finer("-->");
+		trace.info("setting err="+err);
 		errMsg = ErrorMessages.set(err);
 		if (!p.getErrorInProcess()){
 			p.setErrorInProcess();
@@ -630,6 +667,7 @@ public class Kernel {
 		} else {
 			p.appendTerminationStatus(errMsg.getMessage());	
 		}
-		trace.info("setError()<--"+p.getTerminationStatus());
+		trace.info("termination status="+p.getTerminationStatus());
+		trace.finer("<--");
 	}
 }

@@ -208,7 +208,7 @@ public class CPU {
 				|| si.getType().equals(InterruptType.MASTER))
 			this.si = si;
 		else {
-			trace.log(Level.SEVERE,"you tried to set the incorrect interrupt for Supervisor Interrupt: " +si);
+			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for Supervisor Interrupt: " +si);
 			this.pi = Interrupt.WRONGTYPE;
 		}
 	}
@@ -239,7 +239,7 @@ public class CPU {
 				|| pi.getType().equals(InterruptType.MASTER))
 			this.pi = pi;
 		else {
-			trace.log(Level.SEVERE,"you tried to set the incorrect interrupt for Program Interrupt: " +pi);
+			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for Program Interrupt: " +pi);
 			this.pi = Interrupt.WRONGTYPE;
 		}
 	}
@@ -270,7 +270,7 @@ public class CPU {
 				|| ti.getType().equals(InterruptType.MASTER))
 			this.ti = ti;
 		else {
-			trace.log(Level.SEVERE,"you tried to set the incorrect interrupt for Time Interrupt: " +ti);
+			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for Time Interrupt: " +ti);
 			this.ti = Interrupt.WRONGTYPE;
 		}
 	}
@@ -301,7 +301,7 @@ public class CPU {
 				|| ioi.getType().equals(InterruptType.MASTER))
 			this.ioi = ioi;
 		else {
-			trace.log(Level.SEVERE,"you tried to set the incorrect interrupt for Time Interrupt: " +ioi);
+			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for Time Interrupt: " +ioi);
 			this.ioi = Interrupt.WRONGTYPE;
 		}
 	}
@@ -322,7 +322,7 @@ public class CPU {
 	 */
 	public int getIrValue() {
 		int retval = Integer.parseInt(ir.substring(2,4));	
-		trace.info("getIrValue(): retval "+retval);
+		trace.info("retval "+retval);
 		if (retval < 0 || retval > 100){
 			retval = Interrupt.OPERAND_ERROR.getRetval();
 		}
@@ -336,7 +336,8 @@ public class CPU {
 	 * @throws SoftwareInterruptException
 	 */
 	public void execute(PhysicalMemory memory) throws HardwareInterruptException {
-		trace.info("execute(): "+toString());
+		trace.finer("-->");
+		trace.info("CPU: "+toString());
 		clock++;
 		int irValue = 0;
 		if (ir.startsWith(LOAD)) {
@@ -382,8 +383,10 @@ public class CPU {
 		if (ti != Interrupt.CLEAR
 				|| si != Interrupt.CLEAR
 				|| pi != Interrupt.CLEAR){
+			trace.finer("<--");
 			throw new HardwareInterruptException();
 		}
+		trace.finer("<--");
 	}
 	
 	/**
@@ -392,7 +395,7 @@ public class CPU {
 	 */
 	public void fetch(PhysicalMemory memory) {
 		ir = memory.load(ic);
-		trace.info("fetch(): "+ir+" from address "+ic);
+		trace.info(ir+" from address "+ic);
 	}
 	
 	/**
@@ -400,7 +403,7 @@ public class CPU {
 	 */
 	public void increment() {
 		 ic++;
-		 trace.info("increment(): "+ic);
+		 trace.fine("ic="+ic);
 	}
 	
 	/**
