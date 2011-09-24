@@ -311,7 +311,10 @@ public class Kernel {
 				case PAGE_FAULT:
 					boolean valid = cpu.validatePageFault();
 					if (valid){
-						status = KernelStatus.CONTINUE;
+						cpu.allocatePage(cpu.getIrValue() / 10); //TODO cleaner way to determine page #?
+						cpu.setPi(Interrupt.CLEAR);
+						cpu.setSi(Interrupt.WRITE);
+						status = KernelStatus.INTERRUPT;
 					} else {
 						setError( ErrorMessages.ZERO.getErrCode());
 						status = KernelStatus.ABORT;
@@ -490,6 +493,8 @@ public class Kernel {
 					}
 
 					try {
+						cpu.initPageTable();
+						cpu.allocatePage(base/10);
 						cpu.writeBlock(base, programLine);
 					} catch (HardwareInterruptException e) {
 						trace.info("HardwareInterruptException");
@@ -595,6 +600,9 @@ public class Kernel {
 	 */
 	public KernelStatus terminate() throws IOException {
 		KernelStatus retval = KernelStatus.CONTINUE;
+		
+		//TODO might we need to clear all other interupts?
+		cpu.setPi(Interrupt.CLEAR);
 		trace.finer("-->");
 		wr.write("\n\n");
 		retval = load();
@@ -632,6 +640,7 @@ public class Kernel {
 	 * @throws SoftwareInterruptException
 	 */
 	public void slaveMode() throws IOException {
+		trace.finer("-->");
 		boolean done = false;
 		while (!done) {
 			try {
@@ -645,6 +654,7 @@ public class Kernel {
 				done = masterMode();
 			}
 		}
+		trace.finer("<--");
 	}
 	
 	/**

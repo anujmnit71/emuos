@@ -48,6 +48,10 @@ public class CPU {
 	 */
 	int ptr;
 	/**
+	 * Page Table Length
+	 */
+	int ptl;
+	/**
 	 * Toggle 
 	 */
 	boolean c;
@@ -75,6 +79,9 @@ public class CPU {
 	 * input and output interrupt
 	 */
 	Interrupt ioi;
+	/**
+	 * Memory Management Unit
+	 */
 	private MMU mmu;
 	
 	/**
@@ -139,7 +146,6 @@ public class CPU {
 		setPi(Interrupt.CLEAR);
 		setIOi(Interrupt.CLEAR);
 		mmu = new MMU(300,4,10);
-		setPtr(mmu.initPageTable());
 	}
 	
 	/**
@@ -465,13 +471,27 @@ public class CPU {
 		return mmu.toString();
 	}
 
+	/**
+	 * 
+	 * @return
+	 */
 	public boolean validatePageFault() {
-		return mmu.validatePageFault();
+
+		if (ir == null 
+				|| ir.startsWith(CPU.GET)
+				|| ir.startsWith(CPU.STORE)) {
+			trace.info("valid page fault on IR="+ir);
+			return true;
+		}
+		else {
+			trace.severe("invalid page fault on IR="+ir);
+			return false;
+		}
 	}
 
 	public void writeBlock(int addr, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info(""+addr);
+		trace.info(addr+"<-"+data);
 		mmu.writeBlock(addr, data);
 		trace.finer("<--");
 	}
@@ -486,6 +506,27 @@ public class CPU {
 
 	public void writeBootSector(String bootSector) {
 		mmu.writeBootSector(bootSector);		
+	}
+
+	public int allocatePage(int pageNumber) {
+		return mmu.allocatePage(pageNumber);
+	}
+
+	public int getPtl() {
+		return ptl;
+	}
+
+	public void setPtl(int ptl) {
+		this.ptl = ptl;
+	}
+	
+	public int incrementPtl() {
+		return ptl++;
+	}
+
+	public void initPageTable() {
+		setPtr(mmu.initPageTable());
+		setPtl(0);
 	}
 	
 }
