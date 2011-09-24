@@ -17,7 +17,7 @@ import emu.hw.CPU.Interrupt;
 import emu.hw.HardwareInterruptException;
 
 /**
- * 
+ * Represents a running process.
  * @author b.j.drew@gmail.com
  * @author willaim.mosley@gmail.com
  * @author claytonannam@gmail.com
@@ -35,33 +35,17 @@ public class Process {
 	public static final String JOB_END_ALT = "$END";
 	
 	/**
+	 * Process Meta Data
+	 */
+	PCB pcb;
+	/**
 	 * Buffers the program output
 	 */
 	ArrayList<String> outputBuffer;
 	/**
-	 * The kernel
-	 */
-	Kernel kernel;
-	/**
-	 * The address where data can be loaded.
-	 */
-	int baseDataAddr;
-	/**
-	 * Process ID 
-	 */
-	String id;
-	/**
-	 * Max number of time units of execution
-	 */
-	int maxTime;
-	/**
 	 * Current execution time
 	 */
 	int currTime;
-	/**
-	 * Max number of prints
-	 */
-	int maxPrints;
 	/**
 	 * Current number of prints
 	 */
@@ -75,27 +59,18 @@ public class Process {
 	 */
 	String terminationStatus;
 	
-	//TODO ProcessControlBlock
-	
 	/**
-	 * 
-	 * @param kernel Reference to the kernel instance 
-	 * @param maxPrints2 
-	 * @param jobData The job id
-	 * @param program The input stream from which we obtain the program lines
-	 * @param output The output stream we write to.
+	 * Create a new process instance
+	 * @param id
+	 * @param maxTime
+	 * @param maxPrints
+	 * @param program
+	 * @param output
 	 */
-	public Process(Kernel kernel, int baseDataAddr, String id, int maxTime, int maxPrints, BufferedReader program, BufferedWriter output) {
-		trace.info("id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints+", baseDataAddr="+baseDataAddr);
+	public Process(String id, int maxTime, int maxPrints, BufferedReader program, BufferedWriter output) {
 		outputBuffer = new ArrayList<String>();
-		this.kernel = kernel;
-		this.baseDataAddr = baseDataAddr;
-		this.id = id;
-		this.maxTime = maxTime;
-		this.maxPrints = maxPrints;
 		this.errorInProcess = false;
-		currPrints = 0;
-		currTime = 0;
+		pcb = new PCB(id, maxTime, maxPrints);
 	}
 	
 	/**
@@ -104,8 +79,9 @@ public class Process {
 	 */
 	public void startExecution() throws IOException {
 		trace.fine("-->");
-		kernel.getCpu().setIc(0);
-		kernel.getCpu().setSi(CPU.Interrupt.TERMINATE);
+		trace.info("starting process "+pcb.getId());
+		Kernel.getInstance().getCpu().setIc(0);
+		Kernel.getInstance().getCpu().setSi(CPU.Interrupt.TERMINATE);
 		setTerminationStatus("Normal Execution");
 		trace.fine("<--");
 	}
@@ -134,10 +110,10 @@ public class Process {
 	 * @throws HardwareInterruptException if there is an error
 	 */
 	public void incrementTimeCountSlave() throws HardwareInterruptException {
-		if (currTime <= maxTime) {
+		if (currTime <= pcb.getMaxTime()) {
 			currTime++;
 		} else {
-			kernel.getCpu().setTi(Interrupt.TIME_ERROR);
+			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
 			throw new HardwareInterruptException();
 		}
 	}
@@ -147,10 +123,10 @@ public class Process {
 	 * return false if there is an error
 	 */
 	public boolean incrementTimeCountMaster()  {
-		if (currTime <= maxTime) {
+		if (currTime <= pcb.getMaxTime()) {
 			currTime++;
 		} else {
-			kernel.getCpu().setTi(Interrupt.TIME_ERROR);
+			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
 			return false;
 		}
 		return true;
@@ -169,13 +145,13 @@ public class Process {
 	 * @throws SoftwareInterruptException
 	 */
 	public boolean incrementPrintCount() {
-		if (currPrints <= maxPrints) {
+		if (currPrints <= pcb.getMaxPrints()) {
 			currPrints++;
 			return true;
 		} 
 		
-		kernel.getCpu().setIOi(Interrupt.IO);
-		kernel.setError(2);
+		Kernel.getInstance().getCpu().setIOi(Interrupt.IO);
+		Kernel.getInstance().setError(2);
 		return false;
 	}
 	
@@ -229,5 +205,13 @@ public class Process {
 	public boolean getErrorInProcess(){
 		trace.finer("getErrorInProcess(): "+errorInProcess);
 		return errorInProcess;
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public String getId() {
+		return pcb.getId();
 	}
 }
