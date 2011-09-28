@@ -147,28 +147,39 @@ public class Kernel {
 			}
 			catch (HardwareInterruptException hire){
 				trace.log(Level.SEVERE, "HardwareInteruptException", hire);
-				switch (cpu.getSi()) {
-					case READ:
-						mmu.writeBlock(cpu.getIrValue(), br.readLine());
-						break;
-					case WRITE:
-					try {
-						p.incrementPrintCount();
-					} catch (SoftwareInterruptException e) {
-						trace.log(Level.SEVERE, "SoftwareInteruptException", e);
-						String msg = e.getMessage();
-						trace.info(msg);
-						p.setTerminationStatus(msg);
-						done = terminate();
+				try {
+					switch (cpu.getSi()) {
+						case READ:
+							mmu.writeBlock(cpu.getIrValue(), br.readLine());
+							break;
+						case WRITE:
+						try {
+							p.incrementPrintCount();
+						} catch (SoftwareInterruptException e) {
+							trace.log(Level.SEVERE, "SoftwareInteruptException", e);
+							String msg = e.getMessage();
+							trace.info(msg);
+							p.setTerminationStatus(msg);
+							done = terminate();
+						}
+							p.write(mmu.readBlock(cpu.getIrValue()));
+							break;
+						case TERMINATE:
+							done = terminate();
+							break;
 					}
-						p.write(mmu.readBlock(cpu.getIrValue()));
-						break;
-					case TERMINATE:
-						done = terminate();
-						break;
+					
+					p.incrementTimeCount();
+
+				} catch (SoftwareInterruptException sire) {
+					trace.log(Level.SEVERE, "SoftwareInteruptException", sire);
+					String msg = sire.getMessage();
+					trace.info(msg);
+					p.setTerminationStatus(msg);
+					done = terminate();
 				}
-			}
-			catch (SoftwareInterruptException sire) {
+
+			} catch (SoftwareInterruptException sire) {
 				trace.log(Level.SEVERE, "SoftwareInteruptException", sire);
 				String msg = sire.getMessage();
 				trace.info(msg);
