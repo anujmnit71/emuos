@@ -6,6 +6,8 @@
  */
 package emu.hw;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import emu.util.Utilities;
@@ -23,7 +25,7 @@ public class RAM implements MemoryUnit {
 	 */
 	Logger trace = Logger.getLogger("emuos");
 	/**
-	 * blanks to initialize memeory to
+	 * blanks to initialize memory to
 	 */
 	public static final String BLANKS = "    ";
 	/**
@@ -38,16 +40,24 @@ public class RAM implements MemoryUnit {
 	protected int wordLength;
 	protected int wordsInBlock;
 	protected int blockSize;
+	protected int numPages;
+	
+	/**
+	 * Set containing all frames which are currently allocated
+	 */
+	protected Set<Integer> allocatedFrames; 
 	
 	/**
 	 * Constructor 
 	 */
 	public RAM(int size, int wordLength, int wordsInBlock) {
-		trace.info("size="+size+", wordsInBlock="+wordLength+", wordsInBlock="+wordsInBlock);
+		this.numPages = size/wordsInBlock;
+		trace.info("size="+size+", wordLength="+wordLength+", wordsInBlock="+wordsInBlock+", numPages="+this.numPages);
 		this.size = size;
 		this.wordLength = wordLength;
 		this.wordsInBlock = wordsInBlock;
 		blockSize = wordLength*wordsInBlock;
+		allocatedFrames = new HashSet<Integer>(this.numPages);
 		clear();
 	}
 	
@@ -58,7 +68,7 @@ public class RAM implements MemoryUnit {
 	 */
 	public void writeBlock(int addr, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info(addr+"<-"+data);
+		trace.info("Writing data. Frame#: "+addr+" Data:"+data);
 		
 		//Ensure the string in 40 chars in length
 		data = Utilities.padStringToLength(data, " ", blockSize, false);
@@ -71,6 +81,52 @@ public class RAM implements MemoryUnit {
 			data = data.substring(wordLength);
 		}
 		trace.finer("<--");
+		trace.info(this.toString());
+	}
+	
+	/** 
+	 * Free 1 frame/page in memory and mark it as "not allocated"
+	 * @param addr
+	 * @throws HardwareInterruptException
+	 */
+	public void freeBlock(int addr) throws HardwareInterruptException {
+		trace.finer("-->");
+		int blockAddr = getBlockAddr(addr);
+		trace.info("Freeing frame:"+addr+"->free");
+		markFree(blockAddr);
+		trace.finer("<--");
+	}
+	
+	/** 
+	 * Mark the given frame as allocated so it cannot be allocated to another process
+	 * @param frame
+	 */
+	public void markAllocated(int frame) {
+		trace.finer("-->");
+		trace.info("Allocating frame:"+frame);
+		trace.info("Allocated frames:"+allocatedFrames.toString());
+		if (!isAllocated(frame))
+			allocatedFrames.add(frame);
+		trace.finer("<--");
+	}
+	
+	/** 
+	 * Mark the given frame as freed so it is added back to the pool of frames available for use
+	 * @param frame
+	 */
+	public void markFree(int frame) {
+		trace.finer("-->");
+		allocatedFrames.remove(frame);
+		trace.finer("<--");
+	}
+	
+	/** 
+	 * Indicate whether the given frame has been allocated to a currently running process or not
+	 * @param frame
+	 * @return
+	 */
+	public boolean isAllocated(int frame) {
+		return allocatedFrames.contains(frame);
 	}
 	
 	/**
@@ -87,7 +143,7 @@ public class RAM implements MemoryUnit {
 		for (int i = 0 ; i < 10 ; i++) {
 			block += new String(memory[blockAddr+i]);
 		}
-		trace.info(addr+"->"+block);
+		trace.info("Reading frame# " + addr+"; data: "+block);
 		return block;
 	}
 	
@@ -100,9 +156,13 @@ public class RAM implements MemoryUnit {
 		int blockOffset = addr % 10;
 		int blockAddr = addr - blockOffset;
 
-		trace.fine(blockOffset+","+blockAddr);
+		trace.fine("getBlockAddr: offset: " +blockOffset+", frame#: "+blockAddr);
 		
-		return blockAddr;
+		return blockOffset; /* AMC - this used to be blockAddr - that seemed wrong */
+	}
+	
+	public int getWordsInBlock() {
+		return wordsInBlock;
 	}
 	
 	/**

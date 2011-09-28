@@ -1,5 +1,6 @@
 package emu.hw;
 
+import java.util.Random;
 import java.util.logging.Logger;
 
 import emu.hw.CPU.Interrupt;
@@ -66,11 +67,23 @@ public class MMU implements MemoryUnit {
 	 * @return
 	 */
 	private int translateAddr(int logicalAddr) throws HardwareInterruptException{
+		int PTR;
+		int logicalPageNum;
+		String pageTable;
+		
 		trace.finer("-->");
 		//TODO Get PTR from CPU
+		PTR = CPU.getInstance().getPtr();
 		//TODO Extract page # from logical addr
+		logicalPageNum = logicalAddr/10;
+		trace.info("LogicalAddr: "+logicalAddr);
+		trace.info("Logical Page#: "+logicalPageNum);
+		
 		//TODO Determine page fault (for real)
-		trace.info(""+logicalAddr);
+			pageTable = ram.readBlock(PTR);
+			trace.info("Page Table:"+pageTable);
+			
+				
 		boolean pageFault = logicalAddr != 0;
 		if (pageFault) {
 			trace.warning("page fault on addr "+logicalAddr);
@@ -91,7 +104,7 @@ public class MMU implements MemoryUnit {
 	 */
 	public int initPageTable() {
 		//At this point, all this needs to do is allocate memory, right? 
-		return allocateFrame()*10;
+		return allocateFrame(); /* AMC: this used to return allocateFrame()*10 .. I think this was an error */
 	}
 	
 	/**
@@ -100,8 +113,20 @@ public class MMU implements MemoryUnit {
 	 */
 	public int allocateFrame() {
 		//TODO Generate random number between 0 and a numFrames 
-		//TODO Validate that it is not already alocated, if so try until we get a valid frame.
-		return 0;
+		//TODO Validate that it is not already allocated, if so try until we get a valid frame.
+		Random generator = new Random();
+		int frameNum = 0;
+		while (frameNum == 0) { 
+			frameNum = generator.nextInt(30);
+			if (ram.isAllocated(frameNum)) {
+				frameNum=0;
+				trace.info(frameNum+" is already allocated. Choosing again ...");
+			}
+		}
+		trace.info("Frame to allocate: "+frameNum);
+		ram.markAllocated(frameNum);
+		
+		return frameNum;
 	}
 	
 	/**
@@ -128,7 +153,7 @@ public class MMU implements MemoryUnit {
 	 */
 	public int allocatePage(int pageNumber) {
 		int frame = allocateFrame();
-		//Store frame into RAM, update page table entry.
+		//TODO: Update page table entry.
 		return 0;
 	}
 	
