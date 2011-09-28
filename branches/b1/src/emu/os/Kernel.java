@@ -16,6 +16,8 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.net.ssl.SSLEngineResult.Status;
+
 import emu.hw.CPU;
 import emu.hw.CPU.Interrupt;
 import emu.hw.HardwareInterruptException;
@@ -153,7 +155,7 @@ public class Kernel {
 			trace = Logger.getLogger("emuos");
 			
 			//Determine log level
-			Level l = Level.INFO;
+			Level l = Level.FINER;
 			if (args.length > 2) {
 				l = Level.parse(args[2]);	
 			}
@@ -283,6 +285,7 @@ public class Kernel {
 					break;
 				case TERMINATE:
 					//	Dump memory
+					trace.info("Case:Terminate");
 					trace.finer("\n"+cpu.dumpMemory());
 					status = terminate();
 					break;
@@ -474,7 +477,12 @@ public class Kernel {
 				
 				//Reads first program line
 				String programLine = br.readLine();
-				int base = 0;
+				int pagenum = 0;
+				
+				//Allocate the page table
+				cpu.initPageTable();
+				trace.info("Ptr: "+cpu.getPtr());
+				trace.info("Ptl: "+cpu.getPtl());
 				
 				//Write each block of program lines into memory
 				while (programLine != null) {
@@ -486,21 +494,22 @@ public class Kernel {
 						break;
 					}
 					else if (programLine.equals(Process.DATA_START)) {
+						trace.info("Data card read");
 						p = new Process(id, maxTime, maxPrints, br, wr);
 						p.startExecution();
 						processCount++;
 						return retval;
 					}
-
+					else {
 					try {
-						cpu.initPageTable();
-						cpu.allocatePage(base/10);
-						cpu.writeBlock(base, programLine);
+						cpu.allocatePage(pagenum);
+						cpu.writeBlock(pagenum, programLine);
 					} catch (HardwareInterruptException e) {
 						trace.info("HardwareInterruptException");
 						retval = KernelStatus.INTERRUPT;
 					}
-					base+=10;
+					}
+					pagenum+=1;
 					programLine = br.readLine();
 				}
 
@@ -605,6 +614,7 @@ public class Kernel {
 		cpu.setPi(Interrupt.CLEAR);
 		trace.finer("-->");
 		wr.write("\n\n");
+		// Load the next user program
 		retval = load();
 		trace.finer(retval+"<--");
 		return retval;
