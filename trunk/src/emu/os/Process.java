@@ -109,6 +109,7 @@ public class Process {
 	 * @param data
 	 */
 	public void write(String data) {
+		trace.info("write():"+id+" "+data);
 		outputBuffer.add(data);
 	}
 	
@@ -125,9 +126,11 @@ public class Process {
 	 * @throws SoftwareInterruptException
 	 */
 	public void incrementTimeCount() throws SoftwareInterruptException {
+		trace.info("incrementTimeCount():currTime="+currTime+", maxTime="+maxTime);
 		if (currTime <= maxTime) {
 			currTime++;
 		} else {
+			trace.severe("incrementTimeCount():maxTime exceeded");
 			throw new SoftwareInterruptException(SoftwareInterruptReason.MAXTIME);
 		}
 	}
