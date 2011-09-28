@@ -321,6 +321,7 @@ public class Kernel {
 					} else {
 						setError( ErrorMessages.ZERO.getErrCode());
 						status = KernelStatus.ABORT;
+						cpu.setPi(Interrupt.CLEAR);
 					}
 					break;
 				}
@@ -446,9 +447,8 @@ public class Kernel {
 
 		while (nextLine != null) {
 			//Check for EOJ
-			if (nextLine.startsWith(Process.JOB_END)
-					|| nextLine.startsWith(Process.JOB_END_ALT)) {
-				
+			if (nextLine.startsWith(Process.JOB_END)) {
+									
 				writeProccess();
 				
 				trace.info("Finished job "+p.getId());
@@ -488,7 +488,6 @@ public class Kernel {
 				while (programLine != null) {
 					
 					if (programLine.equals(Process.JOB_END) 
-							|| programLine.equals(Process.JOB_END_ALT)
 							|| programLine.equals(Process.JOB_START)) {
 						trace.info("breaking on "+programLine);
 						break;
@@ -498,6 +497,7 @@ public class Kernel {
 						p = new Process(id, maxTime, maxPrints, br, wr);
 						p.startExecution();
 						processCount++;
+						trace.finer("<-- DATA_START");
 						return retval;
 					}
 					else {
