@@ -32,7 +32,6 @@ public class Process {
 	public static final String JOB_START = "$AMJ";
 	public static final String DATA_START = "$DTA";
 	public static final String JOB_END = "$EOJ";
-	public static final String JOB_END_ALT = "$END";
 	
 	/**
 	 * Process Meta Data
@@ -81,7 +80,7 @@ public class Process {
 		trace.fine("-->");
 		trace.info("starting process "+pcb.getId());
 		Kernel.getInstance().getCpu().setIc(0);
-		Kernel.getInstance().getCpu().setSi(CPU.Interrupt.TERMINATE);
+		Kernel.getInstance().getCpu().setSi(CPU.Interrupt.CLEAR);
 		setTerminationStatus("Normal Execution");
 		trace.fine("<--");
 	}
