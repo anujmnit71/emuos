@@ -470,6 +470,11 @@ public class Kernel {
 				//Clear memory
 				cpu.clearMemory();
 				
+				//Allocate the page table
+				cpu.initPageTable();
+				trace.info("Ptr: "+cpu.getPtr());
+				trace.info("Ptl: "+cpu.getPtl());
+				
 				//Parse Job Data
 				String id = nextLine.substring(4, 8);
 				int maxTime = Integer.parseInt(nextLine.substring(8, 12));
@@ -478,11 +483,9 @@ public class Kernel {
 				//Reads first program line
 				String programLine = br.readLine();
 				int pagenum = 0;
+				int framenum = 0;
 				
-				//Allocate the page table
-				cpu.initPageTable();
-				trace.info("Ptr: "+cpu.getPtr());
-				trace.info("Ptl: "+cpu.getPtl());
+
 				
 				//Write each block of program lines into memory
 				while (programLine != null) {
@@ -493,7 +496,11 @@ public class Kernel {
 						break;
 					}
 					else if (programLine.equals(Process.DATA_START)) {
-						trace.info("Data card read");
+						trace.info("All instruction cards entered");
+						trace.info("Memory contents: " + cpu.getMMU().getRAM().toString());
+						trace.info("Ptr: "+cpu.getPtr());
+						trace.info("Ptl: "+cpu.getPtl());
+						trace.info("Data card read. Creating process");
 						p = new Process(id, maxTime, maxPrints, br, wr);
 						p.startExecution();
 						processCount++;
@@ -502,8 +509,8 @@ public class Kernel {
 					}
 					else {
 					try {
-						cpu.allocatePage(pagenum);
-						cpu.writeBlock(pagenum, programLine);
+						framenum = cpu.allocatePage(pagenum);
+						cpu.writeBlock(framenum, programLine);
 					} catch (HardwareInterruptException e) {
 						trace.info("HardwareInterruptException");
 						retval = KernelStatus.INTERRUPT;

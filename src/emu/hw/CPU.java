@@ -489,10 +489,10 @@ public class CPU {
 		}
 	}
 
-	public void writeBlock(int addr, String data) throws HardwareInterruptException {
+	public void writeBlock(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info(addr+"<-"+data);
-		mmu.writeBlock(addr, data);
+		trace.info(frame+"<-"+data);
+		mmu.writeBlock(frame, data);
 		trace.finer("<--");
 	}
 
@@ -527,6 +527,10 @@ public class CPU {
 	public void initPageTable() {
 		setPtr(mmu.initPageTable());
 		setPtl(0);
+	}
+	
+	public MMU getMMU() {
+		return mmu;
 	}
 	
 }

@@ -4,6 +4,7 @@ import java.util.Random;
 import java.util.logging.Logger;
 
 import emu.hw.CPU.Interrupt;
+import emu.util.Utilities;
 
 
 /**
@@ -24,20 +25,21 @@ public class MMU implements MemoryUnit {
 		ram = new RAM(size, wordLength, wordsInBlock);
 	}
 	
-	public void writeBlock(int addr, String data) throws HardwareInterruptException {
+	public void writeBlock(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.fine(""+addr);
-		int pa = translateAddr(addr);
-		ram.writeBlock(pa, data);
+		trace.fine(""+frame);
+//		int pa = translateAddr(frame); /* AMC: ?? */
+		ram.writeBlock(frame, data);
+		trace.info(ram.readBlock(frame));
 		trace.finer("<--");
 	}
 
-	public String readBlock(int addr) throws HardwareInterruptException {
+	public String readBlock(int frame) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.fine(""+addr);
-		int pa = translateAddr(addr);
+		trace.fine(""+frame);
+//		int pa = translateAddr(frame);
 		trace.finer("<--");
-		return ram.readBlock(pa);
+		return ram.readBlock(frame);
 	}
 
 	public String load(int addr) throws HardwareInterruptException {
@@ -87,7 +89,7 @@ public class MMU implements MemoryUnit {
 		boolean pageFault = logicalAddr != 0;
 		if (pageFault) {
 			trace.warning("page fault on addr "+logicalAddr);
-			CPU.getInstance().setPi(Interrupt.PAGE_FAULT);
+		//	CPU.getInstance().setPi(Interrupt.PAGE_FAULT);
 			trace.finer("<--");
 			throw new HardwareInterruptException();
 		}
@@ -104,7 +106,14 @@ public class MMU implements MemoryUnit {
 	 */
 	public int initPageTable() {
 		//At this point, all this needs to do is allocate memory, right? 
-		return allocateFrame(); /* AMC: this used to return allocateFrame()*10 .. I think this was an error */
+		int frame = allocateFrame();
+		String zeroes = Utilities.padStringToLength(new String(""),"0",40,false);
+		try {
+		ram.writeBlock(frame,zeroes);
+		} catch (HardwareInterruptException e) {
+			trace.severe("Error in init page table");
+		}
+		return frame; /* AMC: this used to return allocateFrame()*10 .. I think this was an error */
 	}
 	
 	/**
@@ -149,12 +158,35 @@ public class MMU implements MemoryUnit {
 	/**
 	 * 
 	 * @param pageNumber
-	 * @return The page number
+	 * @return The frame number
 	 */
 	public int allocatePage(int pageNumber) {
+		//Allocate a frame. Frame # returned
 		int frame = allocateFrame();
-		//TODO: Update page table entry.
-		return 0;
+		//Update page table entry.
+		//Get the page table frame #
+		int pageTableFrame = CPU.getInstance().getPtr();
+		try {
+		//Read the current page table
+		String pageTable = ram.readBlock(pageTableFrame);
+		//
+//		Integer frameInt = new Integer(frame);
+		//pad the new entry with leading zeroes
+		String newEntry = Utilities.padStringToLength(new Integer(frame).toString(), "0", 4, true);
+		//stick the new entry in place
+		String updatedPageTable = pageTable.substring(0,pageNumber*4) + newEntry + pageTable.substring((pageNumber+1)*4);
+		trace.info("PageTable: " +updatedPageTable);
+		ram.writeBlock(pageTableFrame,updatedPageTable);
+		}
+		catch (HardwareInterruptException e) {
+			trace.severe("Pagetable should be readable and writable");
+		}
+		CPU.getInstance().setPtl(CPU.getInstance().getPtl()+1);
+		return frame;
+	}
+	
+	public RAM getRAM() {
+		return ram;
 	}
 	
 }

@@ -66,14 +66,15 @@ public class RAM implements MemoryUnit {
 	 * @param addr
 	 * @throws HardwareInterruptException 
 	 */
-	public void writeBlock(int addr, String data) throws HardwareInterruptException {
+	public void writeBlock(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info("Writing data. Frame#: "+addr+" Data:"+data);
+		trace.info("Writing data. Frame#: "+frame+" Data:"+data);
 		
 		//Ensure the string in 40 chars in length
 		data = Utilities.padStringToLength(data, " ", blockSize, false);
 		
-		int blockAddr = getBlockAddr(addr);
+//		int blockAddr = getBlockAddr(addr);
+		int blockAddr = frame*10;
 		
 		for (int i = 0 ; i < 10 ; i++) {
 			String word = data.substring(0,wordLength);
@@ -81,7 +82,8 @@ public class RAM implements MemoryUnit {
 			data = data.substring(wordLength);
 		}
 		trace.finer("<--");
-		trace.info(this.toString());
+//		trace.info(this.toString());
+		trace.info("Reading frame " + frame + ": "+readBlock(frame));
 	}
 	
 	/** 
@@ -104,9 +106,9 @@ public class RAM implements MemoryUnit {
 	public void markAllocated(int frame) {
 		trace.finer("-->");
 		trace.info("Allocating frame:"+frame);
-		trace.info("Allocated frames:"+allocatedFrames.toString());
 		if (!isAllocated(frame))
 			allocatedFrames.add(frame);
+		trace.info("Allocated frames:"+allocatedFrames.toString());
 		trace.finer("<--");
 	}
 	
@@ -131,19 +133,20 @@ public class RAM implements MemoryUnit {
 	
 	/**
 	 * Read 1 block from memory
-	 * @param addr
+	 * @param frame
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String readBlock(int addr) throws HardwareInterruptException {
+	public String readBlock(int frame) throws HardwareInterruptException {
 		
 		String block = "";
-		int blockAddr = getBlockAddr(addr);
+//		int blockAddr = getBlockAddr(addr);
+		int blockAddr = frame * 10;
 		
 		for (int i = 0 ; i < 10 ; i++) {
 			block += new String(memory[blockAddr+i]);
 		}
-		trace.info("Reading frame# " + addr+"; data: "+block);
+		trace.info("Reading frame# " + frame+"; data: "+block);
 		return block;
 	}
 	
@@ -190,7 +193,7 @@ public class RAM implements MemoryUnit {
 	 */
 	public String toString() {
 		int i;
-		String dump = "0   |1   |2   |3   |4   |5   |6   |7   |8   |9   |\n";
+		String dump = "\n0   |1   |2   |3   |4   |5   |6   |7   |8   |9   |\n";
 		for ( i = 0; i < memory.length; i=i+10) {
 			dump += new String(memory[i])+" ";
 			dump += new String(memory[i+1])+" ";
