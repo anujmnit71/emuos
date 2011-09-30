@@ -52,7 +52,7 @@ public class RAM implements MemoryUnit {
 	 */
 	public RAM(int size, int wordLength, int wordsInBlock) {
 		this.numPages = size/wordsInBlock;
-		trace.info("size="+size+", wordLength="+wordLength+", wordsInBlock="+wordsInBlock+", numPages="+this.numPages);
+		trace.info("wordLength="+wordLength+",words/frame="+wordsInBlock+",frames="+numPages);
 		this.size = size;
 		this.wordLength = wordLength;
 		this.wordsInBlock = wordsInBlock;

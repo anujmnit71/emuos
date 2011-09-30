@@ -282,12 +282,12 @@ public class Kernel {
 	public void boot() throws IOException {
 		trace.finer("-->");
 		try {
-			trace.info("starting boot process");
+			//trace.info("starting boot process");
+			trace.info("start cycle "+incrementCycleCount());
 			cpu.initPageTable();
 			cpu.allocatePage(0);
 			cpu.writePage(0, bootSector);
-			//cpu.writeBootSector(bootSector);
-			slaveMode();
+			masterMode();
 		} catch (HardwareInterruptException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -324,9 +324,8 @@ public class Kernel {
 		trace.finer("-->");
 		trace.fine("Physical Memory:\n"+cpu.dumpMemory());
 		while (status == KernelStatus.INTERRUPT) {
-			
-			trace.info("Start cycle "+incrementCycleCount());
-			trace.info("Master Mode:"+cpu.dumpInterupts());
+			//trace.info("start cycle "+incrementCycleCount());
+			trace.info(""+cpu.dumpInterupts());
 			trace.fine("Kernel status="+status);
 			
 			switch (cpu.getTi()) {
@@ -381,8 +380,8 @@ public class Kernel {
 				case PAGE_FAULT:
 					boolean valid = cpu.validatePageFault();
 					if (valid){
-						int page = cpu.allocatePage(cpu.getOperand() / 10); //TODO cleaner way to determine page #?
-						trace.info("page "+page+" allocated on valid fault");
+						int frame = cpu.allocatePage(cpu.getOperand() / 10); //TODO cleaner way to determine page #?
+						trace.fine("frame "+frame+" allocated for page "+cpu.getOperand());
 						cpu.setPi(Interrupt.CLEAR);
 						cpu.decrement();
 						status = KernelStatus.CONTINUE;
@@ -484,12 +483,13 @@ public class Kernel {
 			if (status == KernelStatus.ABORT) {
 				status = terminate();
 			}
-			trace.info("End of Interrupt Handling loop "+status);
+			trace.fine("End of Interrupt Handling loop "+status);
 		}
 
 		// Tell slaveMode that there are no more programs to run
 		if (status == KernelStatus.TERMINATE)
 			retval = true;
+		
 		trace.fine(retval+"<--");
 		return retval;
 	}
@@ -505,7 +505,6 @@ public class Kernel {
 		String nextLine = br.readLine();
 
 		while (nextLine != null) {
-			trace.info("Start cycle "+incrementCycleCount());
 			//Check for EOJ
 			if (nextLine.startsWith(Process.JOB_END)) {
 									
@@ -526,9 +525,6 @@ public class Kernel {
 			}
 			else if (nextLine.startsWith(Process.JOB_START)) {
 				trace.info("Loading job:"+nextLine);
-				
-				//Clear memory -- AMC: Reconsidered. We don't need/want to clear memory.  :-)
-//				cpu.clearMemory(); //TODO need to re-consider this.
 				
 				//Allocate the page table
 				cpu.initPageTable();
@@ -552,6 +548,7 @@ public class Kernel {
 						break;
 					}
 					else if (programLine.equals(Process.DATA_START)) {
+						//trace.info("start cycle "+incrementCycleCount());
 						trace.info("data start on "+programLine);
 						trace.fine("Memory contents: " + cpu.dumpMemory());
 						trace.fine("CPU: "+cpu.toString());
@@ -563,7 +560,6 @@ public class Kernel {
 					}
 					else {
 					try {
-//						cpu.writePage(pagenum,programLine);
 						framenum = cpu.allocatePage(pagenum);
 						cpu.writeBlock(framenum, programLine);
 					} catch (HardwareInterruptException e) {
@@ -574,11 +570,9 @@ public class Kernel {
 					pagenum+=1;
 					programLine = br.readLine();
 				}
-
 			}
 			else {
-				trace.severe("Unexpected line:"+nextLine);
-				trace.severe("Program error for "+p.getId());
+				trace.warning("Unexpected line:"+nextLine);
 				nextLine = br.readLine();
 			}
 		}
@@ -598,16 +592,21 @@ public class Kernel {
 		KernelStatus retval = KernelStatus.CONTINUE;
 		trace.finer("-->");
 		trace.fine("Entering KernelStatus Read, who reads a line");
+		
 		// get memory location and set interrupt if one exists
 		int irValue = cpu.getOperand();
 		cpu.setPi(irValue);
+
 		// read next data card
 		if (!lineBuffered) {
 			lastLineRead = br.readLine();
-			trace.info("read line from buffer:"+lastLineRead);
+			trace.fine("line read from input: "+lastLineRead);			
 			lineBuffered = true;
 		}
-		//String line = br.readLine();
+		else {
+			trace.fine("using buffered line: "+lastLineRead);
+		}
+		
 		trace.info("operand:"+irValue+" pi="+cpu.getPi().getValue());
 		// If next data card is $END, TERMINATE(1)
 		if (lastLineRead.startsWith(Process.JOB_END)){
@@ -685,9 +684,10 @@ public class Kernel {
 		//Free the page table
 		cpu.freePageTable();
 		
-		//TODO might we need to clear all other interupts?
-		cpu.setPi(Interrupt.CLEAR);
+		//Clear all interrupts
+		cpu.clearInterrupts();
 
+		//Write 2 empty lines to the output
 		wr.write("\n\n");
 		
 		// Load the next user program
@@ -713,31 +713,40 @@ public class Kernel {
 	}
 
 	/**
-	 * Slave execution cycle 
+	 * Master execution cycle 
 	 * @throws HardwareInterruptException
 	 * @throws IOException 
 	 * @throws SoftwareInterruptException
 	 */
-	public void slaveMode() throws IOException {
+	public void masterMode() throws IOException {
 		trace.finer("-->");
-		trace.info("start slave mode");
 		inMasterMode = false;
 		boolean done = false;
 		while (!done) {
-			trace.info("Start cycle "+incrementCycleCount());
 			try {
-			cpu.fetch();
-			cpu.increment();
-			cpu.execute();
-			p.incrementTimeCountSlave();
+				trace.info("start cycle "+incrementCycleCount());
+				slaveMode();
 			} catch (HardwareInterruptException hie) {
-				trace.info("HW Interrupt from slave mode.");
+				trace.info("start cycle "+incrementCycleCount());
+				trace.info("HW Interrupt from slave mode");
 				trace.fine(cpu.dumpInterupts());
 				done = interruptHandler();
 				inMasterMode = false;
 			}
 		}
 		trace.finer("<--");
+	}
+	
+	/**
+	 * Slave execution cycle
+	 * @throws HardwareInterruptException
+	 */
+	public void slaveMode() throws HardwareInterruptException {
+		trace.info("start slave mode ");
+		cpu.fetch();
+		cpu.increment();
+		cpu.execute();
+		p.incrementTimeCountSlave();
 	}
 	
 	/**

@@ -91,7 +91,7 @@ public class Process {
 	 */
 	public void write(String data) {
 		trace.fine("-->");
-		trace.info(""+data);
+		trace.info("buffering output:"+data);
 		outputBuffer.add(data);
 		trace.fine("<--");
 	}
