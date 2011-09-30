@@ -141,7 +141,7 @@ public class CPU {
 	 * Initialize CPU
 	 */
 	private CPU() {
-		setSi(Interrupt.TERMINATE);
+		setSi(Interrupt.CLEAR);
 		setTi(Interrupt.CLEAR);
 		setPi(Interrupt.CLEAR);
 		setIOi(Interrupt.CLEAR);
@@ -369,9 +369,9 @@ public class CPU {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public int getIrValue() {
+	public int getOperand() {
 		int retval = Integer.parseInt(ir.substring(2,4));	
-		trace.info("retval "+retval);
+		trace.fine("operand: "+retval);
 		if (retval < 0 || retval > 100){
 			retval = Interrupt.OPERAND_ERROR.getRetval();
 		}
@@ -388,36 +388,36 @@ public class CPU {
 		trace.finer("-->");
 		trace.info("CPU: "+toString());
 		clock++;
-		int irValue = 0;
+		int logicalAddr = 0;
 		if (ir.startsWith(LOAD)) {
-			irValue = getIrValue();
-			pi = Interrupt.set(irValue);
+			logicalAddr = getOperand();
+			pi = Interrupt.set(logicalAddr);
 			if (pi == Interrupt.CLEAR) {
-				gr = mmu.load(irValue);
+				gr = mmu.load(logicalAddr);
 				trace.info("r<-"+gr);
 			}
 		}else if (ir.startsWith(STORE)) {
 			if (gr == null)
 				pi = Interrupt.OPERAND_ERROR;
 			else {
-				irValue = getIrValue();
-				pi = Interrupt.set(irValue);
+				logicalAddr = getOperand();
+				pi = Interrupt.set(logicalAddr);
 					if (pi == Interrupt.CLEAR)
-						mmu.store(irValue,gr);
+						mmu.store(logicalAddr,gr);
 			}
 		}else if (ir.startsWith(COMPARE)) {
-			irValue = getIrValue();
-			pi = Interrupt.set(irValue);
+			logicalAddr = getOperand();
+			pi = Interrupt.set(logicalAddr);
 				if (pi == Interrupt.CLEAR) {
-					c = mmu.load(irValue).equals(gr);
+					c = mmu.load(logicalAddr).equals(gr);
 					trace.info("c<-"+c);
 				}
 		}else if (ir.startsWith(BRANCH)) {
 			if (c) {
-				irValue = getIrValue();
-				pi = Interrupt.set(irValue);
+				logicalAddr = getOperand();
+				pi = Interrupt.set(logicalAddr);
 					if (pi == Interrupt.CLEAR)
-						ic = irValue;
+						ic = logicalAddr;
 			}			
 		}else if (ir.startsWith(GET)) {
 			si = Interrupt.READ;
@@ -460,6 +460,14 @@ public class CPU {
 	 */
 	public void increment() {
 		 ic++;
+		 trace.info("ic<-"+ic);
+	}
+
+	/**
+	 * Decrement the instruction counter.
+	 */
+	public void decrement() {
+		 ic--;
 		 trace.info("ic<-"+ic);
 	}
 	
