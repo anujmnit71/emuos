@@ -145,9 +145,22 @@ public class CPU {
 		setTi(Interrupt.CLEAR);
 		setPi(Interrupt.CLEAR);
 		setIOi(Interrupt.CLEAR);
+		trace.info(dumpInterupts());
 		mmu = new MMU(300,4,10);
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
+	public String dumpInterupts() {
+
+		return "si="+getSi().getValue()+", " +
+				"pi="+getPi().getValue()+", " +
+				"ti="+getTi().getValue()+", " +
+				"ioi="+getIOi().getValue();
+	}
+
 	/**
 	 * 
 	 * @return
@@ -379,8 +392,10 @@ public class CPU {
 		if (ir.startsWith(LOAD)) {
 			irValue = getIrValue();
 			pi = Interrupt.set(irValue);
-			if (pi == Interrupt.CLEAR)
+			if (pi == Interrupt.CLEAR) {
 				gr = mmu.load(irValue);
+				trace.info("r<-"+gr);
+			}
 		}else if (ir.startsWith(STORE)) {
 			if (gr == null)
 				pi = Interrupt.OPERAND_ERROR;
@@ -393,8 +408,10 @@ public class CPU {
 		}else if (ir.startsWith(COMPARE)) {
 			irValue = getIrValue();
 			pi = Interrupt.set(irValue);
-				if (pi == Interrupt.CLEAR)
+				if (pi == Interrupt.CLEAR) {
 					c = mmu.load(irValue).equals(gr);
+					trace.info("c<-"+c);
+				}
 		}else if (ir.startsWith(BRANCH)) {
 			if (c) {
 				irValue = getIrValue();
@@ -404,10 +421,13 @@ public class CPU {
 			}			
 		}else if (ir.startsWith(GET)) {
 			si = Interrupt.READ;
+			trace.info("si<-"+Interrupt.READ.getValue());
 		}else if (ir.startsWith(PUT)) {
 			si = Interrupt.WRITE;
+			trace.info("<-"+Interrupt.WRITE.getValue());
 		}else if (ir.startsWith(HALT)) {
 			si = Interrupt.TERMINATE;	
+			trace.info("si<-"+Interrupt.TERMINATE.getValue());
 		}else {
 			pi = Interrupt.OPERATION_ERROR;
 		}
@@ -440,14 +460,14 @@ public class CPU {
 	 */
 	public void increment() {
 		 ic++;
-		 trace.fine("ic="+ic);
+		 trace.info("ic<-"+ic);
 	}
 	
 	/**
 	 * String representation of the the current state.
 	 */
 	public String toString() {
-		return "ic="+ic+" ir="+ir+" gr="+gr+" toggle="+c;
+		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+c+","+dumpInterupts();
 		
 	}
 	
@@ -456,7 +476,7 @@ public class CPU {
 	 * @return
 	 */
 	public String getState() {
-		return ic+"    "+ir+"    "+gr+"    "+c;
+		return ic+"    "+ir+"    "+gr+"    "+Boolean.toString(c).substring(0,1).toUpperCase();
 	}
 	
 	public int getPtr() {
@@ -527,10 +547,7 @@ public class CPU {
 	public void initPageTable() {
 		setPtr(mmu.initPageTable());
 		setPtl(0);
+		trace.info("ptr="+getPtr()+", ptl="+getPtl());
+
 	}
-	
-	public MMU getMMU() {
-		return mmu;
-	}
-	
 }
