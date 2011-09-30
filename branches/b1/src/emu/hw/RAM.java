@@ -76,7 +76,7 @@ public class RAM implements MemoryUnit {
 	 */
 	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info("Writing data. Frame#: "+frame+" Data:"+data);
+		trace.fine("Frame#: "+frame+" Data:"+data);
 		
 		//Ensure the string in 40 chars in length
 		data = Utilities.padStringToLength(data, " ", blockSize, false);
@@ -89,9 +89,9 @@ public class RAM implements MemoryUnit {
 			store(blockAddr+i, word);
 			data = data.substring(wordLength);
 		}
+
+		//trace.finer("Reading frame " + frame + ": "+readFrame(frame));
 		trace.finer("<--");
-//		trace.info(this.toString());
-		trace.info("Reading frame " + frame + ": "+readFrame(frame));
 	}
 	
 	/** 
@@ -102,7 +102,7 @@ public class RAM implements MemoryUnit {
 	public void freeBlock(int addr) throws HardwareInterruptException {
 		trace.finer("-->");
 		int blockAddr = getBlockAddr(addr);
-		trace.info("Freeing frame:"+addr+"->free");
+		trace.fine("Freeing frame:"+addr+"->free");
 		markFree(blockAddr);
 		trace.finer("<--");
 	}
@@ -113,7 +113,7 @@ public class RAM implements MemoryUnit {
 	 */
 	public void markAllocated(Integer frame) {
 		trace.finer("-->");
-		trace.info("Allocating frame:"+frame);
+		trace.fine("Allocating frame:"+frame);
 		if (!isAllocated(frame))
 			freeFrames.remove(frame);
 		String allocatedFrames = new String();
@@ -122,7 +122,7 @@ public class RAM implements MemoryUnit {
 			if (isAllocated(i))
 				allocatedFrames = new String(allocatedFrames)+i+' ';
 		}
-		trace.info("Allocated frames: [ "+allocatedFrames+']');
+		trace.fine("Allocated frames: [ "+allocatedFrames+']');
 		trace.finer("<--");
 	}
 	
@@ -154,13 +154,12 @@ public class RAM implements MemoryUnit {
 	public String readFrame(int frame) throws HardwareInterruptException {
 		
 		String block = "";
-//		int blockAddr = getBlockAddr(addr);
 		int blockAddr = frame * 10;
 		
 		for (int i = 0 ; i < 10 ; i++) {
 			block += new String(memory[blockAddr+i]);
 		}
-		trace.info("Reading frame# " + frame+"; data: "+block);
+		trace.fine("Reading frame# " + frame+"; data: "+block);
 		return block;
 	}
 	

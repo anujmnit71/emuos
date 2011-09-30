@@ -108,6 +108,16 @@ public class Kernel {
 	private int cycleCount;
 	
 	/**
+	 * Buffers the last line read from the input stream
+	 */
+	private String lastLineRead;
+	
+	/**
+	 * Check if the last line has been ussed yet.
+	 */
+	boolean lineBuffered = false;
+	
+	/**
 	 * Control Flags for interrupt handling
 	 * CONTINUE current processing and return to slaveMode
 	 * ABORT the current process and continue processing job cards
@@ -168,7 +178,7 @@ public class Kernel {
 		String outputFile = args[1];
 		
 		
-		Kernel emu;
+		Kernel emu = null;
 		try {
 			emu = Kernel.init(inputFile, outputFile);
 			emu.boot();
@@ -272,18 +282,22 @@ public class Kernel {
 	public void boot() throws IOException {
 		trace.finer("-->");
 		try {
-			trace.info("Writing boot sector");
+			trace.info("starting boot process");
 			cpu.initPageTable();
 			cpu.allocatePage(0);
-			cpu.writeBootSector(bootSector);
+			cpu.writePage(0, bootSector);
+			//cpu.writeBootSector(bootSector);
 			slaveMode();
+		} catch (HardwareInterruptException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		} finally {
 			br.close();
 			wr.close();
 			//Dump memory
 			trace.fine("\n"+cpu.dumpMemory());
 
-			trace.info("Memory contents: " + cpu.getMMU().getRAM().toString());
+			trace.fine("Memory contents: " + cpu.dumpMemory());
 			//Dump Kernel stats
 			trace.fine("\n"+toString());
 			//Dump memory
@@ -311,7 +325,7 @@ public class Kernel {
 		trace.fine("Physical Memory:\n"+cpu.dumpMemory());
 		while (status == KernelStatus.INTERRUPT) {
 			
-			incrementCycleCount();
+			trace.info("Start cycle "+incrementCycleCount());
 			trace.info("Master Mode:"+cpu.dumpInterupts());
 			trace.fine("Kernel status="+status);
 			
@@ -339,8 +353,7 @@ public class Kernel {
 					//	Dump memory
 					trace.fine("Case:Terminate");
 
-					trace.info("Memory contents: " + cpu.getMMU().getRAM().toString());
-					trace.finer("\n"+cpu.dumpMemory());
+					trace.fine("Memory contents: " + cpu.dumpMemory());
 					status = terminate();
 					break;
 				}
@@ -368,12 +381,10 @@ public class Kernel {
 				case PAGE_FAULT:
 					boolean valid = cpu.validatePageFault();
 					if (valid){
-						int page = cpu.allocatePage(cpu.getIrValue() / 10); //TODO cleaner way to determine page #?
+						int page = cpu.allocatePage(cpu.getOperand() / 10); //TODO cleaner way to determine page #?
 						trace.info("page "+page+" allocated on valid fault");
 						cpu.setPi(Interrupt.CLEAR);
-			//			cpu.setSi(Interrupt.READ); /* AMC == this used to be write, I think it should be read? */
-//						cpu.setSi(Interrupt.WRITE);
-//						status = KernelStatus.INTERRUPT;
+						cpu.decrement();
 						status = KernelStatus.CONTINUE;
 					} else {
 						setError( ErrorMessages.ZERO.getErrCode());
@@ -464,7 +475,7 @@ public class Kernel {
 					|| cpu.getSi().equals(Interrupt.WRONGTYPE)){
 				return true;
 			}
-			trace.info("Status = "+status+" si = "+cpu.getSi()+" pi = "+cpu.getPi()+" ti = "+cpu.getTi()+" ioi = "+cpu.getIOi());
+			trace.fine("Status "+cpu.dumpInterupts());
 			
 			/*
 			 * Normally the loop will restart and eventually find terminate.
@@ -494,7 +505,7 @@ public class Kernel {
 		String nextLine = br.readLine();
 
 		while (nextLine != null) {
-			incrementCycleCount();
+			trace.info("Start cycle "+incrementCycleCount());
 			//Check for EOJ
 			if (nextLine.startsWith(Process.JOB_END)) {
 									
@@ -585,16 +596,21 @@ public class Kernel {
 	 */
 	public KernelStatus read() throws IOException{
 		KernelStatus retval = KernelStatus.CONTINUE;
-		trace.info("Entering KernelStatus Read, who reads a line");
 		trace.finer("-->");
+		trace.fine("Entering KernelStatus Read, who reads a line");
 		// get memory location and set interrupt if one exists
-		int irValue = cpu.getIrValue();
+		int irValue = cpu.getOperand();
 		cpu.setPi(irValue);
 		// read next data card
-		String line = br.readLine();
-		trace.info("irValue "+irValue+" pi = "+cpu.getPi());
+		if (!lineBuffered) {
+			lastLineRead = br.readLine();
+			trace.info("read line from buffer:"+lastLineRead);
+			lineBuffered = true;
+		}
+		//String line = br.readLine();
+		trace.info("operand:"+irValue+" pi="+cpu.getPi().getValue());
 		// If next data card is $END, TERMINATE(1)
-		if (line.startsWith(Process.JOB_END)){
+		if (lastLineRead.startsWith(Process.JOB_END)){
 			setError(1);
 			writeProccess();
 			retval = KernelStatus.ABORT;
@@ -606,9 +622,10 @@ public class Kernel {
 			// write data from data card to memory location
 			if (cpu.getPi() == Interrupt.CLEAR) {				
 				try {
-					cpu.writePage(irValue, line);
+					cpu.writePage(irValue, lastLineRead);
+					lineBuffered = false;
 				} catch (HardwareInterruptException e) {
-					trace.info("HardwareInterruptException");
+					trace.info("HW interrupt:"+cpu.dumpInterupts());
 					retval = KernelStatus.INTERRUPT;
 				}
 				cpu.setSi(Interrupt.CLEAR);
@@ -636,14 +653,14 @@ public class Kernel {
 			retval = KernelStatus.ABORT;
 		} else {
 			// get memory location and set exception if one exists
-			irValue = cpu.getIrValue();
+			irValue = cpu.getOperand();
 			cpu.setPi(irValue);
 			if (cpu.getPi() == Interrupt.CLEAR) {
 				// write data from memory to the process outputBuffer
 				try {
 					p.write(cpu.readBlock(irValue));
 				} catch (HardwareInterruptException e) {
-					trace.info("HardwareInterruptException");
+					trace.info("HW interrupt:"+cpu.dumpInterupts());
 					retval = KernelStatus.INTERRUPT;
 				}
 				cpu.setSi(Interrupt.CLEAR);
@@ -692,14 +709,6 @@ public class Kernel {
 		return cpu;
 	}
 
-//	/**
-//	 * Returns the MMU
-//	 * @return
-//	 */
-//	public RAM getMmu() {
-//		return mmu;
-//	}
-
 	/**
 	 * Slave execution cycle 
 	 * @throws HardwareInterruptException
@@ -712,7 +721,7 @@ public class Kernel {
 		inMasterMode = false;
 		boolean done = false;
 		while (!done) {
-			incrementCycleCount();
+			trace.info("Start cycle "+incrementCycleCount());
 			try {
 			cpu.fetch();
 			cpu.increment();
@@ -783,8 +792,7 @@ public class Kernel {
 	/**
 	 * 
 	 */
-	private void incrementCycleCount() {
-		trace.info("Start cycle "+cycleCount);
-		cycleCount++;
+	private int incrementCycleCount() {
+		return cycleCount++;
 	}
 }

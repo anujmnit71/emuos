@@ -34,7 +34,7 @@ public class MMU implements MemoryUnit {
 		trace.finer("-->");
 		trace.finest(""+frame);
 		ram.writeFrame(frame, data);
-		trace.info(ram.readFrame(frame));
+		//trace.finer(ram.readFrame(frame));
 		trace.finer("<--");
 	}
 	
@@ -44,7 +44,7 @@ public class MMU implements MemoryUnit {
 		int realAddr=translateAddr(logicalAddr);
 		trace.finest("Real frame to write to:"+realAddr/10);
 		ram.writeFrame(realAddr/10, data);
-		trace.info(ram.readFrame(realAddr/10));
+		//trace.finer(ram.readFrame(realAddr/10));
 		trace.finer("<--");
 	}
 
@@ -89,16 +89,16 @@ public class MMU implements MemoryUnit {
 	 * @param realAddr
 	 * @param data
 	 */
-	public void store(int realAddr, String data) throws HardwareInterruptException {
+	public void store(int logicalAddr, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.finest("Real address to store into: "+realAddr);
+		int realAddr = translateAddr(logicalAddr);
+		trace.finest("Real address to load from: "+realAddr);
 		trace.finer("<--");
 		ram.store(realAddr, data);
 	}
 
 	public String toString() {
-		// TODO Auto-generated method stub
-		return super.toString();
+		return ram.toString();
 	}
 
 	/**
@@ -107,7 +107,7 @@ public class MMU implements MemoryUnit {
 	 * @return
 	 */
 	private int translateAddr(int logicalAddr) throws HardwareInterruptException{
-		int PTR;
+		int ptr;
 		int logicalPageNum = logicalAddr/10;
 		int displacement = logicalAddr%10;
 		Integer frameNum;
@@ -115,11 +115,11 @@ public class MMU implements MemoryUnit {
 		
 		trace.finer("-->");
 		//Get PTR from CPU
-		PTR = CPU.getInstance().getPtr();
+		ptr = CPU.getInstance().getPtr();
 		trace.finest("LogicalAddr: "+logicalAddr+"; Logical Page@: "+logicalPageNum+"; Displacement: "+displacement);
 		
 		//Determine page fault 
-		pageTable = ram.readFrame(PTR);
+		pageTable = ram.readFrame(ptr);
 		String pageTableEntry = pageTable.substring(logicalPageNum*4,(logicalPageNum+1)*4);
 		trace.finest("Page Table:"+pageTable+"; Page Table Entry: "+pageTableEntry);
 		
@@ -127,21 +127,19 @@ public class MMU implements MemoryUnit {
 			frameNum = new Integer(pageTableEntry);
 		}
 		catch (NumberFormatException e) {
-			
-				//Does page being referenced have a frame allocated for it?
-//		boolean pageFault = logicalAddr != 0;
-//		if (pageFault) {
+			//Does page being referenced have a frame allocated for it?
 			trace.warning("page fault on addr "+logicalAddr);
 			CPU.getInstance().setPi(Interrupt.PAGE_FAULT);
 			trace.finer("<--");
 			throw new HardwareInterruptException();
 		}
-		trace.finer("<--");
-		return frameNum*10+displacement;
 		
-		//Use page # as offset to PTR, this yields a physical frame #
-		//Load frame #, multiply * 10 and add to logical displacement
-
+		int realAddr = frameNum*10+displacement;
+		trace.info("logical->real : "+logicalAddr+"->"+realAddr);
+		
+		trace.finer("<--");
+		return realAddr;
+		
 	}
 	//TODO pageIsAllocated(page) method
 
@@ -184,7 +182,7 @@ public class MMU implements MemoryUnit {
 		//so we don't have to check to see if it's allocated and keep trying again. When there is only one free frame
 		//that could take a long time and this is very fast.  
 		frameNum = ram.getFreeFrames().get(generator.nextInt(ram.getFreeFrames().size()));
-		trace.info("Frame to allocate: "+frameNum);
+		trace.info("Frame allocated: "+frameNum);
 		//Mark the frame we selected as allocated
 		ram.markAllocated(frameNum);
 		
@@ -227,18 +225,15 @@ public class MMU implements MemoryUnit {
 		String newEntry = Utilities.padStringToLength(new Integer(frame).toString(), "0", 4, true);
 		//stick the new entry in place
 		String updatedPageTable = pageTable.substring(0,pageNumber*4) + newEntry + pageTable.substring((pageNumber+1)*4);
-		trace.info("PageTable: " +updatedPageTable);
+		trace.fine("PageTable: " +updatedPageTable);
 		ram.writeFrame(pageTableFrame,updatedPageTable);
 		}
 		catch (HardwareInterruptException e) {
 			trace.severe("Pagetable should be readable and writable");
 		}
 		CPU.getInstance().setPtl(Math.max(CPU.getInstance().getPtl(),pageNumber+1));
+		trace.info("page->frame : "+pageNumber+"->"+frame);
 		return frame;
-	}
-	
-	public RAM getRAM() {
-		return ram;
 	}
 	
 }
