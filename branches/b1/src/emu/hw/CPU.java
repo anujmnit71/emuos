@@ -141,10 +141,7 @@ public class CPU {
 	 * Initialize CPU
 	 */
 	private CPU() {
-		setSi(Interrupt.CLEAR);
-		setTi(Interrupt.CLEAR);
-		setPi(Interrupt.CLEAR);
-		setIOi(Interrupt.CLEAR);
+		clearInterrupts();
 		trace.info(dumpInterupts());
 		mmu = new MMU(300,4,10);
 	}
@@ -210,6 +207,14 @@ public class CPU {
 	 */
 	public boolean isC() {
 		return c;
+	}
+	
+	/**
+	 * Get C as T or F
+	 * @return
+	 */
+	public String getCString() {
+		return Boolean.toString(c).substring(0,1).toUpperCase();
 	}
 
 	/**
@@ -386,7 +391,7 @@ public class CPU {
 	 */
 	public void execute() throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info("CPU: "+toString());
+		trace.info(toString());
 		clock++;
 		int logicalAddr = 0;
 		if (ir.startsWith(LOAD)) {
@@ -421,13 +426,13 @@ public class CPU {
 			}			
 		}else if (ir.startsWith(GET)) {
 			si = Interrupt.READ;
-			trace.info("si<-"+Interrupt.READ.getValue());
+			//trace.info("si<-"+Interrupt.READ.getValue());
 		}else if (ir.startsWith(PUT)) {
 			si = Interrupt.WRITE;
-			trace.info("<-"+Interrupt.WRITE.getValue());
+			//trace.info("<-"+Interrupt.WRITE.getValue());
 		}else if (ir.startsWith(HALT)) {
 			si = Interrupt.TERMINATE;	
-			trace.info("si<-"+Interrupt.TERMINATE.getValue());
+			//trace.info("si<-"+Interrupt.TERMINATE.getValue());
 		}else {
 			pi = Interrupt.OPERATION_ERROR;
 		}
@@ -475,7 +480,7 @@ public class CPU {
 	 * String representation of the the current state.
 	 */
 	public String toString() {
-		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+c+","+dumpInterupts();
+		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+","+dumpInterupts();
 		
 	}
 	
@@ -484,7 +489,7 @@ public class CPU {
 	 * @return
 	 */
 	public String getState() {
-		return ic+"    "+ir+"    "+gr+"    "+Boolean.toString(c).substring(0,1).toUpperCase();
+		return ic+"    "+ir+"    "+gr+"    "+getCString();
 	}
 	
 	public int getPtr() {
@@ -519,17 +524,16 @@ public class CPU {
 
 	public void writeBlock(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info(frame+"<-"+data);
 		mmu.writeFrame(frame, data);
+		trace.info(frame+"<-"+data);
 		trace.finer("<--");
 	}
 	
 	public void writePage(int logicalAddr, String data)
 			throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info(logicalAddr + "<-" + data);
 		mmu.writePage(logicalAddr,data);
-//		mmu.writeFrame(frame, data);
+		trace.info(logicalAddr + "<-" + data);
 		trace.finer("<--");
 	}
 
@@ -540,7 +544,7 @@ public class CPU {
 
 	public String readBlock(int logicalAddr) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.info("Reading from " + logicalAddr);
+		trace.fine("Reading from " + logicalAddr);
 		trace.finer("<--");
 		return mmu.readPage(logicalAddr);
 	}
@@ -579,6 +583,16 @@ public class CPU {
 	public void freePageTable() {
 		mmu.freePageTable();
 		
+	}
+
+	/**
+	 * Clears all interrupts.
+	 */
+	public void clearInterrupts() {
+		setSi(Interrupt.CLEAR);
+		setTi(Interrupt.CLEAR);
+		setPi(Interrupt.CLEAR);
+		setIOi(Interrupt.CLEAR);
 	}
 
 }
