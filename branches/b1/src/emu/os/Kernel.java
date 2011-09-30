@@ -32,8 +32,39 @@ import emu.util.TraceFormatter;
  * @author claytonannam@gmail.com
  * 
  */
+
+/*!
+\dot
+digraph kernel {
+  splines=true
+  rankdir=bt
+  node [shape=box]; a0;
+  node [shape=ellipse]; start; end;
+  subgraph cluster_0 {
+    node [shape=box]; b1; c1; d1; f1;
+    node [shape=diamond]; a1; e1;
+    a1 [label="done?"];
+    b1 [label="fetch"];
+    c1 [label="increment"];
+    d1 [label="execute"];
+    e1 [label="HardwareInterrupt?"];
+    f1 [label="interruptHandler"];
+    a1 -> b1 [label="false"];
+    b1 -> c1 -> d1 -> e1;
+    e1 -> f1 [label = "true"];
+	e1 -> a1 [label = "false"];
+    f1 -> a1 [label = "restart loop"];
+    label="slaveMode";
+  }
+  start -> a0;
+  a0 -> a1;
+  a1 -> end [label="true"];
+  a0 [label="cpu.writeBootSector()"];
+}
+\enddot
+*/
 public class Kernel {
-	/**
+	/**	
 	 * For tracing
 	 */
 	static Logger trace;
@@ -70,6 +101,7 @@ public class Kernel {
 	 * Starts EmuOS
 	 * @param args
 	 */
+	boolean inMasterMode;
 	
 	/**
 	 * Control Flags for interrupt handling
@@ -135,7 +167,7 @@ public class Kernel {
 		Kernel emu;
 		try {
 			emu = Kernel.init(inputFile, outputFile);
-			emu.start();
+			emu.boot();
 		} catch (IOException ioe) {
 			trace.log(Level.SEVERE, "IOException", ioe);
 		} catch (Exception e){
@@ -197,6 +229,7 @@ public class Kernel {
 		cpu = CPU.getInstance();
 		//mmu = new MMU(300,4,10);
 		processCount = 0;
+		inMasterMode = true;
 
 		//Init I/O
 		br = new BufferedReader(new FileReader(inputFile));
@@ -225,13 +258,15 @@ public class Kernel {
 	}
 	
 	/**
-	 * Starts the OS
+	 * Starts the OS by loading the HALT instruction into memory
+	 * then calls to slaveMode to execute  
 	 * @throws IOException
 	 */
-	public void start() throws IOException {
+
+	public void boot() throws IOException {
 		trace.finer("-->");
 		try {
-			boot();
+			cpu.writeBootSector(bootSector);
 			slaveMode();
 		} finally {
 			br.close();
@@ -252,8 +287,9 @@ public class Kernel {
 	 * Interrupts processed in two groups TI = 0(CLEAR) and TI = 2(TIME_ERROR)
 	 * @throws IOException
 	 */
-	public boolean masterMode() throws IOException {
+	public boolean interruptHandler() throws IOException {
 		boolean retval = false;
+		inMasterMode = true;
 		KernelStatus status = KernelStatus.INTERRUPT;
 		
 		/*
@@ -424,15 +460,6 @@ public class Kernel {
 			retval = true;
 		trace.fine(retval+"<--");
 		return retval;
-	}
-	
-	/**
-	 * load the halt instruction into memory 
-	 */
-	public void boot() {
-		trace.finer("-->");
-		cpu.writeBootSector(bootSector);
-		trace.finer("<--");
 	}
 	
 	/**
@@ -658,6 +685,7 @@ public class Kernel {
 	 */
 	public void slaveMode() throws IOException {
 		trace.finer("-->");
+		inMasterMode = false;
 		boolean done = false;
 		while (!done) {
 			try {
@@ -668,7 +696,8 @@ public class Kernel {
 			} catch (HardwareInterruptException hie) {
 				trace.info("HW Interrupt");
 				trace.fine("HW Interrupt: pi="+cpu.getPi()+", ti="+ cpu.getTi()+", si="+cpu.getSi());
-				done = masterMode();
+				done = interruptHandler();
+				inMasterMode = false;
 			}
 		}
 		trace.finer("<--");
