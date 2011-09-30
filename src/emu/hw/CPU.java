@@ -538,8 +538,11 @@ public class CPU {
 		mmu.clear();
 	}
 
-	public String readBlock(int addr) throws HardwareInterruptException {
-		return mmu.readFrame(addr);
+	public String readBlock(int logicalAddr) throws HardwareInterruptException {
+		trace.finer("-->");
+		trace.info("Reading from " + logicalAddr);
+		trace.finer("<--");
+		return mmu.readPage(logicalAddr);
 	}
 
 	public void writeBootSector(String bootSector) {

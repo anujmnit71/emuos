@@ -527,8 +527,8 @@ public class Kernel {
 			else if (nextLine.startsWith(Process.JOB_START)) {
 				trace.info("Loading job:"+nextLine);
 				
-				//Clear memory
-				cpu.clearMemory(); //TODO need to re-consider this.
+				//Clear memory -- AMC: Reconsidered. We don't need/want to clear memory.  :-)
+//				cpu.clearMemory(); //TODO need to re-consider this.
 				
 				//Allocate the page table
 				cpu.initPageTable();
