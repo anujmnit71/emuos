@@ -25,37 +25,75 @@ public class MMU implements MemoryUnit {
 		ram = new RAM(size, wordLength, wordsInBlock);
 	}
 	
-	public void writeBlock(int frame, String data) throws HardwareInterruptException {
+	/* 
+	 * Writes a string of data to the given frame number
+	 * @param frame
+	 * @param data
+	 */
+	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.fine(""+frame);
-//		int pa = translateAddr(frame); /* AMC: ?? */
-		ram.writeBlock(frame, data);
-		trace.info(ram.readBlock(frame));
+		trace.finest(""+frame);
+		ram.writeFrame(frame, data);
+		trace.info(ram.readFrame(frame));
+		trace.finer("<--");
+	}
+	
+	public void writePage(int logicalAddr,String data) throws HardwareInterruptException {
+		trace.finer("-->");
+		trace.finest("Logical addr to write page:"+logicalAddr);
+		int realAddr=translateAddr(logicalAddr);
+		trace.finest("Real frame to write to:"+realAddr/10);
+		ram.writeFrame(realAddr/10, data);
+		trace.info(ram.readFrame(realAddr/10));
 		trace.finer("<--");
 	}
 
-	public String readBlock(int frame) throws HardwareInterruptException {
+	/*
+	 * Reads a frame from the given frame number
+	 * @param frame
+	 * @returns String
+	 */
+	public String readFrame(int frame) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.fine(""+frame);
-//		int pa = translateAddr(frame);
+		trace.finest(""+frame);
 		trace.finer("<--");
-		return ram.readBlock(frame);
+		return ram.readFrame(frame);
 	}
 
-	public String load(int addr) throws HardwareInterruptException {
+	/*
+	 * Reads a word from the given real address
+	 * @param realAddr
+	 * @returns String
+	 */
+	public String load(int logicalAddr) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.fine(""+addr);
-		int pa = translateAddr(addr);
+		trace.finest("Logical address to load from: "+logicalAddr);
+		int realAddr = translateAddr(logicalAddr);
+		trace.finest("Real address to load from: "+realAddr);
 		trace.finer("<--");
-		return ram.load(pa);
+		return ram.load(realAddr);
+	}
+	
+	
+	
+	public String loadVirt(int logicalAddr) throws HardwareInterruptException {
+		trace.finer("-->");
+		trace.finest("Logical address to load from: "+logicalAddr);
+		int realAddr = translateAddr(logicalAddr);
+		trace.finer("<--");
+		return load(realAddr);
 	}
 
-	public void store(int addr, String data) throws HardwareInterruptException {
+	/**
+	 * Stores the given word at the given real address
+	 * @param realAddr
+	 * @param data
+	 */
+	public void store(int realAddr, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		trace.fine(""+addr);
-		int pa = translateAddr(addr);
+		trace.finest("Real address to store into: "+realAddr);
 		trace.finer("<--");
-		ram.store(pa, data);
+		ram.store(realAddr, data);
 	}
 
 	public String toString() {
@@ -64,56 +102,64 @@ public class MMU implements MemoryUnit {
 	}
 
 	/**
-	 * Translates a logical address
+	 * Translates a logical address (page*10+displacement) and returns a real address (frame*10+displacement)
 	 * @param logicalAddr
 	 * @return
 	 */
 	private int translateAddr(int logicalAddr) throws HardwareInterruptException{
 		int PTR;
-		int logicalPageNum;
+		int logicalPageNum = logicalAddr/10;
+		int displacement = logicalAddr%10;
+		Integer frameNum;
 		String pageTable;
 		
 		trace.finer("-->");
-		//TODO Get PTR from CPU
+		//Get PTR from CPU
 		PTR = CPU.getInstance().getPtr();
-		//TODO Extract page # from logical addr
-		logicalPageNum = logicalAddr/10;
-		trace.info("LogicalAddr: "+logicalAddr);
-		trace.info("Logical Page#: "+logicalPageNum);
+		trace.finest("LogicalAddr: "+logicalAddr+"; Logical Page@: "+logicalPageNum+"; Displacement: "+displacement);
 		
-		//TODO Determine page fault (for real)
-			pageTable = ram.readBlock(PTR);
-			trace.info("Page Table:"+pageTable);
+		//Determine page fault 
+		pageTable = ram.readFrame(PTR);
+		String pageTableEntry = pageTable.substring(logicalPageNum*4,(logicalPageNum+1)*4);
+		trace.finest("Page Table:"+pageTable+"; Page Table Entry: "+pageTableEntry);
+		
+		try {
+			frameNum = new Integer(pageTableEntry);
+		}
+		catch (NumberFormatException e) {
 			
-				
-		boolean pageFault = logicalAddr != 0;
-		if (pageFault) {
+				//Does page being referenced have a frame allocated for it?
+//		boolean pageFault = logicalAddr != 0;
+//		if (pageFault) {
 			trace.warning("page fault on addr "+logicalAddr);
-		//	CPU.getInstance().setPi(Interrupt.PAGE_FAULT);
+			CPU.getInstance().setPi(Interrupt.PAGE_FAULT);
 			trace.finer("<--");
 			throw new HardwareInterruptException();
 		}
-		
-		//TODO Use page # as offset to PTR, this yields a physical addr
-		//TODO Load frame #, multiply * 10 and add to logical displacement
 		trace.finer("<--");
-		return 0;
+		return frameNum*10+displacement;
+		
+		//Use page # as offset to PTR, this yields a physical frame #
+		//Load frame #, multiply * 10 and add to logical displacement
+
 	}
+	//TODO pageIsAllocated(page) method
 
 	/**
 	 * Initialize the page table 
-	 * @return The physical address that the page table will reside.
+	 * @return The physical frame where the page table will reside.
 	 */
 	public int initPageTable() {
 		//At this point, all this needs to do is allocate memory, right? 
 		int frame = allocateFrame();
-		String zeroes = Utilities.padStringToLength(new String(""),"0",40,false);
+		String zeroes = Utilities.padStringToLength(new String("")," ",40,false);
+		// AMC: parse as integer fails for spaces. This indicates a page fault.  
 		try {
-		ram.writeBlock(frame,zeroes);
+		ram.writeFrame(frame,zeroes);
 		} catch (HardwareInterruptException e) {
 			trace.severe("Error in init page table");
 		}
-		return frame; /* AMC: this used to return allocateFrame()*10 .. I think this was an error */
+		return frame; 
 	}
 	
 	/**
@@ -121,18 +167,25 @@ public class MMU implements MemoryUnit {
 	 * @return The frame number.
 	 */
 	public int allocateFrame() {
-		//TODO Generate random number between 0 and a numFrames 
-		//TODO Validate that it is not already allocated, if so try until we get a valid frame.
+		//Generate random number between 0 and a numFrames 
+		//Validate that it is not already allocated, if so try until we get a valid frame.
 		Random generator = new Random();
 		int frameNum = 0;
-		while (frameNum == 0) { 
-			frameNum = generator.nextInt(30);
-			if (ram.isAllocated(frameNum)) {
-				frameNum=0;
-				trace.info(frameNum+" is already allocated. Choosing again ...");
-			}
-		}
+//		while (frameNum == 0) { 
+//			frameNum = generator.nextInt(30);
+//			if (ram.isAllocated(frameNum)) {
+//				frameNum=0;
+//				trace.info(frameNum+" is already allocated. Choosing again ...");
+//			}
+//		}
+		//We keep track of which frames are free in the ArrayList freeFrames
+		//So to randomly select one of them, use the generator to grab a random int <= the size of the List
+		//and select frameNum to be the int located at that randomly selected index
+		//so we don't have to check to see if it's allocated and keep trying again. When there is only one free frame
+		//that could take a long time and this is very fast.  
+		frameNum = ram.getFreeFrames().get(generator.nextInt(ram.getFreeFrames().size()));
 		trace.info("Frame to allocate: "+frameNum);
+		//Mark the frame we selected as allocated
 		ram.markAllocated(frameNum);
 		
 		return frameNum;
@@ -144,7 +197,7 @@ public class MMU implements MemoryUnit {
 	 */
 	public void writeBootSector(String bootSector) {
 		try {
-			ram.writeBlock(0, bootSector);
+			ram.writeFrame(0, bootSector);
 		} catch (HardwareInterruptException e) {
 			trace.severe("shouldnt be here");
 		}
@@ -168,20 +221,19 @@ public class MMU implements MemoryUnit {
 		int pageTableFrame = CPU.getInstance().getPtr();
 		try {
 		//Read the current page table
-		String pageTable = ram.readBlock(pageTableFrame);
+		String pageTable = ram.readFrame(pageTableFrame);
 		//
-//		Integer frameInt = new Integer(frame);
 		//pad the new entry with leading zeroes
 		String newEntry = Utilities.padStringToLength(new Integer(frame).toString(), "0", 4, true);
 		//stick the new entry in place
 		String updatedPageTable = pageTable.substring(0,pageNumber*4) + newEntry + pageTable.substring((pageNumber+1)*4);
 		trace.info("PageTable: " +updatedPageTable);
-		ram.writeBlock(pageTableFrame,updatedPageTable);
+		ram.writeFrame(pageTableFrame,updatedPageTable);
 		}
 		catch (HardwareInterruptException e) {
 			trace.severe("Pagetable should be readable and writable");
 		}
-		CPU.getInstance().setPtl(CPU.getInstance().getPtl()+1);
+		CPU.getInstance().setPtl(Math.max(CPU.getInstance().getPtl(),pageNumber+1));
 		return frame;
 	}
 	

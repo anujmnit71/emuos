@@ -452,7 +452,7 @@ public class CPU {
 	 */
 	public void fetch() throws HardwareInterruptException {
 		ir = mmu.load(ic);
-		trace.info(ir+" from address "+ic);
+		trace.info(ir+" from logical address "+ic);
 	}
 	
 	/**
@@ -512,16 +512,26 @@ public class CPU {
 	public void writeBlock(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.info(frame+"<-"+data);
-		mmu.writeBlock(frame, data);
+		mmu.writeFrame(frame, data);
 		trace.finer("<--");
 	}
+	
+	public void writePage(int logicalAddr, String data)
+			throws HardwareInterruptException {
+		trace.finer("-->");
+		trace.info(logicalAddr + "<-" + data);
+		mmu.writePage(logicalAddr,data);
+//		mmu.writeFrame(frame, data);
+		trace.finer("<--");
+	}
+
 
 	public void clearMemory() {
 		mmu.clear();
 	}
 
 	public String readBlock(int addr) throws HardwareInterruptException {
-		return mmu.readBlock(addr);
+		return mmu.readFrame(addr);
 	}
 
 	public void writeBootSector(String bootSector) {
@@ -550,4 +560,9 @@ public class CPU {
 		trace.info("ptr="+getPtr()+", ptl="+getPtl());
 
 	}
+	
+	public MMU getMMU() {
+		return mmu;
+	}
+
 }
