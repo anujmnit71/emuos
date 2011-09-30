@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.logging.Formatter;
+import java.util.logging.Level;
 import java.util.logging.LogRecord;
 /**
  * Parse LogRecords to a single line
@@ -22,8 +23,10 @@ public class TraceFormatter extends Formatter {
 		if (l.getSourceMethodName() != null) {
 			line += Utilities.padStringToLength(l.getSourceMethodName(), " ", 10, false)+" | ";			
 		}
-
-		line += l.getLevel() + " | " + l.getMessage();		
+		if (!l.getLevel().equals(Level.INFO)) {
+			line +=  l.getLevel() + " : ";			
+		}
+		line += l.getMessage();		
 		
 		if (l.getThrown() != null) {
 			line += " | "+exception(l.getThrown());

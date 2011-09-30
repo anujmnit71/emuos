@@ -102,6 +102,10 @@ public class Kernel {
 	 * @param args
 	 */
 	boolean inMasterMode;
+	/**
+	 * Count of total cycles
+	 */
+	private int cycleCount;
 	
 	/**
 	 * Control Flags for interrupt handling
@@ -187,7 +191,7 @@ public class Kernel {
 			trace = Logger.getLogger("emuos");
 			
 			//Determine log level
-			Level l = Level.FINER;
+			Level l = Level.INFO;
 			if (args.length > 2) {
 				l = Level.parse(args[2]);	
 			}
@@ -225,6 +229,8 @@ public class Kernel {
 	 */
 	private Kernel(String inputFile, String outputFile) throws IOException {
 		
+		trace.info("input:"+inputFile);
+		trace.info("output:"+outputFile);
 		//Init HW
 		cpu = CPU.getInstance();
 		//mmu = new MMU(300,4,10);
@@ -266,7 +272,8 @@ public class Kernel {
 	public void boot() throws IOException {
 		trace.finer("-->");
 		try {
-			cpu.writeBootSector(bootSector);
+			trace.info("Writing boot sector");
+			//cpu.writeBootSector(bootSector);
 			slaveMode();
 		} finally {
 			br.close();
@@ -299,8 +306,11 @@ public class Kernel {
 		trace.finer("-->");
 		trace.fine("Physical Memory:\n"+cpu.dumpMemory());
 		while (status == KernelStatus.INTERRUPT) {
-			trace.info("Beginning of Interrupt Handling loop "+status);
-			trace.info("Interrupts si = "+cpu.getSi()+" pi = "+cpu.getPi()+" ti = "+cpu.getTi()+" ioi = "+cpu.getIOi());
+			
+			incrementCycleCount();
+			trace.info("Master Mode:"+cpu.dumpInterupts());
+			trace.fine("Kernel status="+status);
+			
 			switch (cpu.getTi()) {
 			
 			case CLEAR:
@@ -321,7 +331,7 @@ public class Kernel {
 					break;
 				case TERMINATE:
 					//	Dump memory
-					trace.info("Case:Terminate");
+					trace.fine("Case:Terminate");
 					trace.finer("\n"+cpu.dumpMemory());
 					status = terminate();
 					break;
@@ -350,7 +360,8 @@ public class Kernel {
 				case PAGE_FAULT:
 					boolean valid = cpu.validatePageFault();
 					if (valid){
-						cpu.allocatePage(cpu.getIrValue() / 10); //TODO cleaner way to determine page #?
+						int page = cpu.allocatePage(cpu.getIrValue() / 10); //TODO cleaner way to determine page #?
+						trace.info("page "+page+" allocated on valid fault");
 						cpu.setPi(Interrupt.CLEAR);
 						cpu.setSi(Interrupt.WRITE);
 						status = KernelStatus.INTERRUPT;
@@ -473,6 +484,7 @@ public class Kernel {
 		String nextLine = br.readLine();
 
 		while (nextLine != null) {
+			incrementCycleCount();
 			//Check for EOJ
 			if (nextLine.startsWith(Process.JOB_END)) {
 									
@@ -482,25 +494,23 @@ public class Kernel {
 				
 				//read next line
 				nextLine = br.readLine();
-				trace.info(nextLine);
+				trace.fine(nextLine);
 			}
 			
 			if (nextLine == null || nextLine.isEmpty()) {
-				trace.info("skipping empty line...");
+				trace.fine("skipping empty line...");
 				nextLine = br.readLine();
 				//exit();
 				continue;
 			}
 			else if (nextLine.startsWith(Process.JOB_START)) {
-				trace.info("Loading job "+nextLine);
+				trace.info("Loading job:"+nextLine);
 				
 				//Clear memory
-				cpu.clearMemory();
+				cpu.clearMemory(); //TODO need to re-consider this.
 				
 				//Allocate the page table
 				cpu.initPageTable();
-				trace.info("Ptr: "+cpu.getPtr());
-				trace.info("Ptl: "+cpu.getPtl());
 				
 				//Parse Job Data
 				String id = nextLine.substring(4, 8);
@@ -512,8 +522,6 @@ public class Kernel {
 				int pagenum = 0;
 				int framenum = 0;
 				
-
-				
 				//Write each block of program lines into memory
 				while (programLine != null) {
 					
@@ -523,11 +531,9 @@ public class Kernel {
 						break;
 					}
 					else if (programLine.equals(Process.DATA_START)) {
-						trace.info("All instruction cards entered");
-						trace.info("Memory contents: " + cpu.getMMU().getRAM().toString());
-						trace.info("Ptr: "+cpu.getPtr());
-						trace.info("Ptl: "+cpu.getPtl());
-						trace.info("Data card read. Creating process");
+						trace.info("data start on "+programLine);
+						trace.fine("Memory contents: " + cpu.dumpMemory());
+						trace.fine("CPU: "+cpu.toString());
 						p = new Process(id, maxTime, maxPrints, br, wr);
 						p.startExecution();
 						processCount++;
@@ -642,14 +648,19 @@ public class Kernel {
 	 * @throws IOException
 	 */
 	public KernelStatus terminate() throws IOException {
+
+		trace.finer("-->");
+		
 		KernelStatus retval = KernelStatus.CONTINUE;
 		
 		//TODO might we need to clear all other interupts?
 		cpu.setPi(Interrupt.CLEAR);
-		trace.finer("-->");
+
 		wr.write("\n\n");
+		
 		// Load the next user program
 		retval = load();
+		
 		trace.finer(retval+"<--");
 		return retval;
 	}
@@ -685,17 +696,19 @@ public class Kernel {
 	 */
 	public void slaveMode() throws IOException {
 		trace.finer("-->");
+		trace.info("start slave mode");
 		inMasterMode = false;
 		boolean done = false;
 		while (!done) {
+			incrementCycleCount();
 			try {
 			cpu.fetch();
 			cpu.increment();
 			cpu.execute();
 			p.incrementTimeCountSlave();
 			} catch (HardwareInterruptException hie) {
-				trace.info("HW Interrupt");
-				trace.fine("HW Interrupt: pi="+cpu.getPi()+", ti="+ cpu.getTi()+", si="+cpu.getSi());
+				trace.info("HW Interrupt from slave mode.");
+				trace.fine(cpu.dumpInterupts());
 				done = interruptHandler();
 				inMasterMode = false;
 			}
@@ -753,5 +766,13 @@ public class Kernel {
 		}
 		trace.info("termination status="+p.getTerminationStatus());
 		trace.finer("<--");
+	}
+	
+	/**
+	 * 
+	 */
+	private void incrementCycleCount() {
+		trace.info("Start cycle "+cycleCount);
+		cycleCount++;
 	}
 }
