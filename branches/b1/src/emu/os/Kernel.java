@@ -16,13 +16,13 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.net.ssl.SSLEngineResult.Status;
+//import javax.net.ssl.SSLEngineResult.Status;
 
 import emu.hw.CPU;
 import emu.hw.CPU.Interrupt;
 import emu.hw.HardwareInterruptException;
-import emu.hw.MMU;
-import emu.hw.RAM;
+//import emu.hw.MMU;
+//import emu.hw.RAM;
 import emu.util.TraceFormatter;
 
 /**
@@ -282,6 +282,8 @@ public class Kernel {
 			wr.close();
 			//Dump memory
 			trace.fine("\n"+cpu.dumpMemory());
+
+			trace.info("Memory contents: " + cpu.getMMU().getRAM().toString());
 			//Dump Kernel stats
 			trace.fine("\n"+toString());
 			//Dump memory
@@ -326,14 +328,18 @@ public class Kernel {
 				 */
 				switch (cpu.getSi()) {
 				case READ:
+					trace.finest("Si interrupt read");
 					status = read();
 					break;
 				case WRITE:
+					trace.finest("Si interrupt write");
 					status = write();
 					break;
 				case TERMINATE:
 					//	Dump memory
 					trace.fine("Case:Terminate");
+
+					trace.info("Memory contents: " + cpu.getMMU().getRAM().toString());
 					trace.finer("\n"+cpu.dumpMemory());
 					status = terminate();
 					break;
@@ -365,8 +371,10 @@ public class Kernel {
 						int page = cpu.allocatePage(cpu.getIrValue() / 10); //TODO cleaner way to determine page #?
 						trace.info("page "+page+" allocated on valid fault");
 						cpu.setPi(Interrupt.CLEAR);
-						cpu.setSi(Interrupt.WRITE);
-						status = KernelStatus.INTERRUPT;
+			//			cpu.setSi(Interrupt.READ); /* AMC == this used to be write, I think it should be read? */
+//						cpu.setSi(Interrupt.WRITE);
+//						status = KernelStatus.INTERRUPT;
+						status = KernelStatus.CONTINUE;
 					} else {
 						setError( ErrorMessages.ZERO.getErrCode());
 						status = KernelStatus.ABORT;
@@ -544,6 +552,7 @@ public class Kernel {
 					}
 					else {
 					try {
+//						cpu.writePage(pagenum,programLine);
 						framenum = cpu.allocatePage(pagenum);
 						cpu.writeBlock(framenum, programLine);
 					} catch (HardwareInterruptException e) {
@@ -576,6 +585,7 @@ public class Kernel {
 	 */
 	public KernelStatus read() throws IOException{
 		KernelStatus retval = KernelStatus.CONTINUE;
+		trace.info("Entering KernelStatus Read, who reads a line");
 		trace.finer("-->");
 		// get memory location and set interrupt if one exists
 		int irValue = cpu.getIrValue();
@@ -596,7 +606,7 @@ public class Kernel {
 			// write data from data card to memory location
 			if (cpu.getPi() == Interrupt.CLEAR) {				
 				try {
-					cpu.writeBlock(irValue, line);
+					cpu.writePage(irValue, line);
 				} catch (HardwareInterruptException e) {
 					trace.info("HardwareInterruptException");
 					retval = KernelStatus.INTERRUPT;
@@ -629,7 +639,7 @@ public class Kernel {
 			irValue = cpu.getIrValue();
 			cpu.setPi(irValue);
 			if (cpu.getPi() == Interrupt.CLEAR) {
-				// write data from memeory to the process outputBuffer
+				// write data from memory to the process outputBuffer
 				try {
 					p.write(cpu.readBlock(irValue));
 				} catch (HardwareInterruptException e) {

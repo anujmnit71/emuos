@@ -6,8 +6,8 @@
  */
 package emu.hw;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
 import emu.util.Utilities;
@@ -43,9 +43,9 @@ public class RAM implements MemoryUnit {
 	protected int numPages;
 	
 	/**
-	 * Set containing all frames which are currently allocated
+	 * Set containing all frames which are currently free
 	 */
-	protected Set<Integer> allocatedFrames; 
+	protected List<Integer> freeFrames; 
 	
 	/**
 	 * Constructor 
@@ -57,8 +57,16 @@ public class RAM implements MemoryUnit {
 		this.wordLength = wordLength;
 		this.wordsInBlock = wordsInBlock;
 		blockSize = wordLength*wordsInBlock;
-		allocatedFrames = new HashSet<Integer>(this.numPages);
+		freeFrames = new ArrayList<Integer>(this.numPages);
+		for (int i=0; i<30; i++)
+			freeFrames.add(i);
+		trace.finest("Free frames: " + freeFrames.toString());
 		clear();
+	}
+	
+	public List<Integer> getFreeFrames()
+	{
+		return freeFrames;
 	}
 	
 	/**
@@ -66,7 +74,7 @@ public class RAM implements MemoryUnit {
 	 * @param addr
 	 * @throws HardwareInterruptException 
 	 */
-	public void writeBlock(int frame, String data) throws HardwareInterruptException {
+	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.info("Writing data. Frame#: "+frame+" Data:"+data);
 		
@@ -83,7 +91,7 @@ public class RAM implements MemoryUnit {
 		}
 		trace.finer("<--");
 //		trace.info(this.toString());
-		trace.info("Reading frame " + frame + ": "+readBlock(frame));
+		trace.info("Reading frame " + frame + ": "+readFrame(frame));
 	}
 	
 	/** 
@@ -103,12 +111,18 @@ public class RAM implements MemoryUnit {
 	 * Mark the given frame as allocated so it cannot be allocated to another process
 	 * @param frame
 	 */
-	public void markAllocated(int frame) {
+	public void markAllocated(Integer frame) {
 		trace.finer("-->");
 		trace.info("Allocating frame:"+frame);
 		if (!isAllocated(frame))
-			allocatedFrames.add(frame);
-		trace.info("Allocated frames:"+allocatedFrames.toString());
+			freeFrames.remove(frame);
+		String allocatedFrames = new String();
+		trace.finest("Allocated frames:");
+		for (int i=0; i<numPages; i++) {
+			if (isAllocated(i))
+				allocatedFrames = new String(allocatedFrames)+i+' ';
+		}
+		trace.info("Allocated frames: [ "+allocatedFrames+']');
 		trace.finer("<--");
 	}
 	
@@ -118,7 +132,7 @@ public class RAM implements MemoryUnit {
 	 */
 	public void markFree(int frame) {
 		trace.finer("-->");
-		allocatedFrames.remove(frame);
+		freeFrames.add(frame);
 		trace.finer("<--");
 	}
 	
@@ -128,7 +142,7 @@ public class RAM implements MemoryUnit {
 	 * @return
 	 */
 	public boolean isAllocated(int frame) {
-		return allocatedFrames.contains(frame);
+		return !freeFrames.contains(frame);
 	}
 	
 	/**
@@ -137,7 +151,7 @@ public class RAM implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String readBlock(int frame) throws HardwareInterruptException {
+	public String readFrame(int frame) throws HardwareInterruptException {
 		
 		String block = "";
 //		int blockAddr = getBlockAddr(addr);

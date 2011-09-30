@@ -5,9 +5,10 @@ public interface MemoryUnit {
 	
 	void store(int addr, String data) throws HardwareInterruptException;
 	
-	String readBlock(int addr) throws HardwareInterruptException;
+	String readFrame(int addr) throws HardwareInterruptException;
 	
-	void writeBlock(int addr, String data) throws HardwareInterruptException;
+	void writeFrame(int addr, String data) throws HardwareInterruptException;
+	
 	
 	void clear();
 	
