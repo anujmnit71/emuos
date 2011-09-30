@@ -59,6 +59,15 @@ public class MMU implements MemoryUnit {
 		trace.finer("<--");
 		return ram.readFrame(frame);
 	}
+	
+	public String readPage(int logicalAddr) throws HardwareInterruptException {
+		trace.finer("-->");
+		trace.finest("Logical page to read: "+logicalAddr);
+		int realAddr=translateAddr(logicalAddr);
+		trace.finest("Real frame to read from: "+realAddr/10);
+		trace.finer("<--");
+		return ram.readFrame(realAddr/10);
+	}
 
 	/*
 	 * Reads a word from the given real address
