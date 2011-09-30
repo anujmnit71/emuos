@@ -273,7 +273,9 @@ public class Kernel {
 		trace.finer("-->");
 		try {
 			trace.info("Writing boot sector");
-			//cpu.writeBootSector(bootSector);
+			cpu.initPageTable();
+			cpu.allocatePage(0);
+			cpu.writeBootSector(bootSector);
 			slaveMode();
 		} finally {
 			br.close();
