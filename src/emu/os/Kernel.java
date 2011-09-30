@@ -682,6 +682,9 @@ public class Kernel {
 		
 		KernelStatus retval = KernelStatus.CONTINUE;
 		
+		//Free the page table
+		cpu.freePageTable();
+		
 		//TODO might we need to clear all other interupts?
 		cpu.setPi(Interrupt.CLEAR);
 

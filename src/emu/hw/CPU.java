@@ -573,4 +573,9 @@ public class CPU {
 		return mmu;
 	}
 
+	public void freePageTable() {
+		mmu.freePageTable();
+		
+	}
+
 }

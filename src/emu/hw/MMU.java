@@ -160,6 +160,37 @@ public class MMU implements MemoryUnit {
 		return frame; 
 	}
 	
+	/*
+	 * Free the frames pointed to by the page table and free the page table itself
+	 * when a process is terminating
+	 */
+	public void freePageTable() {
+		//Get the page table frame # from PTR
+		int PTR = CPU.getInstance().getPtr();
+		try {
+		//Read the current page table
+		String pageTable = ram.readFrame(PTR);
+		//Free the frames referenced in the page table
+		for (int i=0; i<ram.wordsInBlock; i++) {
+			try {
+				String pageTableEntry = pageTable.substring(i*4,(i+1)*4);
+				int frameNum = new Integer(pageTableEntry);
+				ram.markFree(frameNum);
+			}
+			catch (NumberFormatException e) {
+				trace.finest(i + "wasn't backed by a frame");
+			}
+		}
+		//Free the frame backing the page table
+		ram.markFree(PTR);
+		//Set the PTL to zero
+		CPU.getInstance().setPtl(0);
+		}
+		catch (HardwareInterruptException e) {
+			trace.severe("Pagetable should be readable and writable");
+		}
+	}
+	
 	/**
 	 * Find a new frame in memory to use, return the frame
 	 * @return The frame number.
