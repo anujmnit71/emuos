@@ -113,7 +113,7 @@ public class Kernel {
 	private String lastLineRead;
 	
 	/**
-	 * Check if the last line has been ussed yet.
+	 * Check if the last line has been used yet.
 	 */
 	boolean lineBuffered = false;
 	
@@ -386,7 +386,7 @@ public class Kernel {
 						cpu.decrement();
 						status = KernelStatus.CONTINUE;
 					} else {
-						setError( ErrorMessages.ZERO.getErrCode());
+						setError( ErrorMessages.SIX.getErrCode());
 						status = KernelStatus.ABORT;
 						cpu.setPi(Interrupt.CLEAR);
 					}
@@ -683,6 +683,9 @@ public class Kernel {
 		
 		//Free the page table
 		cpu.freePageTable();
+		
+		//Toss the line that might've been read
+		lineBuffered=false;
 		
 		//Clear all interrupts
 		cpu.clearInterrupts();
