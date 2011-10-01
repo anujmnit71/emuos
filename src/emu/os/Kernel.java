@@ -165,6 +165,14 @@ public class Kernel {
 		
 	}
 	
+	/**
+	 * Starts the OS
+	 * @param args 
+	 * 		args[0] Input File
+	 * 		args[1] Output File
+	 * 		args[2] Trace Level
+	 * 		args[3] Trace file
+	 */
 	public static final void main(String[] args) {
 		
 		initTrace(args);
@@ -177,8 +185,8 @@ public class Kernel {
 		String inputFile = args[0];
 		String outputFile = args[1];
 		
-		
 		Kernel emu = null;
+		
 		try {
 			emu = Kernel.init(inputFile, outputFile);
 			emu.boot();
@@ -563,8 +571,9 @@ public class Kernel {
 						framenum = cpu.allocatePage(pagenum);
 						cpu.writeFrame(framenum, programLine);
 					} catch (HardwareInterruptException e) {
-						trace.info("HardwareInterruptException");
-						retval = KernelStatus.INTERRUPT;
+						trace.log(Level.SEVERE,"HW Exception on load ",e);
+						retval = KernelStatus.ABORT;
+						break;
 					}
 					}
 					pagenum+=1;
@@ -572,7 +581,7 @@ public class Kernel {
 				}
 			}
 			else {
-				trace.warning("Unexpected line:"+nextLine);
+				trace.warning("skipping data line:"+nextLine);
 				nextLine = br.readLine();
 			}
 		}
@@ -600,7 +609,7 @@ public class Kernel {
 		// read next data card
 		if (!lineBuffered) {
 			lastLineRead = br.readLine();
-			trace.fine("line read from input: "+lastLineRead);			
+			trace.fine("data line from input file: "+lastLineRead);			
 			lineBuffered = true;
 		}
 		else {
@@ -792,7 +801,7 @@ public class Kernel {
 	 */
 	public void setError(int err) {
 		trace.finer("-->");
-		trace.info("setting err="+err);
+		trace.fine("setting err="+err);
 		errMsg = ErrorMessages.set(err);
 		if (!p.getErrorInProcess()){
 			p.setErrorInProcess();
@@ -805,7 +814,7 @@ public class Kernel {
 	}
 	
 	/**
-	 * 
+	 * Increments the master/slave cycle count
 	 */
 	private int incrementCycleCount() {
 		return cycleCount++;

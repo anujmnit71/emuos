@@ -81,7 +81,6 @@ public class RAM implements MemoryUnit {
 		//Ensure the string in 40 chars in length
 		data = Utilities.padStringToLength(data, " ", blockSize, false);
 		
-//		int blockAddr = getBlockAddr(addr);
 		int blockAddr = frame*10;
 		
 		for (int i = 0 ; i < 10 ; i++) {

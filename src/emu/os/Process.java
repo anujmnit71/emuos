@@ -13,8 +13,8 @@ import java.util.ArrayList;
 import java.util.logging.Logger;
 
 import emu.hw.CPU;
-import emu.hw.CPU.Interrupt;
 import emu.hw.HardwareInterruptException;
+import emu.hw.CPU.Interrupt;
 
 /**
  * Represents a running process.
@@ -91,7 +91,7 @@ public class Process {
 	 */
 	public void write(String data) {
 		trace.fine("-->");
-		trace.info("buffering output:"+data);
+		trace.info("buffered output:"+data);
 		outputBuffer.add(data);
 		trace.fine("<--");
 	}
@@ -112,6 +112,7 @@ public class Process {
 		if (currTime <= pcb.getMaxTime()) {
 			currTime++;
 		} else {
+			trace.severe("max time ("+pcb.getMaxTime()+") exceeded");
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
 			throw new HardwareInterruptException();
 		}
@@ -125,6 +126,7 @@ public class Process {
 		if (currTime <= pcb.getMaxTime()) {
 			currTime++;
 		} else {
+			trace.severe("max time ("+pcb.getMaxTime()+") exceeded");
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
 			return false;
 		}
@@ -148,7 +150,7 @@ public class Process {
 			currPrints++;
 			return true;
 		} 
-		
+		trace.severe("max prints ("+pcb.getMaxPrints()+") exceeded");
 		Kernel.getInstance().getCpu().setIOi(Interrupt.IO);
 		Kernel.getInstance().setError(2);
 		return false;
