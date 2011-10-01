@@ -199,18 +199,6 @@ public class MMU implements MemoryUnit {
 		return frameNum;
 	}
 	
-	/**
-	 * Writes boot sector to first block, initiates program load.
-	 * @param bootSector
-	 */
-	public void writeBootSector(String bootSector) {
-		try {
-			ram.write(0, bootSector);
-		} catch (HardwareInterruptException e) {
-			trace.severe("shouldnt be here");
-		}
-	}
-
 	@Override
 	public void clear() {
 		ram.clear();

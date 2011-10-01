@@ -152,9 +152,9 @@ public class CPU {
 	 */
 	public String dumpInterupts() {
 
-		return "si="+getSi().getValue()+", " +
-				"pi="+getPi().getValue()+", " +
-				"ti="+getTi().getValue()+", " +
+		return "si="+getSi().getValue()+" " +
+				"pi="+getPi().getValue()+" " +
+				"ti="+getTi().getValue()+" " +
 				"ioi="+getIOi().getValue();
 	}
 
@@ -487,7 +487,7 @@ public class CPU {
 	 * String representation of the the current state.
 	 */
 	public String toString() {
-		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+","+dumpInterupts();
+		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterupts();
 		
 	}
 	
@@ -507,12 +507,16 @@ public class CPU {
 		this.ptr = ptr;
 	}
 	
+	/**
+	 * Returns a memory dump as a String
+	 * @return
+	 */
 	public String dumpMemory() {
 		return mmu.toString();
 	}
 
 	/**
-	 * 
+	 * Checks if the page fault is valid based on the IR
 	 * @return
 	 */
 	public boolean validatePageFault() {
@@ -529,6 +533,12 @@ public class CPU {
 		}
 	}
 
+	/**
+	 * Write a block of data to the given frame. 
+	 * @param frame
+	 * @param data
+	 * @throws HardwareInterruptException
+	 */
 	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
 		mmu.writeFrame(frame, data);
@@ -536,6 +546,12 @@ public class CPU {
 		trace.finer("<--");
 	}
 	
+	/**
+	 * Write a block of data to the given logical addr 
+	 * @param logicalAddr
+	 * @param data
+	 * @throws HardwareInterruptException
+	 */
 	public void writePage(int logicalAddr, String data)
 			throws HardwareInterruptException {
 		trace.finer("-->");
@@ -544,11 +560,19 @@ public class CPU {
 		trace.finer("<--");
 	}
 
-
+	/**
+	 * Clear the memory array
+	 */
 	public void clearMemory() {
 		mmu.clear();
 	}
 
+	/**
+	 * Read the block from the given logical addr. 
+	 * @param logicalAddr
+	 * @return The data
+	 * @throws HardwareInterruptException
+	 */
 	public String readBlock(int logicalAddr) throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.fine("Reading from " + logicalAddr);
@@ -556,10 +580,11 @@ public class CPU {
 		return mmu.read(logicalAddr);
 	}
 
-	public void writeBootSector(String bootSector) {
-		mmu.writeBootSector(bootSector);		
-	}
-
+	/**
+	 * Allocated the given page.
+	 * @param pageNumber
+	 * @return
+	 */
 	public int allocatePage(int pageNumber) {
 		return mmu.allocatePage(pageNumber);
 	}
@@ -576,17 +601,19 @@ public class CPU {
 		return ptl++;
 	}
 
+	/**
+	 * Initialized the page table
+	 */
 	public void initPageTable() {
 		setPtr(mmu.initPageTable());
 		setPtl(0);
 		trace.info("ptr="+getPtr()+", ptl="+getPtl());
 
 	}
-	
-	public MMU getMMU() {
-		return mmu;
-	}
 
+	/**
+	 * Free the allocated pages and page table itself.
+	 */
 	public void freePageTable() {
 		mmu.freePageTable();
 		
