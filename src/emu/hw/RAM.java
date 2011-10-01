@@ -74,7 +74,7 @@ public class RAM implements MemoryUnit {
 	 * @param addr
 	 * @throws HardwareInterruptException 
 	 */
-	public void writeFrame(int frame, String data) throws HardwareInterruptException {
+	public void write(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.fine("Frame#: "+frame+" Data:"+data);
 		
@@ -151,7 +151,7 @@ public class RAM implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String readFrame(int frame) throws HardwareInterruptException {
+	public String read(int frame) throws HardwareInterruptException {
 		
 		String block = "";
 		int blockAddr = frame * 10;

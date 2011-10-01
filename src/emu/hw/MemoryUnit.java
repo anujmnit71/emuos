@@ -5,9 +5,9 @@ public interface MemoryUnit {
 	
 	void store(int addr, String data) throws HardwareInterruptException;
 	
-	String readFrame(int addr) throws HardwareInterruptException;
+	String read(int addr) throws HardwareInterruptException;
 	
-	void writeFrame(int addr, String data) throws HardwareInterruptException;
+	void write(int addr, String data) throws HardwareInterruptException;
 	
 	
 	void clear();

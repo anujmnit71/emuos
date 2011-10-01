@@ -561,7 +561,7 @@ public class Kernel {
 					else {
 					try {
 						framenum = cpu.allocatePage(pagenum);
-						cpu.writeBlock(framenum, programLine);
+						cpu.writeFrame(framenum, programLine);
 					} catch (HardwareInterruptException e) {
 						trace.info("HardwareInterruptException");
 						retval = KernelStatus.INTERRUPT;

@@ -522,9 +522,9 @@ public class CPU {
 		}
 	}
 
-	public void writeBlock(int frame, String data) throws HardwareInterruptException {
+	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		mmu.writeFrame(frame, data);
+		mmu.write(frame, data);
 		trace.info(frame+"<-"+data);
 		trace.finer("<--");
 	}
@@ -532,7 +532,7 @@ public class CPU {
 	public void writePage(int logicalAddr, String data)
 			throws HardwareInterruptException {
 		trace.finer("-->");
-		mmu.writePage(logicalAddr,data);
+		mmu.write(logicalAddr,data);
 		trace.info(logicalAddr + "<-" + data);
 		trace.finer("<--");
 	}
@@ -546,7 +546,7 @@ public class CPU {
 		trace.finer("-->");
 		trace.fine("Reading from " + logicalAddr);
 		trace.finer("<--");
-		return mmu.readPage(logicalAddr);
+		return mmu.read(logicalAddr);
 	}
 
 	public void writeBootSector(String bootSector) {
