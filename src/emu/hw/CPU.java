@@ -375,8 +375,15 @@ public class CPU {
 	 * @throws HardwareInterruptException 
 	 */
 	public int getOperand() {
-		int retval = Integer.parseInt(ir.substring(2,4));	
-		trace.fine("operand: "+retval);
+		
+		int retval = -1; 
+		try {
+			retval = Integer.parseInt(ir.substring(2,4));
+			trace.fine("operand: "+retval);
+		} catch (NumberFormatException e) {
+			trace.severe("invalid operand format:"+ir.substring(2,4));
+		}
+			
 		if (retval < 0 || retval > 100){
 			retval = Interrupt.OPERAND_ERROR.getRetval();
 		}
