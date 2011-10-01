@@ -39,6 +39,12 @@ public class MMU implements MemoryUnit {
 		//trace.finer(ram.readFrame(realAddr/10));
 		trace.finer("<--");
 	}
+	
+	public void writeFrame(int frame,String data) throws HardwareInterruptException {
+		trace.finer("-->");
+		ram.write(frame, data);
+		trace.finer("<--");
+	}
 
 	/*
 	 * Reads a page from the given logical address
