@@ -531,7 +531,7 @@ public class CPU {
 
 	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		mmu.write(frame, data);
+		mmu.writeFrame(frame, data);
 		trace.info(frame+"<-"+data);
 		trace.finer("<--");
 	}
