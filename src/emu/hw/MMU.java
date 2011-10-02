@@ -193,6 +193,13 @@ public class MMU implements MemoryUnit {
 		//that could take a long time and this is very fast.  
 		frameNum = ram.getFreeFrames().get(generator.nextInt(ram.getFreeFrames().size()));
 		trace.info("Frame allocated: "+frameNum);
+		//Clear any residual data from the frame
+		String spaces = Utilities.padStringToLength(new String("")," ",40,false);
+		try {
+		ram.write(frameNum,spaces);
+		} catch (HardwareInterruptException e) {
+			trace.severe("Error in allocating a new frame");
+		}
 		//Mark the frame we selected as allocated
 		ram.markAllocated(frameNum);
 		
