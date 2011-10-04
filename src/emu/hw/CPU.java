@@ -3,6 +3,7 @@
  * EmuOS: An Emulated Operating System
  * 
  * MSCS 515
+ * Hardware is made up of the cpu, ram and a memory management unit
  */
 package emu.hw;
 
@@ -14,7 +15,6 @@ import java.util.logging.Logger;
  * @author b.j.drew@gmail.com
  * @author willaim.mosley@gmail.com
  * @author claytonannam@gmail.com
- *
  */
 public class CPU {
 	/**
@@ -90,8 +90,6 @@ public class CPU {
 	 * retval is what a function will return if an interrupt is thrown
 	 * type is the type of interrupt 
 	 * errorCode is the error message to which the interrupt corresponds 
-	 * @author wmosley
-	 *
 	 */
 	public enum Interrupt {
 		CLEAR           ( 0,515, InterruptType.MASTER    , -1),
@@ -147,8 +145,7 @@ public class CPU {
 	}
 	
 	/**
-	 * 
-	 * @return
+	 * @return state of all interrupts
 	 */
 	public String dumpInterupts() {
 
@@ -173,8 +170,6 @@ public class CPU {
 	}
 	/**
 	 * All the valid interrupt types
-	 * @author wmosley
-	 *
 	 */
 	public enum InterruptType {
 		MASTER,
@@ -187,7 +182,7 @@ public class CPU {
 	
 	/**
 	 * get instruction register
-	 * @return
+	 * @return	instruction in IR register
 	 */
 	public String getIr() {
 		return ir;
@@ -195,7 +190,7 @@ public class CPU {
 
 	/**
 	 * set instruction register
-	 * @param ir
+	 * @param ir	program instruction
 	 */
 	public void setIr(String ir) {
 		this.ir = ir;
@@ -203,7 +198,7 @@ public class CPU {
 
 	/**
 	 * get toggle
-	 * @return
+	 * @return	state of toggle
 	 */
 	public boolean isC() {
 		return c;
@@ -211,7 +206,7 @@ public class CPU {
 	
 	/**
 	 * Get C as T or F
-	 * @return
+	 * @return	boolean	T if true, F if false
 	 */
 	public String getCString() {
 		return Boolean.toString(c).substring(0,1).toUpperCase();
@@ -219,13 +214,14 @@ public class CPU {
 
 	/**
 	 * set toggle
-	 * @param c
+	 * @param c	value to set toggle
 	 */
 	public void setC(boolean c) {
 		this.c = c;
 	}
 	/** 
 	 * get the current instruction count
+	 * @return	instruction count in IC register
 	 */
 	public int getIc() {
 		return ic;
@@ -233,13 +229,14 @@ public class CPU {
 
 	/**
 	 * set the instruction count
-	 * @param ic
+	 * @param ic	value of the instruction counter 
 	 */
 	public void setIc(int ic) {
 		this.ic = ic;
 	}
 	/**
 	 * get the cpu clock
+	 * @return	current cpu clock
 	 */
 	public int getClock() {
 		return clock;
@@ -247,7 +244,7 @@ public class CPU {
 
 	/**
 	 * get Interupt type
-	 * @return
+	 * @return	supervisor interrupt
 	 */
 	public Interrupt getSi() {
 		return si;
@@ -255,7 +252,7 @@ public class CPU {
 
 	/**
 	 * set Interrupt type
-	 * @param si
+	 * @param si	value of supervisor interrupt
 	 */
 	public void setSi(Interrupt si) {
 		if (si.getType().equals(InterruptType.SUPERVISOR)
@@ -269,7 +266,7 @@ public class CPU {
 	
 	/**
 	 * set supervisor interrupt based on integer value
-	 * @param value
+	 * @param value	integer which will be converted to supervisor interrupt
 	 */
 	public void setSi(int value) {
 		Interrupt i = Interrupt.set(value);
@@ -278,7 +275,7 @@ public class CPU {
 	
 	/**
 	 * get ProgramInterrupt type
-	 * @return
+	 * @return pi	value of program interrupt
 	 */
 	public Interrupt getPi() {
 		return pi;
@@ -286,7 +283,7 @@ public class CPU {
 
 	/**
 	 * set ProgramInterrupt type
-	 * @param si
+	 * @param pi	value of program interrupt
 	 */
 	public void setPi(Interrupt pi) {
 		if (pi.getType().equals(InterruptType.PROGRAM)
@@ -300,7 +297,7 @@ public class CPU {
 	
 	/** 
 	 * set program interrupt based on integer value
-	 * @param value
+	 * @param value	integer which will be converted to program interrupt
 	 */
 	public void setPi(int value) {
 		Interrupt i = Interrupt.set(value);
@@ -309,15 +306,15 @@ public class CPU {
 	
 	/**
 	 * get Interrupt type
-	 * @return
+	 * @return ti	value of time interrupt
 	 */
 	public Interrupt getTi() {
 		return ti;
 	}
 
 	/**
-	 * set TimeInterrupt type
-	 * @param si
+	 * set time interrupt
+	 * @param ti	value of time interrupt	
 	 */
 	public void setTi(Interrupt ti) {
 		if (ti.getType().equals(InterruptType.TIME)
@@ -331,7 +328,7 @@ public class CPU {
 	
 	/**
 	 * set time interrupt based on integer value
-	 * @param value
+	 * @param value	integer which will be converted to time interrupt
 	 */
 	public void setTi(int value) {
 		Interrupt i = Interrupt.set(value);
@@ -340,15 +337,15 @@ public class CPU {
 	
 	/**
 	 * get Interrupt type
-	 * @return
+	 * @return ioi	value of I/O interrupt
 	 */
 	public Interrupt getIOi() {
 		return ioi;
 	}
 
 	/**
-	 * set TimeInterrupt type
-	 * @param si
+	 * set time interrupt type
+	 * @param ioi	value of I/O interrupt
 	 */
 	public void setIOi(Interrupt ioi) {
 		if (ioi.getType().equals(InterruptType.IO)
@@ -362,7 +359,7 @@ public class CPU {
 	
 	/**
 	 * set IO interrupt based on integer value
-	 * @param value
+	 * @param value	integer which will be converted to I/O interrupt
 	 */
 	public void setIOi(int value) {
 		Interrupt i = Interrupt.set(value);
@@ -370,31 +367,29 @@ public class CPU {
 	}
 	
 	/**
-	 * get instruction in instruction register
-	 * @return
-	 * @throws HardwareInterruptException 
+	 * get operand from instruction in instruction register
+	 * @return retval	operand from instruction
 	 */
-	public int getOperand() {
-		
-		int retval = -1; 
-		try {
-			retval = Integer.parseInt(ir.substring(2,4));
-			trace.fine("operand: "+retval);
-		} catch (NumberFormatException e) {
-			trace.severe("invalid operand format:"+ir.substring(2,4));
-		}
+		public int getOperand() {
 			
-		if (retval < 0 || retval > 100){
-			retval = Interrupt.OPERAND_ERROR.getRetval();
+			int retval = -1; 
+			try {
+				retval = Integer.parseInt(ir.substring(2,4));
+				trace.fine("operand: "+retval);
+			} catch (NumberFormatException e) {
+				trace.severe("invalid operand format:"+ir.substring(2,4));
+				retval = Interrupt.OPERAND_ERROR.getRetval();
+			}
+				
+			if (retval < 0 || retval > 100){
+				retval = Interrupt.OPERAND_ERROR.getRetval();
+			}
+			return retval;
 		}
-		return retval;
-	}
 	
 	/**
 	 * Execute an instruction
-	 * @param memory
-	 * @throws HardwareInterruptException
-	 * @throws SoftwareInterruptException
+	 * @throws HardwareInterruptException	when any type of interrupt is set
 	 */
 	public void execute() throws HardwareInterruptException {
 		trace.finer("-->");
@@ -459,8 +454,7 @@ public class CPU {
 	
 	/**
 	 * Load an instruction into IR 
-	 * @param memory
-	 * @throws HardwareInterruptException 
+	 * @throws HardwareInterruptException	when page fault interrupt is thrown 
 	 */
 	public void fetch() throws HardwareInterruptException {
 		ir = mmu.load(ic);
@@ -493,23 +487,29 @@ public class CPU {
 	
 	/**
 	 * Returns state without labels.
-	 * @return
+	 * @return	current state of cpu
 	 */
 	public String getState() {
 		return ic+"    "+ir+"    "+gr+"    "+getCString();
 	}
 	
+	/**
+	 * @return	page table register
+	 */
 	public int getPtr() {
 		return ptr;
 	}
 
+	/**
+	 * @param ptr	set the page location of the page table register
+	 */
 	public void setPtr(int ptr) {
 		this.ptr = ptr;
 	}
 	
 	/**
 	 * Returns a memory dump as a String
-	 * @return
+	 * @return	representation of memory
 	 */
 	public String dumpMemory() {
 		return mmu.toString();
@@ -517,7 +517,7 @@ public class CPU {
 
 	/**
 	 * Checks if the page fault is valid based on the IR
-	 * @return
+	 * @return	true if the page fault is valid otherwise false
 	 */
 	public boolean validatePageFault() {
 
@@ -535,11 +535,10 @@ public class CPU {
 
 	/**
 	 * Write a block of data to the given frame. 
-	 * @param frame
+	 * @param frame	
 	 * @param data
-	 * @throws HardwareInterruptException
 	 */
-	public void writeFrame(int frame, String data) throws HardwareInterruptException {
+	public void writeFrame(int frame, String data) {
 		trace.finer("-->");
 		mmu.writeFrame(frame, data);
 		trace.info(frame+"<-"+data);
@@ -570,7 +569,7 @@ public class CPU {
 	/**
 	 * Read the block from the given logical addr. 
 	 * @param logicalAddr
-	 * @return The data
+	 * @return 	data read from memory
 	 * @throws HardwareInterruptException
 	 */
 	public String readBlock(int logicalAddr) throws HardwareInterruptException {
@@ -583,20 +582,29 @@ public class CPU {
 	/**
 	 * Allocated the given page.
 	 * @param pageNumber
-	 * @return
+	 * @return	frame number
 	 */
 	public int allocatePage(int pageNumber) {
 		return mmu.allocatePage(pageNumber);
 	}
 
+	/**
+	 * @return page table length
+	 */
 	public int getPtl() {
 		return ptl;
 	}
 
+	/**
+	 * @param ptl page table length
+	 */
 	public void setPtl(int ptl) {
 		this.ptl = ptl;
 	}
 	
+	/**
+	 * @return	incremented length of the page table
+	 */
 	public int incrementPtl() {
 		return ptl++;
 	}

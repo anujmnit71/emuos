@@ -9,7 +9,8 @@ package emu.hw;
 import java.util.logging.Logger;
 
 /**
- * Hardware Interrupt Handler for emuos
+ * Hardware Interrupt Handler for emuos is used as a mechanism for
+ * throwing all hardware interrupt
  * @author b.j.drew@gmail.com
  * @author willaim.mosley@gmail.com
  * @author claytonannam@gmail.com
@@ -26,6 +27,5 @@ public class HardwareInterruptException extends Exception {
 	 * A copy of the interupt
 	 */
 	public HardwareInterruptException() {
-
 	}
 }
