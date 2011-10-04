@@ -8,7 +8,6 @@ package emu.os;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
@@ -29,6 +28,9 @@ public class Process {
 	 */
 	static Logger trace = Logger.getLogger("emuos");
 	
+	/**
+	 * Job cards
+	 */
 	public static final String JOB_START = "$AMJ";
 	public static final String DATA_START = "$DTA";
 	public static final String JOB_END = "$EOJ";
@@ -60,11 +62,11 @@ public class Process {
 	
 	/**
 	 * Create a new process instance
-	 * @param id
-	 * @param maxTime
-	 * @param maxPrints
-	 * @param program
-	 * @param output
+	 * @param id	process id
+	 * @param maxTime	maximum cycles process allowed for execution
+	 * @param maxPrints	maximum lines process allowed to print
+	 * @param program	input buffer
+	 * @param output	program output buffer
 	 */
 	public Process(String id, int maxTime, int maxPrints, BufferedReader program, BufferedWriter output) {
 		outputBuffer = new ArrayList<String>();
@@ -74,9 +76,8 @@ public class Process {
 	
 	/**
 	 * Called after program load
-	 * @throws IOException 
 	 */
-	public void startExecution() throws IOException {
+	public void startExecution() {
 		trace.fine("-->");
 		trace.info("starting process "+pcb.getId());
 		Kernel.getInstance().getCpu().setIc(0);
@@ -87,7 +88,7 @@ public class Process {
 	
 	/**
 	 * Writes to the programs output buffer
-	 * @param data
+	 * @param data to be added to output buffer
 	 */
 	public void write(String data) {
 		trace.fine("-->");
@@ -98,7 +99,7 @@ public class Process {
 	
 	/**
 	 * return output buffer to caller
-	 * @return
+	 * @return output buffer
 	 */
 	public ArrayList<String> getOutputBuffer() {
 		return outputBuffer;
@@ -120,7 +121,7 @@ public class Process {
 	
 	/**
 	 * Increment time count and throw exception if max time limit is exceeded
-	 * return false if there is an error
+	 * @return false if there is an error
 	 */
 	public boolean incrementTimeCountMaster()  {
 		if (currTime <= pcb.getMaxTime()) {
@@ -135,7 +136,7 @@ public class Process {
 	
 	/**
 	 * get the running time of a process.
-	 * @return
+	 * @return current execution time
 	 */
 	public int getTime() {
 		return currTime;
@@ -143,7 +144,7 @@ public class Process {
 		
 	/**
 	 * Increment print count and throw exception if max print limit is exceeded
-	 * @throws SoftwareInterruptException
+	 * @return true	if current print count was incremented, false if maximum prints has been reached  
 	 */
 	public boolean incrementPrintCount() {
 		if (currPrints <= pcb.getMaxPrints()) {
@@ -158,7 +159,7 @@ public class Process {
 	
 	/**
 	 * get the number of printed lines of a process
-	 * @return
+	 * @return current number of lines printed.
 	 */
 	public int getLines() {
 		return currPrints;		
@@ -166,7 +167,7 @@ public class Process {
 	
 	/**
 	 * Clear exiting message
-	 * @param msg
+	 * @param msg	to set termination status
 	 */
 	public void setTerminationStatus(String msg) {
 		terminationStatus = msg;
@@ -175,7 +176,7 @@ public class Process {
 	
 	/**
 	 * append incoming message to existing message
-	 * @param msg
+	 * @param msg	to append to termination status
 	 */
 	public void appendTerminationStatus(String msg) {
 		terminationStatus += ", " + msg;
@@ -184,7 +185,7 @@ public class Process {
 	
 	/**
 	 * Return the termination status of process
-	 * @return
+	 * @return	message to be printed to output.
 	 */
 	public String getTerminationStatus() {
 		trace.finer(""+terminationStatus);
@@ -201,7 +202,7 @@ public class Process {
 	
 	/**
 	 * return error status of process
-	 * @return
+	 * @return	true if there is an error in the current process, false if there is not error
 	 */
 	public boolean getErrorInProcess(){
 		trace.finer("getErrorInProcess(): "+errorInProcess);
@@ -209,8 +210,7 @@ public class Process {
 	}
 	
 	/**
-	 * 
-	 * @return
+	 * @return Id of running process
 	 */
 	public String getId() {
 		return pcb.getId();

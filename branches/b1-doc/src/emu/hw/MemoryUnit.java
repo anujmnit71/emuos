@@ -9,7 +9,7 @@ public interface MemoryUnit {
 	
 	void write(int addr, String data) throws HardwareInterruptException;
 	
-	
 	void clear();
 	
+	public String toString();	
 }
