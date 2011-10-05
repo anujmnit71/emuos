@@ -154,10 +154,10 @@ public class MMU implements MemoryUnit {
 	 */
 	public void freePageTable() {
 		//Get the page table frame # from PTR
-		int PTR = CPU.getInstance().getPtr();
+		int ptr = CPU.getInstance().getPtr();
 		try {
 		//Read the current page table
-		String pageTable = ram.read(PTR);
+		String pageTable = ram.read(ptr);
 		//Free the frames referenced in the page table
 		for (int i=0; i<ram.wordsInBlock; i++) {
 			try {
@@ -166,11 +166,11 @@ public class MMU implements MemoryUnit {
 				ram.markFree(frameNum);
 			}
 			catch (NumberFormatException e) {
-				trace.finest(i + "wasn't backed by a frame");
+				trace.finest(i + " wasn't backed by a frame");
 			}
 		}
 		//Free the frame backing the page table
-		ram.markFree(PTR);
+		ram.markFree(ptr);
 		//Set the PTL to zero
 		CPU.getInstance().setPtl(0);
 		}
