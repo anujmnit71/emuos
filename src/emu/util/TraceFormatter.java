@@ -24,7 +24,7 @@ public class TraceFormatter extends Formatter {
 			line += Utilities.padStringToLength(l.getSourceMethodName(), " ", 10, false)+" | ";			
 		}
 		if (!l.getLevel().equals(Level.INFO)) {
-			line +=  l.getLevel() + " : ";			
+			line +=  l.getLevel() + ": ";			
 		}
 		line += l.getMessage();		
 		
