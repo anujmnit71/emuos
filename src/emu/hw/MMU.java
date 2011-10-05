@@ -36,7 +36,7 @@ public class MMU implements MemoryUnit {
 	/**
 	 * Writes a string of data to the given logical address
 	 * \dot digraph mmu_write {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
 	 * node [shape="box",fontsize="8",fontname="Helvetica"];
@@ -64,7 +64,7 @@ public class MMU implements MemoryUnit {
 	
 	/**
 	 * \dot digraph mmu_writeFrame {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
 	 * node [shape="box",fontsize="8",fontname="Helvetica"];
@@ -89,7 +89,7 @@ public class MMU implements MemoryUnit {
 	/**
 	 * Reads a page from the given logical address
 	 * \dot digraph mmu_read {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
 	 * node [shape="box",fontsize="8",fontname="Helvetica"];
@@ -117,7 +117,7 @@ public class MMU implements MemoryUnit {
 	/**
 	 * Reads a word from the given logical address
 	 * \dot digraph mmu_load {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
 	 * node [shape=box,fontsize="8",fontname="Helvetica"];
@@ -145,7 +145,7 @@ public class MMU implements MemoryUnit {
 	/**
 	 * Stores the given word at the given logical address
 	 * \dot digraph mmu_store {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
 	 * node [shape="box",fontsize="8",fontname="Helvetica"];
@@ -179,7 +179,7 @@ public class MMU implements MemoryUnit {
 	/**
 	 * Translates a logical address (page*10+displacement) to a real address (frame*10+displacement)
 	 * \dot digraph mmu_translateAddr {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
 	 * node [shape="box",fontsize="8",fontname="Helvetica"];
@@ -235,19 +235,17 @@ public class MMU implements MemoryUnit {
 	/**
 	 * Initialize the page table 
 	 * \dot digraph mmu_initPageTable {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
 	 * node [shape="box",fontsize="8",fontname="Helvetica"];
-	 * initPageTable_allocateFrame[label="frame = initPageTable()"];
-	 * initPageTable_write[label="set frame contents to spaces"];
-	 * allocateFrame_time[label="check process time count and increment"];
+	 * initPageTable_write[label="write ( frame , spaces )"];
 	 * 
 	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
 	 * initPageTable_begin [label="begin", color="chartreuse"];
 	 * initPageTable_return [label="return frame", color="firebrick1"];
 	 * 
-	 * initPageTable_begin -> initPageTable_allocate -> initPageTable_write -> allocateFrame_return;
+	 * initPageTable_begin -> initPageTable_write -> initPageTable_return;
 	 * } \enddot
 	 * 
 	 * @return The physical frame where the page table will reside.
@@ -264,7 +262,7 @@ public class MMU implements MemoryUnit {
 	 * Free the frames pointed to by the page table and free the page table itself
 	 * when a process is terminating
 	 * \dot digraph mmu_freePageTable {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * node [shape="box",fontsize="8",fontname="Helvetica"];
 	 * freePageTable_translateAddr[label="real address = translateAddr(logical address)"];
@@ -302,21 +300,22 @@ public class MMU implements MemoryUnit {
 	/**
 	 * Find a new frame in memory to use, return the frame
 	 * \dot digraph mmu_allocateFrame {
-	 * rankdir=TB; compound=true; nodesep=0.5; fontsize="8";
+	 * rankdir=TB; compound=true; nodesep=0.5;
 	 * 
 	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
 	 * node [shape=box,fontsize="8",fontname="Helvetica"];
-	 * allocateFrame_fetch[label="fetch"];
-	 * allocateFrame_increment[label="increment"];
-	 * allocateFrame_execute[label="execute"];
-	 * allocateFrame_time[label="check process time count and increment"];
+	 * allocateFrame_0[label="frame number = 0;"];
+	 * allocateFrame_2[label="frame number = random number between 0 and the size of the free frames list"];
+	 * allocateFrame_4[label="write ( frame number, spaces )"];
+	 * allocateFrame_6[label="mark frame number as allocated"];
+
 	 * 
 	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
 	 * allocateFrame_begin [label="begin", color="chartreuse"];
-	 * allocateFrame_return [label="return done", color="firebrick1"];
+	 * allocateFrame_return [label="return frame number", color="firebrick1"];
 	 * 
-	 * allocateFrame_begin -> allocateFrame_fetch-> allocateFrame_increment ->
-	 * allocateFrame_execute -> allocateFrame_time -> allocateFrame_return;
+	 * allocateFrame_begin -> allocateFrame_0 -> allocateFrame_2 ->
+	 * allocateFrame_4 -> allocateFrame_6 -> allocateFrame_return;
 	 * } \enddot
 	 * @return The frame number.
 	 */

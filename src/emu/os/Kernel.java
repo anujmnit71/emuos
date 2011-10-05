@@ -87,6 +87,13 @@ public class Kernel {
 	boolean lineBuffered = false;
 
 	/**
+	 * Job cards
+	 */
+	public static final String JOB_START = "$AMJ";
+	public static final String DATA_START = "$DTA";
+	public static final String JOB_END = "$EOJ";
+	
+	/**
 	 * Control Flags for interrupt handling CONTINUE current processing and
 	 * return to slaveMode ABORT the current process and continue processing job
 	 * cards TERMINATE the OS INTERRUPT iterate loop again
@@ -715,7 +722,7 @@ public class Kernel {
 
 		while (nextLine != null) {
 			//Check for EOJ
-			if (nextLine.startsWith(Process.JOB_END)) {
+			if (nextLine.startsWith(JOB_END)) {
 									
 				writeProccess();
 				
@@ -732,7 +739,7 @@ public class Kernel {
 				//exit();
 				continue;
 			}
-			else if (nextLine.startsWith(Process.JOB_START)) {
+			else if (nextLine.startsWith(JOB_START)) {
 				trace.info("Loading job:"+nextLine);
 				
 				//Allocate the page table
@@ -751,12 +758,12 @@ public class Kernel {
 				//Write each block of program lines into memory
 				while (programLine != null) {
 					
-					if (programLine.equals(Process.JOB_END) 
-							|| programLine.equals(Process.JOB_START)) {
+					if (programLine.equals(JOB_END) 
+							|| programLine.equals(JOB_START)) {
 						trace.info("breaking on "+programLine);
 						break;
 					}
-					else if (programLine.equals(Process.DATA_START)) {
+					else if (programLine.equals(DATA_START)) {
 						//trace.info("start cycle "+incrementCycleCount());
 						trace.info("data start on "+programLine);
 						trace.fine("Memory contents: " + cpu.dumpMemory());
@@ -863,7 +870,7 @@ public class Kernel {
 		
 		trace.info("operand:"+irValue+" pi="+cpu.getPi().getValue());
 		// If next data card is $END, TERMINATE(1)
-		if (lastLineRead.startsWith(Process.JOB_END)){
+		if (lastLineRead.startsWith(JOB_END)){
 			setError(1);
 			writeProccess();
 			retval = KernelStatus.ABORT;
