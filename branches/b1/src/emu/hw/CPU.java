@@ -441,6 +441,7 @@ public class CPU {
 			si = Interrupt.TERMINATE;	
 			//trace.info("si<-"+Interrupt.TERMINATE.getValue());
 		}else {
+			trace.severe("unknown operation:"+ir);
 			pi = Interrupt.OPERATION_ERROR;
 		}
 		

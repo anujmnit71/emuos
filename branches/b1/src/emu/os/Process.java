@@ -44,7 +44,7 @@ public class Process {
 	/**
 	 * Current execution time
 	 */
-	int currTime;
+	int currTime = 1;
 	/**
 	 * Current number of prints
 	 */
@@ -57,6 +57,10 @@ public class Process {
 	 * Message describing how the process terminated
 	 */
 	String terminationStatus;
+	/**
+	 * 
+	 */
+	boolean running;
 	
 	/**
 	 * Create a new process instance
@@ -79,6 +83,7 @@ public class Process {
 	public void startExecution() throws IOException {
 		trace.fine("-->");
 		trace.info("starting process "+pcb.getId());
+		running = true;
 		Kernel.getInstance().getCpu().setIc(0);
 		Kernel.getInstance().getCpu().setSi(CPU.Interrupt.CLEAR);
 		setTerminationStatus("Normal Execution");
@@ -109,10 +114,7 @@ public class Process {
 	 * @throws HardwareInterruptException if there is an error
 	 */
 	public void incrementTimeCountSlave() throws HardwareInterruptException {
-		if (currTime <= pcb.getMaxTime()) {
-			currTime++;
-		} else {
-			trace.severe("max time ("+pcb.getMaxTime()+") exceeded");
+		if (!incrementTime()) {
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
 			throw new HardwareInterruptException();
 		}
@@ -123,8 +125,18 @@ public class Process {
 	 * return false if there is an error
 	 */
 	public boolean incrementTimeCountMaster()  {
+		return incrementTime();
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	private boolean incrementTime() {
+		currTime++;
+		
 		if (currTime <= pcb.getMaxTime()) {
-			currTime++;
+			trace.info("curr time: "+currTime+", max time="+pcb.getMaxTime());
 		} else {
 			trace.severe("max time ("+pcb.getMaxTime()+") exceeded");
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
@@ -146,8 +158,10 @@ public class Process {
 	 * @throws SoftwareInterruptException
 	 */
 	public boolean incrementPrintCount() {
+		
+		currPrints++;
+		
 		if (currPrints <= pcb.getMaxPrints()) {
-			currPrints++;
 			return true;
 		} 
 		trace.severe("max prints ("+pcb.getMaxPrints()+") exceeded");
@@ -214,5 +228,18 @@ public class Process {
 	 */
 	public String getId() {
 		return pcb.getId();
+	}
+
+	public boolean isRunning() {
+		return running;
+	}
+
+	public void setRunning(boolean running) {
+		this.running = running;
+	}
+	
+	public void terminate() {
+		trace.info("terminating process "+pcb.getId());
+		setRunning(false);
 	}
 }

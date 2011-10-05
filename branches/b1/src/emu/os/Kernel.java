@@ -516,9 +516,10 @@ public class Kernel {
 			//Check for EOJ
 			if (nextLine.startsWith(Process.JOB_END)) {
 									
-				writeProccess();
+				finishProccess();
 				
-				trace.info("Finished job "+p.getId());
+				trace.fine("Finished job "+p.getId());
+				trace.info("Memory Dump of "+p.getId()+":"+cpu.dumpMemory());
 				
 				//read next line
 				nextLine = br.readLine();
@@ -533,7 +534,9 @@ public class Kernel {
 			}
 			else if (nextLine.startsWith(Process.JOB_START)) {
 				trace.info("Loading job:"+nextLine);
-				
+
+				checkForCurrentProcess();
+
 				//Allocate the page table
 				cpu.initPageTable();
 				
@@ -560,6 +563,7 @@ public class Kernel {
 						trace.info("data start on "+programLine);
 						trace.fine("Memory contents: " + cpu.dumpMemory());
 						trace.fine("CPU: "+cpu.toString());
+						
 						p = new Process(id, maxTime, maxPrints, br, wr);
 						p.startExecution();
 						processCount++;
@@ -568,6 +572,7 @@ public class Kernel {
 					}
 					else {
 					try {
+						trace.info("start cycle "+incrementCycleCount());
 						framenum = cpu.allocatePage(pagenum);
 						cpu.writeFrame(framenum, programLine);
 					} catch (HardwareInterruptException e) {
@@ -581,17 +586,34 @@ public class Kernel {
 				}
 			}
 			else {
-				trace.warning("skipping data line:"+nextLine);
+				trace.warning("skipped data line:"+nextLine);
 				nextLine = br.readLine();
 			}
 		}
 
 		trace.info("No more jobs, exiting");
+		
+		checkForCurrentProcess();
+		
 		retval = KernelStatus.TERMINATE;
 		trace.finer("<--");
 		return retval;
 	}
 	
+	/**
+	 * 
+	 * @throws IOException
+	 */
+	private void checkForCurrentProcess() throws IOException {
+		//Check for current process
+		if (p != null && p.isRunning()) {
+			trace.warning("Process "+p.getId()+" never finished");
+			setError(ErrorMessages.NA.getErrCode());
+			finishProccess();
+		}
+		
+	}
+
 	/**
 	 * Processing of a read from the GD instruction
 	 * @return
@@ -620,7 +642,7 @@ public class Kernel {
 		// If next data card is $END, TERMINATE(1)
 		if (lastLineRead.startsWith(Process.JOB_END)){
 			setError(1);
-			writeProccess();
+			finishProccess();
 			retval = KernelStatus.ABORT;
 		// Increment the time counter for the GD instruction
 		} else if (!p.incrementTimeCountMaster()){
@@ -765,9 +787,9 @@ public class Kernel {
 	 * Writes the process state and buffer to the output file
 	 * @throws IOException
 	 */
-	public void writeProccess() throws IOException {
+	public void finishProccess() throws IOException {
 		trace.finer("-->");
-		wr.write(p.getId()+"    "+p.getTerminationStatus()+"\n");
+		wr.write(p.getId()+" Result: "+p.getTerminationStatus()+"\n");
 		wr.write(cpu.getState());
 		wr.write("    "+p.getTime()+"    "+p.getLines());
 		wr.newLine();
@@ -780,6 +802,7 @@ public class Kernel {
 			 wr.newLine();
 		}
 		wr.flush();
+		p.terminate();
 		trace.finer("<--");
 	}
 	
