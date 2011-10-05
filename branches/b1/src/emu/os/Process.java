@@ -136,7 +136,7 @@ public class Process {
 		currTime++;
 		
 		if (currTime <= pcb.getMaxTime()) {
-			trace.info("curr time: "+currTime+", max time="+pcb.getMaxTime());
+			trace.fine("curr time: "+currTime+", max time="+pcb.getMaxTime());
 		} else {
 			trace.severe("max time ("+pcb.getMaxTime()+") exceeded");
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
