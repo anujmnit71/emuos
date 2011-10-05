@@ -85,8 +85,8 @@ public class CPU {
 	private MMU mmu;
 	
 	/**
-	 * All interrupts are grouped together. Their types are verified upon setting when set.
-	 * value represents what is specified in the phase 2 doc
+	 * All interrupts are grouped together. Their types are verified when set.
+	 * Represented values are based on phase 2 requirements
 	 * retval is what a function will return if an interrupt is thrown
 	 * type is the type of interrupt 
 	 * errorCode is the error message to which the interrupt corresponds 
@@ -136,7 +136,7 @@ public class CPU {
 	}
 	
 	/**
-	 * Initialize CPU
+	 * Initialize CPU. Clear all interrupts and configure the memory management unit
 	 */
 	private CPU() {
 		clearInterrupts();
@@ -156,8 +156,7 @@ public class CPU {
 	}
 
 	/**
-	 * 
-	 * @return
+	 * @return	instance of the cpu
 	 */
 	public static CPU getInstance() {
 
@@ -389,6 +388,107 @@ public class CPU {
 	
 	/**
 	 * Execute an instruction
+	 * \dot digraph cpu_execute {
+	 * rankdir=TB; compound=true; nodesep=0.5;
+	 * 
+	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
+	 * node [shape="box",fontsize="8",fontname="Helvetica"];
+	 * execute0 [label="logical address = operand"];
+	 * execute2 [label="set program interrupt ... operand error"];
+	 * execute4 [label="load ( logical address )"];
+	 * execute6 [label="set program interrupt ... operation error"];
+	 * execute8 [label="set supervisor interrupt ... write"];
+	 * execute10 [label="set supervisor interrupt ... read"];
+	 * execute12 [label="set supervisor interrupt ... terminate"];
+	 * execute14 [label="get operand"];
+	 * execute16 [label="set IC to logical address"];
+	 * execute18 [label="set program interrupt ... operand error"];
+     * execute20 [label="get operand"];
+ 	 * execute22 [label="set program interrupt ... operand error"];
+ 	 * execute24 [label="store ( logical address, contents of GR )"];
+ 	 * execute26 [label="set program interrupt ... operand error"];
+ 	 * execute28 [label="get operand"];
+ 	 * execute30 [label="set toggle to true"];
+ 	 * execute32 [label="set toggle to false"];
+	 * 
+	 * node [shape="diamond",color="blue",fontsize="8",fontname="Helvetica"];
+	 * execute1 [label="if IR contains LR"];
+	 * execute1a [label="if logical address is valid"];
+	 * execute3 [label="else if IR contains SR"];
+	 * execute3a [label="if GR is empty"];
+	 * execute3b [label="if logical address is valid"];
+	 * execute5 [label="else if IR contains CR"];
+	 * execute5a [label="if GR is empty"];
+	 * execute5b [label="if logical address is valid"];
+	 * execute5c [label="if GR equals contents of logical address"];
+	 * execute9 [label="else if IR contains BT"];
+	 * execute9a [label="if C is set"];
+	 * execute9b [label="if logical address is valid"];
+	 * execute11 [label="else if IR contains GD"];
+	 * execute13 [label="else if IR contains PD"];
+	 * execute15 [label="else if IR contains H"];
+	 * execute17 [label="if an interrupt has been set"];
+	 * 
+	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
+	 * execute_begin [label="begin", color="chartreuse"];
+	 * execute_exception [label="hardware interrupt", color="firebrick1"];
+	 * execute_return [label="return", color="firebrick1"];
+	 * 
+	 * {rank=same; execute3 execute2 execute4;};
+	 * {rank=same; execute5 execute24 execute22;};
+	 * {rank=same; execute9 execute26 execute30 execute32;};
+	 * {rank=same; execute11 execute16 execute18;};
+	 * 
+	 * execute_begin -> execute1;
+	 * execute1 -> execute3 -> execute5 -> execute9 -> execute11 -> execute13 -> execute15 [label="false"];
+	 * execute1 -> execute0 [label="true"];
+	 * execute0 -> execute1a;
+	 * execute1a -> execute4 [label="true"];
+	 * execute4 -> execute17;
+	 * execute2 -> execute17;
+	 * execute1a -> execute2 [label="false"];
+	 * 
+	 * execute3 -> execute3a -> execute22 [label="true"];
+	 * execute22 -> execute17;
+	 * execute3a -> execute20 [label="false"];
+	 * execute20 -> execute3b; 
+	 * execute3b -> execute24 [label="true"];
+	 * execute3b -> execute22 [label="false"];
+	 * execute24 -> execute17;
+	 * 
+	 * execute5 -> execute5a -> execute26 [label="true"];
+	 * execute26 -> execute17;
+	 * execute5a -> execute28 [label="false"];
+	 * execute28 -> execute5b;
+	 * execute5b -> execute26 [label="false"];
+	 * execute5b -> execute5c [label="true"];
+	 * execute5c -> execute30 [label="true"];
+	 * execute5c -> execute32 [label="false"];
+	 * execute30 -> execute17;
+	 * execute32 -> execute17;
+	 *  
+	 * execute9 -> execute9a [label="true"];
+	 * execute9a -> execute14 [label="true"];
+	 * execute9a -> execute17 [label="false"];
+	 * execute14 -> execute9b;
+	 * execute9b -> execute16 [label="true"];
+	 * execute9b -> execute18 [label="false"];
+	 * execute16 -> execute17;
+	 * execute18 -> execute17;
+	 * 
+	 * execute11 -> execute10 [label="true"];
+	 * execute10 -> execute17;
+	 * 
+	 * execute13 -> execute8 [label="true"];
+	 * execute8 -> execute17;
+	 * 
+	 * execute15 -> execute6 [label="false"];
+	 * execute15 -> execute12 [label="true"];
+	 * execute12 -> execute17;
+	 * execute6 -> execute17;
+	 * execute17 -> execute_return [label="false"];
+	 * execute17 -> execute_exception [label="throw exception"];
+	 * } \enddot
 	 * @throws HardwareInterruptException	when any type of interrupt is set
 	 */
 	public void execute() throws HardwareInterruptException {
@@ -413,12 +513,16 @@ public class CPU {
 						mmu.store(logicalAddr,gr);
 			}
 		}else if (ir.startsWith(COMPARE)) {
-			logicalAddr = getOperand();
-			pi = Interrupt.set(logicalAddr);
+			if (gr == null)
+				pi = Interrupt.OPERAND_ERROR;
+			else {
+				logicalAddr = getOperand();
+				pi = Interrupt.set(logicalAddr);
 				if (pi == Interrupt.CLEAR) {
 					c = mmu.load(logicalAddr).equals(gr);
 					trace.info("c<-"+c);
 				}
+			}
 		}else if (ir.startsWith(BRANCH)) {
 			if (c) {
 				logicalAddr = getOperand();
