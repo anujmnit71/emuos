@@ -16,7 +16,8 @@ import emu.hw.HardwareInterruptException;
 import emu.hw.CPU.Interrupt;
 
 /**
- * Represents a running process.
+ * Represents a running process. The meta data of the process is stored in the pcb. 
+ * This includes the process id, the max time and maximum printed lines.
  * @author b.j.drew@gmail.com
  * @author willaim.mosley@gmail.com
  * @author claytonannam@gmail.com
@@ -27,14 +28,6 @@ public class Process {
 	 * For tracing
 	 */
 	static Logger trace = Logger.getLogger("emuos");
-	
-	/**
-	 * Job cards
-	 */
-	public static final String JOB_START = "$AMJ";
-	public static final String DATA_START = "$DTA";
-	public static final String JOB_END = "$EOJ";
-	
 	/**
 	 * Process Meta Data
 	 */
@@ -75,7 +68,10 @@ public class Process {
 	}
 	
 	/**
-	 * Called after program load
+	 * Called after program loaded successfully and the $DTA card is read.
+	 * The instruction counter is reset to zero and the supervisor interrupt is 
+	 * cleared. It is assumed that the process will run successfully so the termination
+	 * message is set from execution without any errors.
 	 */
 	public void startExecution() {
 		trace.fine("-->");
@@ -106,7 +102,8 @@ public class Process {
 	}
 	
 	/**
-	 * Increment time count and throw exception if max time limit is exceeded
+	 * Increment time count and throw exception if max time limit is exceeded. An
+	 * exception is thrown to switch to master mode to handle time interrupt.
 	 * @throws HardwareInterruptException if there is an error
 	 */
 	public void incrementTimeCountSlave() throws HardwareInterruptException {
@@ -120,7 +117,9 @@ public class Process {
 	}
 	
 	/**
-	 * Increment time count and throw exception if max time limit is exceeded
+	 * Increment time count and throw exception if max time limit is exceeded. There
+	 * is no need to throw an exception because the OS is in master mode. The boolean 
+	 * returned will indicate a time interrupt.
 	 * @return false if there is an error
 	 */
 	public boolean incrementTimeCountMaster()  {
