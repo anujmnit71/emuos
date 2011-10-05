@@ -17,7 +17,6 @@ import emu.hw.CPU.Interrupt;
 
 /**
  * Represents a running process. The meta data of the process is stored in the pcb. 
- * This includes the process id, the max time and maximum printed lines.
  * @author b.j.drew@gmail.com
  * @author willaim.mosley@gmail.com
  * @author claytonannam@gmail.com
@@ -157,7 +156,7 @@ public class Process {
 	}
 	
 	/**
-	 * get the number of printed lines of a process
+	 * Get the number of printed lines of a process
 	 * @return current number of lines printed.
 	 */
 	public int getLines() {
@@ -174,7 +173,7 @@ public class Process {
 	}
 	
 	/**
-	 * append incoming message to existing message
+	 * Append incoming message to existing message
 	 * @param msg	to append to termination status
 	 */
 	public void appendTerminationStatus(String msg) {
@@ -192,7 +191,7 @@ public class Process {
 	}
 	
 	/**
-	 * flag to know that an error message will be displayed
+	 * Flag to know that an error message will be displayed
 	 */
 	public void setErrorInProcess(){
 		errorInProcess = true;
@@ -200,7 +199,7 @@ public class Process {
 	}
 	
 	/**
-	 * return error status of process
+	 * Return error status of process
 	 * @return	true if there is an error in the current process, false if there is not error
 	 */
 	public boolean getErrorInProcess(){

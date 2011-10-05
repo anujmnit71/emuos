@@ -35,20 +35,6 @@ public class MMU implements MemoryUnit {
 	
 	/**
 	 * Writes a string of data to the given logical address
-	 * \dot digraph mmu_write {
-	 * rankdir=TB; compound=true; nodesep=0.5;
-	 * 
-	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
-	 * node [shape="box",fontsize="8",fontname="Helvetica"];
-	 * write_translateAddr[label="real address = translateAddr(logical address)"];
-	 * write[label="store the data in the ram at the real address"];
-	 * 
-	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
-	 * write_begin [label="begin (logical address, data)", color="chartreuse"];
-	 * write_return [label="return", color="firebrick1"];
-	 * 
-	 * write_begin -> write_translateAddr -> write -> write_return;
-	 * } \enddot
 	 * @param logicalAddr	to be written
 	 * @param data	to be written to ram
 	 */
@@ -63,20 +49,6 @@ public class MMU implements MemoryUnit {
 	}
 	
 	/**
-	 * \dot digraph mmu_writeFrame {
-	 * rankdir=TB; compound=true; nodesep=0.5;
-	 * 
-	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
-	 * node [shape="box",fontsize="8",fontname="Helvetica"];
-	 * writeFrame_translateAddr[label="real address = translateAddr(logical address)"];
-	 * writeFrame[label="store the data in the ram at the real address"];
-	 * 
-	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
-	 * writeFrame_begin [label="begin (frame, data)", color="chartreuse"];
-	 * writeFrame_return [label="return", color="firebrick1"];
-	 * 
-	 * writeFrame_begin -> writeFrame_translateAddr -> writeFrame -> writeFrame_return;
-	 * } \enddot
 	 * @param frame	number
 	 * @param data	to be written
 	 */
@@ -88,20 +60,6 @@ public class MMU implements MemoryUnit {
 
 	/**
 	 * Reads a page from the given logical address
-	 * \dot digraph mmu_read {
-	 * rankdir=TB; compound=true; nodesep=0.5;
-	 * 
-	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
-	 * node [shape="box",fontsize="8",fontname="Helvetica"];
-	 * read_translateAddr[label="real address = translateAddr(logical address)"];
-	 * read[label="read a page from frame"];
-	 * 
-	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
-	 * read_begin [label="begin (logical address)", color="chartreuse"];
-	 * read_return [label="return page", color="firebrick1"];
-	 * 
-	 * read_begin -> read_translateAddr -> read -> read_return;
-	 * } \enddot
 	 * @param logicalAddr to be read
 	 * @returns	contents of frame at real address
 	 */
@@ -116,20 +74,6 @@ public class MMU implements MemoryUnit {
 
 	/**
 	 * Reads a word from the given logical address
-	 * \dot digraph mmu_load {
-	 * rankdir=TB; compound=true; nodesep=0.5;
-	 * 
-	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
-	 * node [shape=box,fontsize="8",fontname="Helvetica"];
-	 * load_translateAddr[label="real address = translateAddr(logical address)"];
-	 * load[label="load the data read address in ram"];
-	 * 
-	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
-	 * load_begin [label="begin (logical address)", color="chartreuse"];
-	 * load_return [label="return word", color="firebrick1"];
-	 * 
-	 * load_begin -> load_translateAddr -> load -> load_return;
-	 * } \enddot
 	 * @param logicalAddr	to be loaded
 	 * @returns contents of real address
 	 */
@@ -144,20 +88,6 @@ public class MMU implements MemoryUnit {
 	
 	/**
 	 * Stores the given word at the given logical address
-	 * \dot digraph mmu_store {
-	 * rankdir=TB; compound=true; nodesep=0.5;
-	 * 
-	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
-	 * node [shape="box",fontsize="8",fontname="Helvetica"];
-	 * store_translateAddr[label="real address = translateAddr(logical address)"];
-	 * store[label="store the data at real address in ram"];
-	 * 
-	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
-	 * store_begin [label="begin (logical address, data)", color="chartreuse"];
-	 * store_return [label="return", color="firebrick1"];
-	 * 
-	 * store_begin -> store_translateAddr -> store -> store_return;
-	 * } \enddot
 	 * @param logicalAddr	to store data
 	 * @param data	to store to read address
 	 */
@@ -191,7 +121,7 @@ public class MMU implements MemoryUnit {
 	 * translateAddr_begin [label="begin", color="chartreuse"];
 	 * translateAddr_return [label="return frame", color="firebrick1"];
 	 * 
-	 * translateAddr_begin -> initPageTable_allocate -> initPageTable_write -> translateAddr_return;
+	 * translateAddr_begin -> translateAddr_allocate -> translateAddr_write -> translateAddr_return;
 	 * } \enddot
 	 * @param logicalAddr
 	 * @return A real address
@@ -234,20 +164,6 @@ public class MMU implements MemoryUnit {
 
 	/**
 	 * Initialize the page table 
-	 * \dot digraph mmu_initPageTable {
-	 * rankdir=TB; compound=true; nodesep=0.5;
-	 * 
-	 * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
-	 * node [shape="box",fontsize="8",fontname="Helvetica"];
-	 * initPageTable_write[label="write ( frame , spaces )"];
-	 * 
-	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
-	 * initPageTable_begin [label="begin", color="chartreuse"];
-	 * initPageTable_return [label="return frame", color="firebrick1"];
-	 * 
-	 * initPageTable_begin -> initPageTable_write -> initPageTable_return;
-	 * } \enddot
-	 * 
 	 * @return The physical frame where the page table will reside.
 	 */
 	public int initPageTable() {
@@ -261,19 +177,6 @@ public class MMU implements MemoryUnit {
 	/**
 	 * Free the frames pointed to by the page table and free the page table itself
 	 * when a process is terminating
-	 * \dot digraph mmu_freePageTable {
-	 * rankdir=TB; compound=true; nodesep=0.5;
-	 * 
-	 * node [shape="box",fontsize="8",fontname="Helvetica"];
-	 * freePageTable_translateAddr[label="real address = translateAddr(logical address)"];
-	 * freePageTable [label="store the data in the ram at the real address"];
-	 * 
-	 * node [shape="ellipse",style="filled",fontsize="8",fontname="Helvetica"];
-	 * freePageTable_begin [label="begin (logical address, data)", color="chartreuse"];
-	 * freePageTable_return [label="return", color="firebrick1"];
-	 * 
-	 * freePageTable_begin -> freePageTable_translateAddr -> freePageTable -> freePageTable_return;
-	 * } \enddot
 	 */
 	public void freePageTable() {
 		//Get the page table frame # from PTR

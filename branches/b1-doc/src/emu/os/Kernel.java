@@ -27,6 +27,48 @@ import emu.util.TraceFormatter;
 
 /**
  * Kernel for EmuOS
+ * \dot digraph kernel {
+ * rankdir=TB; compound=true; nodesep=0.5;
+ * 
+ * edge [fontname="Helvetica",fontsize="8",labelfontname="Helvetica",labelfontsize="8"];
+ * node [shape="box",fontsize="8",fontname="Helvetica"];
+ * kernel_main [label="main"];
+ * kernel_boot [label="boot"];
+ * kernel_masterMode [label="masterMode"];
+ * kernel_slaveMode [label="slaveMode"];
+ * kernel_interruptHandler [label="interruptHandler"];
+ * kernel_read [label="read"];
+ * kernel_write [label="write"];
+ * kernel_terminate [label="terminate"];
+ * kernel_load [label="load"];
+ *
+ * kernel_main -> kernel_boot;
+ * kernel_boot -> kernel_main;
+ * kernel_boot -> kernel_masterMode [label="1"];
+ * kernel_masterMode -> kernel_boot [label="12"];
+ * kernel_masterMode -> kernel_slaveMode [label="2"];
+ * kernel_slaveMode -> kernel_masterMode [label="3"];
+ * kernel_masterMode -> kernel_interruptHandler [label="4"];
+ * kernel_interruptHandler -> kernel_masterMode [label="11"];
+ * kernel_interruptHandler -> kernel_read [label="5"];
+ * kernel_read -> kernel_interruptHandler [label="5a"];
+ * kernel_interruptHandler -> kernel_write [label="6"];
+ * kernel_write -> kernel_interruptHandler [label="6a"];
+ * kernel_interruptHandler -> kernel_terminate [label="7"];
+ * kernel_terminate -> kernel_interruptHandler [label="10"];
+ * kernel_terminate -> kernel_load [label="8"];
+ * kernel_load -> kernel_terminate [label="9"];
+ * } \enddot
+ * 
+ * <ul>
+ * <li> The main method is called on program load
+ * <li> (1,12) boot sets up the OS to begin running user programs then calls masterMode. When there are no more programs to execute, masterMode returns to boot.
+ * <li> (2,3,4,11) masterMode contains the main execution loop of the OS. It calls slaveMode to execute user programs. All interrupts are caught and handled by interruptHandler.
+ * <li> (5,5a) interruptHandler calls read if there is an read supervisor interrupt
+ * <li> (6,6a) interruptHandler calls write if there is write supervisor interrupt
+ * <li> (7,10) interruptHandler calls terminate if there is terminate supervisor interrupt or if some error has occurred forcing a process to abort.
+ * <li> (8,9) terminate calls load when a process has completed execution. It also tells the interrupt handler if there are no more programs to run.
+ * </ul>
  * 
  * @author b.j.drew@gmail.com
  * @author willaim.mosley@gmail.com
