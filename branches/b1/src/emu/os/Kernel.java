@@ -33,36 +33,6 @@ import emu.util.TraceFormatter;
  * 
  */
 
-/*!
-\dot
-digraph kernel {
-  splines=true
-  rankdir=bt
-  node [shape=box]; a0;
-  node [shape=ellipse]; start; end;
-  subgraph cluster_0 {
-    node [shape=box]; b1; c1; d1; f1;
-    node [shape=diamond]; a1; e1;
-    a1 [label="done?"];
-    b1 [label="fetch"];
-    c1 [label="increment"];
-    d1 [label="execute"];
-    e1 [label="HardwareInterrupt?"];
-    f1 [label="interruptHandler"];
-    a1 -> b1 [label="false"];
-    b1 -> c1 -> d1 -> e1;
-    e1 -> f1 [label = "true"];
-	e1 -> a1 [label = "false"];
-    f1 -> a1 [label = "restart loop"];
-    label="slaveMode";
-  }
-  start -> a0;
-  a0 -> a1;
-  a1 -> end [label="true"];
-  a0 [label="cpu.writeBootSector()"];
-}
-\enddot
-*/
 public class Kernel {
 	/**	
 	 * For tracing
@@ -789,7 +759,7 @@ public class Kernel {
 	 */
 	public void finishProccess() throws IOException {
 		trace.finer("-->");
-		wr.write(p.getId()+" Result: "+p.getTerminationStatus()+"\n");
+		wr.write(p.getId()+" "+p.getTerminationStatus()+"\n");
 		wr.write(cpu.getState());
 		wr.write("    "+p.getTime()+"    "+p.getLines());
 		wr.newLine();
