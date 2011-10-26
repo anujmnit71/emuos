@@ -13,10 +13,11 @@ import java.util.ArrayList;
 import java.util.logging.Logger;
 
 import emu.hw.CPU;
-import emu.os.SoftwareInterruptException.SoftwareInterruptReason;
+import emu.hw.HardwareInterruptException;
+import emu.hw.CPU.Interrupt;
 
 /**
- * 
+ * Represents a running process.
  * @author b.j.drew@gmail.com
  * @author willaim.mosley@gmail.com
  * @author claytonannam@gmail.com
@@ -31,65 +32,48 @@ public class Process {
 	public static final String JOB_START = "$AMJ";
 	public static final String DATA_START = "$DTA";
 	public static final String JOB_END = "$EOJ";
-	public static final String JOB_END_ALT = "$END";
 	
+	/**
+	 * Process Meta Data
+	 */
+	PCB pcb;
 	/**
 	 * Buffers the program output
 	 */
 	ArrayList<String> outputBuffer;
 	/**
-	 * The kernel
-	 */
-	Kernel kernel;
-	/**
-	 * The address where data can be loaded.
-	 */
-	int baseDataAddr;
-	/**
-	 * Process ID 
-	 */
-	String id;
-	/**
-	 * Max number of time units of execution
-	 */
-	int maxTime;
-	/**
 	 * Current execution time
 	 */
-	int currTime;
-	/**
-	 * Max number of prints
-	 */
-	int maxPrints;
+	int currTime = 1;
 	/**
 	 * Current number of prints
 	 */
 	int currPrints;
 	/**
+	 * was there an error in this process
+	 */
+	boolean errorInProcess;
+	/**
 	 * Message describing how the process terminated
 	 */
 	String terminationStatus;
-	
-	//TODO ProcessControlBlock
-	
 	/**
 	 * 
-	 * @param kernel Reference to the kernel instance 
-	 * @param maxPrints2 
-	 * @param jobData The job id
-	 * @param program The input stream from which we obtain the program lines
-	 * @param output The output stream we write to.
 	 */
-	public Process(Kernel kernel, int baseDataAddr, String id, int maxTime, int maxPrints, BufferedReader program, BufferedWriter output) {
-		trace.info("id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints+", baseDataAddr="+baseDataAddr);
+	boolean running;
+	
+	/**
+	 * Create a new process instance
+	 * @param id
+	 * @param maxTime
+	 * @param maxPrints
+	 * @param program
+	 * @param output
+	 */
+	public Process(String id, int maxTime, int maxPrints, BufferedReader program, BufferedWriter output) {
 		outputBuffer = new ArrayList<String>();
-		this.kernel = kernel;
-		this.baseDataAddr = baseDataAddr;
-		this.id = id;
-		this.maxTime = maxTime;
-		this.maxPrints = maxPrints;
-		currPrints = 0;
-		currTime = 0;
+		this.errorInProcess = false;
+		pcb = new PCB(id, maxTime, maxPrints);
 	}
 	
 	/**
@@ -97,11 +81,13 @@ public class Process {
 	 * @throws IOException 
 	 */
 	public void startExecution() throws IOException {
-		trace.info("startExecution()-->");
-		kernel.getCpu().setIc(0);
-		kernel.getCpu().setSi(CPU.Interupt.TERMINATE);
+		trace.fine("-->");
+		trace.info("starting process "+pcb.getId());
+		running = true;
+		Kernel.getInstance().getCpu().setIc(0);
+		Kernel.getInstance().getCpu().setSi(CPU.Interrupt.CLEAR);
 		setTerminationStatus("Normal Execution");
-		trace.info("startExecution()<--");
+		trace.fine("<--");
 	}
 	
 	/**
@@ -109,8 +95,10 @@ public class Process {
 	 * @param data
 	 */
 	public void write(String data) {
-		trace.info("write():"+id+" "+data);
+		trace.fine("-->");
+		trace.info("buffered output:"+data);
 		outputBuffer.add(data);
+		trace.fine("<--");
 	}
 	
 	/**
@@ -123,16 +111,38 @@ public class Process {
 	
 	/**
 	 * Increment time count and throw exception if max time limit is exceeded
-	 * @throws SoftwareInterruptException
+	 * @throws HardwareInterruptException if there is an error
 	 */
-	public void incrementTimeCount() throws SoftwareInterruptException {
-		trace.info("incrementTimeCount():currTime="+currTime+", maxTime="+maxTime);
-		if (currTime <= maxTime) {
-			currTime++;
-		} else {
-			trace.severe("incrementTimeCount():maxTime exceeded");
-			throw new SoftwareInterruptException(SoftwareInterruptReason.MAXTIME);
+	public void incrementTimeCountSlave() throws HardwareInterruptException {
+		if (!incrementTime()) {
+			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
+			throw new HardwareInterruptException();
 		}
+	}
+	
+	/**
+	 * Increment time count and throw exception if max time limit is exceeded
+	 * return false if there is an error
+	 */
+	public boolean incrementTimeCountMaster()  {
+		return incrementTime();
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	private boolean incrementTime() {
+		currTime++;
+		
+		if (currTime <= pcb.getMaxTime()) {
+			trace.fine("curr time: "+currTime+", max time="+pcb.getMaxTime());
+		} else {
+			trace.severe("max time ("+pcb.getMaxTime()+") exceeded");
+			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
+			return false;
+		}
+		return true;
 	}
 	
 	/**
@@ -142,18 +152,22 @@ public class Process {
 	public int getTime() {
 		return currTime;
 	}
-	
-	
+		
 	/**
 	 * Increment print count and throw exception if max print limit is exceeded
 	 * @throws SoftwareInterruptException
 	 */
-	public void incrementPrintCount() throws SoftwareInterruptException {
-		if (currPrints <= maxPrints) {
-			currPrints++;
-		} else {
-			throw new SoftwareInterruptException(SoftwareInterruptReason.MAXLINES);
-		}
+	public boolean incrementPrintCount() {
+		
+		currPrints++;
+		
+		if (currPrints <= pcb.getMaxPrints()) {
+			return true;
+		} 
+		trace.severe("max prints ("+pcb.getMaxPrints()+") exceeded");
+		Kernel.getInstance().getCpu().setIOi(Interrupt.IO);
+		Kernel.getInstance().setError(2);
+		return false;
 	}
 	
 	/**
@@ -163,18 +177,69 @@ public class Process {
 	public int getLines() {
 		return currPrints;		
 	}
+	
 	/**
-	 * 
+	 * Clear exiting message
 	 * @param msg
 	 */
 	public void setTerminationStatus(String msg) {
 		terminationStatus = msg;
+		trace.finer(""+terminationStatus);
 	}
+	
+	/**
+	 * append incoming message to existing message
+	 * @param msg
+	 */
+	public void appendTerminationStatus(String msg) {
+		terminationStatus += ", " + msg;
+		trace.finer(""+terminationStatus);
+	}
+	
+	/**
+	 * Return the termination status of process
+	 * @return
+	 */
+	public String getTerminationStatus() {
+		trace.finer(""+terminationStatus);
+		return terminationStatus;		
+	}
+	
+	/**
+	 * flag to know that an error message will be displayed
+	 */
+	public void setErrorInProcess(){
+		errorInProcess = true;
+		trace.finer("<-->");
+	}
+	
+	/**
+	 * return error status of process
+	 * @return
+	 */
+	public boolean getErrorInProcess(){
+		trace.finer("getErrorInProcess(): "+errorInProcess);
+		return errorInProcess;
+	}
+	
 	/**
 	 * 
 	 * @return
 	 */
-	public String getTerminationStatus() {
-		return terminationStatus;
+	public String getId() {
+		return pcb.getId();
+	}
+
+	public boolean isRunning() {
+		return running;
+	}
+
+	public void setRunning(boolean running) {
+		this.running = running;
+	}
+	
+	public void terminate() {
+		trace.info("terminating process "+pcb.getId());
+		setRunning(false);
 	}
 }
