@@ -142,15 +142,15 @@ public class CPU {
 	 */
 	private CPU() {
 		clearInterrupts();
-		trace.info(dumpInterupts());
-		mmu = new MMU(300,4,10);
+		trace.info(dumpInterrupts());
+		mmu = new MMU();
 	}
 	
 	/**
 	 * 
 	 * @return
 	 */
-	public String dumpInterupts() {
+	public String dumpInterrupts() {
 
 		return "si="+getSi().getValue()+" " +
 				"pi="+getPi().getValue()+" " +
@@ -488,7 +488,7 @@ public class CPU {
 	 * String representation of the the current state.
 	 */
 	public String toString() {
-		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterupts();
+		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
 		
 	}
 	
