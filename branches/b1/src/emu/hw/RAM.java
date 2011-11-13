@@ -36,11 +36,10 @@ public class RAM implements MemoryUnit {
 	/**
 	 * variables containing size of memory
 	 */
-	protected int size;
-	protected int wordLength;
-	protected int wordsInBlock;
-	protected int blockSize;
-	protected int numPages;
+	private final int numFrames = 30;
+	private final int wordLength = 4;
+	private final int wordsInFrame = 10;
+	private final int frameSize = wordLength + wordsInFrame;
 	
 	/**
 	 * Set containing all frames which are currently free
@@ -50,15 +49,10 @@ public class RAM implements MemoryUnit {
 	/**
 	 * Constructor 
 	 */
-	public RAM(int size, int wordLength, int wordsInBlock) {
-		this.numPages = size/wordsInBlock;
-		trace.info("wordLength="+wordLength+",words/frame="+wordsInBlock+",frames="+numPages);
-		this.size = size;
-		this.wordLength = wordLength;
-		this.wordsInBlock = wordsInBlock;
-		blockSize = wordLength*wordsInBlock;
-		freeFrames = new ArrayList<Integer>(this.numPages);
-		for (int i=0; i<30; i++)
+	public RAM() {
+		trace.info("Initializing RAM: wordLength="+wordLength+",words/frame="+wordsInFrame+",frames="+numFrames);
+		freeFrames = new ArrayList<Integer>(numFrames);
+		for (int i=0; i<numFrames; i++)
 			freeFrames.add(i);
 		trace.finest("Free frames: " + freeFrames.toString());
 		clear();
@@ -69,36 +63,12 @@ public class RAM implements MemoryUnit {
 		return freeFrames;
 	}
 	
-	/**
-	 * Write 1 block into memory
-	 * @param addr
-	 * @throws HardwareInterruptException 
-	 */
-	public void write(int frame, String data) throws HardwareInterruptException {
-		trace.finer("-->");
-		trace.fine("Frame#: "+frame+" Data:"+data);
-		
-		//Ensure the string in 40 chars in length
-		data = Utilities.padStringToLength(data, " ", blockSize, false);
-		
-		int blockAddr = frame*10;
-		
-		for (int i = 0 ; i < 10 ; i++) {
-			String word = data.substring(0,wordLength);
-			store(blockAddr+i, word);
-			data = data.substring(wordLength);
-		}
-
-		//trace.finer("Reading frame " + frame + ": "+readFrame(frame));
-		trace.finer("<--");
-	}
-	
 	/** 
 	 * Free 1 frame/page in memory and mark it as "not allocated"
 	 * @param addr
 	 * @throws HardwareInterruptException
 	 */
-	public void freeBlock(int addr) throws HardwareInterruptException {
+	public void freeBlock(int addr) {
 		trace.finer("-->");
 		int blockAddr = getBlockAddr(addr);
 		trace.fine("Freeing frame:"+addr+"->free");
@@ -117,7 +87,7 @@ public class RAM implements MemoryUnit {
 			freeFrames.remove(frame);
 		String allocatedFrames = new String();
 		trace.finest("Allocated frames:");
-		for (int i=0; i<numPages; i++) {
+		for (int i=0; i<numFrames; i++) {
 			if (isAllocated(i))
 				allocatedFrames = new String(allocatedFrames)+i+' ';
 		}
@@ -145,23 +115,8 @@ public class RAM implements MemoryUnit {
 		return !freeFrames.contains(frame);
 	}
 	
-	/**
-	 * Read 1 block from memory
-	 * @param frame
-	 * @return
-	 * @throws HardwareInterruptException 
-	 */
-	public String read(int frame) throws HardwareInterruptException {
-		
-		String block = "";
-		int blockAddr = frame * 10;
-		
-		for (int i = 0 ; i < 10 ; i++) {
-			block += new String(memory[blockAddr+i]);
-		}
-		trace.fine("Reading frame# " + frame+"; data: "+block);
-		return block;
-	}
+
+	
 	
 	/**
 	 * Converts any address into a block address
@@ -177,8 +132,49 @@ public class RAM implements MemoryUnit {
 		return blockOffset; /* AMC - this used to be blockAddr - that seemed wrong */
 	}
 	
-	public int getWordsInBlock() {
-		return wordsInBlock;
+	public int getWordsInFrame() {
+		return wordsInFrame;
+	}
+	/**
+	 * Read 1 block from memory
+	 * @param frame
+	 * @return
+	 * @throws HardwareInterruptException 
+	 */
+	public String read(int frame) {
+		
+		String block = "";
+		int blockAddr = frame * 10;
+		
+		for (int i = 0 ; i < 10 ; i++) {
+			block += new String(memory[blockAddr+i]);
+		}
+		trace.fine("Reading frame# " + frame+"; data: "+block);
+		return block;
+	}
+	
+	/**
+	 * Write 1 block into memory
+	 * @param addr
+	 * @throws HardwareInterruptException 
+	 */
+	public void write(int frame, String data) {
+		trace.finer("-->");
+		trace.fine("Frame#: "+frame+" Data:"+data);
+		
+		//Ensure the string in 40 chars in length
+		data = Utilities.padStringToLength(data, " ", frameSize, false);
+		
+		int blockAddr = frame*10;
+		
+		for (int i = 0 ; i < 10 ; i++) {
+			String word = data.substring(0,wordLength);
+			store(blockAddr+i, word);
+			data = data.substring(wordLength);
+		}
+
+		//trace.finer("Reading frame " + frame + ": "+readFrame(frame));
+		trace.finer("<--");
 	}
 	
 	/**
@@ -187,7 +183,7 @@ public class RAM implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String load(int addr) throws HardwareInterruptException {
+	public String load(int addr) {
 		return new String(memory[addr]);
 	}
 	
@@ -196,7 +192,7 @@ public class RAM implements MemoryUnit {
 	 * @param addr
 	 * @throws HardwareInterruptException 
 	 */
-	public void store(int addr, String data) throws HardwareInterruptException {
+	public void store(int addr, String data) {
 		//trace.info("store <"+data+"> at "+addr);
 		memory[addr] = data.toCharArray();
 	}
@@ -227,7 +223,7 @@ public class RAM implements MemoryUnit {
 	 * Clears memory.
 	 */
 	public void clear() {
-		memory = new char[size][wordLength];
+		memory = new char[numFrames][wordLength];
 		for (int i = 0; i < memory.length; i++) {
 				memory[i] = BLANKS.toCharArray();
 		}

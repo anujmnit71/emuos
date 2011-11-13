@@ -17,12 +17,14 @@ public class MMU implements MemoryUnit {
 	 */
 	static Logger trace = Logger.getLogger("emuos");
 	
-	int pages = 10;
+	protected final int numPages = 10;
 
 	private RAM ram;
+	private Drum drum;
 	
-	public MMU(int size, int wordLength, int wordsInBlock) {
-		ram = new RAM(size, wordLength, wordsInBlock);
+	public MMU() {
+		ram = new RAM();
+		drum = new Drum();
 	}
 	
 	/* 
@@ -30,7 +32,7 @@ public class MMU implements MemoryUnit {
 	 * @param logicalAddr
 	 * @param data
 	 */
-	public void write(int logicalAddr,String data) throws HardwareInterruptException {
+	public void write(int logicalAddr,String data) {
 		trace.finer("-->");
 		trace.finest("Logical addr to write page:"+logicalAddr);
 		int realAddr=translateAddr(logicalAddr);
@@ -40,7 +42,7 @@ public class MMU implements MemoryUnit {
 		trace.finer("<--");
 	}
 	
-	public void writeFrame(int frame,String data) throws HardwareInterruptException {
+	public void writeFrame(int frame,String data) {
 		trace.finer("-->");
 		ram.write(frame, data);
 		trace.finer("<--");
@@ -51,7 +53,7 @@ public class MMU implements MemoryUnit {
 	 * @param logicalAddr
 	 * @returns String
 	 */
-	public String read(int logicalAddr) throws HardwareInterruptException {
+	public String read(int logicalAddr) {
 		trace.finer("-->");
 		trace.finest("Logical page to read: "+logicalAddr);
 		int realAddr=translateAddr(logicalAddr);
@@ -65,7 +67,7 @@ public class MMU implements MemoryUnit {
 	 * @param logicalAddr
 	 * @returns String
 	 */
-	public String load(int logicalAddr) throws HardwareInterruptException {
+	public String load(int logicalAddr) {
 		trace.finer("-->");
 		trace.finest("Logical address to load from: "+logicalAddr);
 		int realAddr = translateAddr(logicalAddr);
@@ -79,7 +81,7 @@ public class MMU implements MemoryUnit {
 	 * @param logicalAddr
 	 * @param data
 	 */
-	public void store(int logicalAddr, String data) throws HardwareInterruptException {
+	public void store(int logicalAddr, String data) {
 		trace.finer("-->");
 		int realAddr = translateAddr(logicalAddr);
 		trace.finest("Real address to store to: "+realAddr);
@@ -87,20 +89,20 @@ public class MMU implements MemoryUnit {
 		ram.store(realAddr, data);
 	}
 
-	public String toString() {
-		return ram.toString();
-	}
+//	public String toString() {
+//		return ram.toString();
+//	}
 
 	/**
 	 * Translates a logical address (page*10+displacement) and returns a real address (frame*10+displacement)
 	 * @param logicalAddr
 	 * @return
 	 */
-	private int translateAddr(int logicalAddr) throws HardwareInterruptException{
+	private int translateAddr(int logicalAddr) {
 		int ptr;
 		int logicalPageNum = logicalAddr/10;
 		int displacement = logicalAddr%10;
-		Integer frameNum;
+		Integer frameNum = 0;
 		String pageTable;
 		
 		trace.finer("-->");
@@ -121,10 +123,10 @@ public class MMU implements MemoryUnit {
 			trace.warning("page fault on addr "+logicalAddr);
 			CPU.getInstance().setPi(Interrupt.PAGE_FAULT);
 			trace.finer("<--");
-			throw new HardwareInterruptException();
+//			throw new HardwareInterruptException();
 		}
 		
-		int realAddr = frameNum*10+displacement;
+		int realAddr = frameNum+displacement;
 		trace.info("logical->real : "+logicalAddr+"->"+realAddr);
 		
 		trace.finer("<--");
@@ -140,11 +142,7 @@ public class MMU implements MemoryUnit {
 		int frame = allocateFrame();
 		String spaces = Utilities.padStringToLength(new String("")," ",40,false);
 		// AMC: parse as integer fails for spaces. This indicates a page fault.  
-		try {
 		ram.write(frame,spaces);
-		} catch (HardwareInterruptException e) {
-			trace.severe("Error in init page table");
-		}
 		return frame; 
 	}
 	
@@ -155,11 +153,10 @@ public class MMU implements MemoryUnit {
 	public void freePageTable() {
 		//Get the page table frame # from PTR
 		int ptr = CPU.getInstance().getPtr();
-		try {
 		//Read the current page table
 		String pageTable = ram.read(ptr);
 		//Free the frames referenced in the page table
-		for (int i=0; i<ram.wordsInBlock; i++) {
+		for (int i=0; i<ram.getWordsInFrame(); i++) {
 			try {
 				String pageTableEntry = pageTable.substring(i*4,(i+1)*4);
 				int frameNum = new Integer(pageTableEntry);
@@ -173,10 +170,6 @@ public class MMU implements MemoryUnit {
 		ram.markFree(ptr);
 		//Set the PTL to zero
 		CPU.getInstance().setPtl(0);
-		}
-		catch (HardwareInterruptException e) {
-			trace.severe("Pagetable should be readable and writable");
-		}
 	}
 	
 	/**
@@ -195,20 +188,16 @@ public class MMU implements MemoryUnit {
 		trace.info("Frame allocated: "+frameNum);
 		//Clear any residual data from the frame
 		String spaces = Utilities.padStringToLength(new String("")," ",40,false);
-		try {
 		ram.write(frameNum,spaces);
-		} catch (HardwareInterruptException e) {
-			trace.severe("Error in allocating a new frame");
-		}
 		//Mark the frame we selected as allocated
 		ram.markAllocated(frameNum);
-		
 		return frameNum;
 	}
 	
 	@Override
 	public void clear() {
 		ram.clear();
+		drum.clear();
 	}
 	
 	/**
@@ -222,7 +211,6 @@ public class MMU implements MemoryUnit {
 		//Update page table entry.
 		//Get the page table frame #
 		int pageTableFrame = CPU.getInstance().getPtr();
-		try {
 		//Read the current page table
 		String pageTable = ram.read(pageTableFrame);
 		//
@@ -232,13 +220,25 @@ public class MMU implements MemoryUnit {
 		String updatedPageTable = pageTable.substring(0,pageNumber*4) + newEntry + pageTable.substring((pageNumber+1)*4);
 		trace.fine("PageTable: " +updatedPageTable);
 		ram.write(pageTableFrame,updatedPageTable);
-		}
-		catch (HardwareInterruptException e) {
-			trace.severe("Pagetable should be readable and writable");
-		}
 		CPU.getInstance().setPtl(Math.max(CPU.getInstance().getPtl(),pageNumber+1));
 		trace.info("page->frame : "+pageNumber+"->"+frame);
 		return frame;
 	}
 	
+	public RAM getRam() {
+		return ram;
+	}
+	
+	public Drum getDrum() {
+		return drum;
+	}
+	
+	public String toString() {
+		int i;
+		String mem = new String();
+		for (i=0; i<numPages; i+=10) {
+			mem = mem + read(i) + "\n";
+		}
+		return mem;	
+	}
 }

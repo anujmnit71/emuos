@@ -1,5 +1,6 @@
 package emu.os;
 
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -24,6 +25,14 @@ public class PCB {
 	 * Max number of prints
 	 */
 	int maxPrints;
+	/*
+	 * Current number of time cycles this process has been running
+	 */
+	int currentTime;
+	
+	private List<Integer> outputTracks;
+	private List<Integer> instructionTracks;
+	private List<Integer> dataTracks;
 
 	/**
 	 * was there an error in this process
@@ -48,15 +57,44 @@ public class PCB {
 		return maxTime;
 	}
 
-	public void setMaxTime(int maxTime) {
+	public int setMaxTime(int maxTime) {
 		this.maxTime = maxTime;
+		return maxTime;
 	}
 
 	public int getMaxPrints() {
 		return maxPrints;
 	}
 
-	public void setMaxPrints(int maxPrints) {
+	public int setMaxPrints(int maxPrints) {
 		this.maxPrints = maxPrints;
+		return maxPrints;
+	}
+	
+	public int getCurrentTime() {
+		return currentTime;
+	}
+	public int incrementCurrentTime() {
+		currentTime = currentTime + 1;
+		return currentTime;
+	}
+	public int getCurrentPrints() {
+		return outputTracks.size();
+	}
+	public int bufferOutputLine(int track) {
+		outputTracks.add(track);
+		return outputTracks.size();
+	}
+	public void addInstructionTrack(int track) {
+		instructionTracks.add(track);
+	}
+	public void addDataTrack(int track) {
+		dataTracks.add(track);
+	}
+	public int getNumInstructionTracks() {
+		return instructionTracks.size();
+	}
+	public int getNumDataTracks() {
+		return dataTracks.size();
 	}
 }

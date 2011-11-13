@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 import emu.hw.CPU;
 import emu.hw.HardwareInterruptException;
 import emu.hw.CPU.Interrupt;
+import emu.os.Kernel.ErrorMessages;
 
 /**
  * Represents a running process.
@@ -166,7 +167,7 @@ public class Process {
 		} 
 		trace.severe("max prints ("+pcb.getMaxPrints()+") exceeded");
 		Kernel.getInstance().getCpu().setIOi(Interrupt.IO);
-		Kernel.getInstance().setError(2);
+		Kernel.getInstance().setError(ErrorMessages.LINELIMITEXCEEDED);
 		return false;
 	}
 	

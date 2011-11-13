@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 
 import emu.hw.CPU;
 import emu.hw.CPU.Interrupt;
+import emu.hw.MMU;
 import emu.hw.HardwareInterruptException;
 //import emu.hw.MMU;
 //import emu.hw.RAM;
@@ -43,6 +44,10 @@ public class Kernel {
 	 * CPU instance
 	 */
 	CPU cpu;
+	/* 
+	 * Memory
+	 */
+	MMU mmu;
 	/**
 	 * The current process (or job)
 	 */
@@ -104,14 +109,14 @@ public class Kernel {
 	ErrorMessages errMsg;
 	
 	public enum ErrorMessages {
-		NA    (-1,"Unknown Error"),
-		ZERO  ( 0,"No Error"),
-		ONE   ( 1,"Out of Data"),
-		TWO   ( 2,"Line Limit Exceeded"),
-		THREE ( 3,"Time Limit Exceeded"),
-		FOUR  ( 4,"Operation Code Error"),
-		FIVE  ( 5,"Operand Fault"),
-		SIX   ( 6,"Invalid Page Fault");
+		UNKNOWN    (-1,"Unknown Error"),
+		NOERR  ( 0,"No Error"),
+		OUTOFDATA ( 1,"Out of Data"),
+		LINELIMITEXCEEDED   ( 2,"Line Limit Exceeded"),
+		TIMELIMITEXCEEDED ( 3,"Time Limit Exceeded"),
+		OPCODEERROR  ( 4,"Operation Code Error"),
+		OPERANDFAULT  ( 5,"Operand Fault"),
+		INVALIDPAGEFAULT   ( 6,"Invalid Page Fault");
 		int errorCode;
 		String message;
 		ErrorMessages (int errorCode, String message){
@@ -130,7 +135,7 @@ public class Kernel {
 			for (ErrorMessages m: values()) {
 				if (m.getErrCode() == err) return m;
 			}
-			return NA;
+			return UNKNOWN;
 		}
 		
 	}
@@ -221,7 +226,7 @@ public class Kernel {
 		trace.info("output:"+outputFile);
 		//Init HW
 		cpu = CPU.getInstance();
-		//mmu = new MMU(300,4,10);
+		mmu = new MMU();
 		processCount = 0;
 		inMasterMode = true;
 
@@ -303,7 +308,7 @@ public class Kernel {
 		trace.fine("Physical Memory:\n"+cpu.dumpMemory());
 		while (status == KernelStatus.INTERRUPT) {
 			//trace.info("start cycle "+incrementCycleCount());
-			trace.info(""+cpu.dumpInterupts());
+			trace.info(""+cpu.dumpInterrupts());
 			trace.fine("Kernel status="+status);
 			
 			switch (cpu.getTi()) {
@@ -346,12 +351,12 @@ public class Kernel {
 				 */
 				switch (cpu.getPi()) {
 				case OPERAND_ERROR:
-					setError( Interrupt.OPERAND_ERROR.getErrorCode());
+					setError(ErrorMessages.OPERANDFAULT);
 					cpu.setPi(Interrupt.CLEAR);
 					status = KernelStatus.ABORT;
 					break;
 				case OPERATION_ERROR:
-					setError( Interrupt.OPERATION_ERROR.getErrorCode());
+					setError(ErrorMessages.OPCODEERROR);
 					cpu.setPi(Interrupt.CLEAR);
 					status = KernelStatus.ABORT;
 					break;
@@ -364,7 +369,7 @@ public class Kernel {
 						cpu.decrement();
 						status = KernelStatus.CONTINUE;
 					} else {
-						setError( ErrorMessages.SIX.getErrCode());
+						setError(ErrorMessages.INVALIDPAGEFAULT);
 						status = KernelStatus.ABORT;
 						cpu.setPi(Interrupt.CLEAR);
 					}
@@ -382,12 +387,12 @@ public class Kernel {
 				 */	
 				switch (cpu.getSi()) {
 				case READ:
-					setError( Interrupt.TIME_ERROR.getErrorCode());
+					setError(ErrorMessages.TIMELIMITEXCEEDED);
 					status = KernelStatus.ABORT;
 					break;
 				case WRITE:
 					status = write();
-					setError( Interrupt.TIME_ERROR.getErrorCode());
+					setError(ErrorMessages.TIMELIMITEXCEEDED);
 					status = KernelStatus.ABORT;
 					break;
 				case TERMINATE:
@@ -407,19 +412,19 @@ public class Kernel {
 				 */
 				switch (cpu.getPi()) {
 				case OPERAND_ERROR:
-					setError(Interrupt.TIME_ERROR.getErrorCode());
-					setError(Interrupt.OPERAND_ERROR.getErrorCode());
+					setError(ErrorMessages.TIMELIMITEXCEEDED);
+					setError(ErrorMessages.OPERANDFAULT);
 					cpu.setPi(Interrupt.CLEAR);
 					status = KernelStatus.ABORT;
 					break;
 				case OPERATION_ERROR:
-					setError(Interrupt.TIME_ERROR.getErrorCode());
-					setError(Interrupt.OPERATION_ERROR.getErrorCode());
+					setError(ErrorMessages.TIMELIMITEXCEEDED);
+					setError(ErrorMessages.OPCODEERROR);
 					cpu.setPi(Interrupt.CLEAR);
 					status = KernelStatus.ABORT;
 					break;
 				case PAGE_FAULT:
-					setError(Interrupt.TIME_ERROR.getErrorCode());
+					setError(ErrorMessages.TIMELIMITEXCEEDED);
 					status = KernelStatus.ABORT;
 					break;
 				}
@@ -429,7 +434,7 @@ public class Kernel {
 				 */
 				if (cpu.getPi().equals(Interrupt.CLEAR)
 					|| cpu.getPi().equals(Interrupt.CLEAR)) {
-						setError(Interrupt.TIME_ERROR.getErrorCode());
+						setError(ErrorMessages.TIMELIMITEXCEEDED);
 						cpu.setTi(Interrupt.CLEAR);
 						status = KernelStatus.ABORT;
 					}
@@ -452,7 +457,7 @@ public class Kernel {
 					|| cpu.getSi().equals(Interrupt.WRONGTYPE)){
 				return true;
 			}
-			trace.fine("Status "+cpu.dumpInterupts());
+			trace.fine("Status "+cpu.dumpInterrupts());
 			
 			/*
 			 * Normally the loop will restart and eventually find terminate.
@@ -486,7 +491,7 @@ public class Kernel {
 			//Check for EOJ
 			if (nextLine.startsWith(Process.JOB_END)) {
 									
-				finishProccess();
+				finishProcess();
 				
 				trace.fine("Finished job "+p.getId());
 				trace.info("Memory Dump of "+p.getId()+":"+cpu.dumpMemory());
@@ -578,8 +583,8 @@ public class Kernel {
 		//Check for current process
 		if (p != null && p.isRunning()) {
 			trace.warning("Process "+p.getId()+" never finished");
-			setError(ErrorMessages.NA.getErrCode());
-			finishProccess();
+			setError(ErrorMessages.UNKNOWN);
+			finishProcess();
 		}
 		
 	}
@@ -611,23 +616,18 @@ public class Kernel {
 		trace.info("operand:"+irValue+" pi="+cpu.getPi().getValue());
 		// If next data card is $END, TERMINATE(1)
 		if (lastLineRead.startsWith(Process.JOB_END)){
-			setError(1);
-			finishProccess();
+			setError(ErrorMessages.OUTOFDATA);
+			finishProcess();
 			retval = KernelStatus.ABORT;
 		// Increment the time counter for the GD instruction
 		} else if (!p.incrementTimeCountMaster()){
-			setError(3);
+			setError(ErrorMessages.TIMELIMITEXCEEDED);
 			retval = KernelStatus.ABORT;
 		} else {
 			// write data from data card to memory location
 			if (cpu.getPi() == Interrupt.CLEAR) {				
-				try {
-					cpu.writePage(irValue, lastLineRead);
+					mmu.write(irValue, lastLineRead);
 					lineBuffered = false;
-				} catch (HardwareInterruptException e) {
-					trace.info("HW interrupt:"+cpu.dumpInterupts());
-					retval = KernelStatus.INTERRUPT;
-				}
 				cpu.setSi(Interrupt.CLEAR);
 			} else
 				retval = KernelStatus.INTERRUPT;
@@ -649,7 +649,7 @@ public class Kernel {
 			retval = KernelStatus.INTERRUPT;
 		// Increment the time counter for the PD instruction
 		} else if (!p.incrementTimeCountMaster()){
-			setError(3);
+			setError(ErrorMessages.TIMELIMITEXCEEDED);
 			retval = KernelStatus.ABORT;
 		} else {
 			// get memory location and set exception if one exists
@@ -660,7 +660,7 @@ public class Kernel {
 				try {
 					p.write(cpu.readBlock(irValue));
 				} catch (HardwareInterruptException e) {
-					trace.info("HW interrupt:"+cpu.dumpInterupts());
+					trace.info("HW interrupt:"+cpu.dumpInterrupts());
 					retval = KernelStatus.INTERRUPT;
 				}
 				cpu.setSi(Interrupt.CLEAR);
@@ -733,7 +733,7 @@ public class Kernel {
 			} catch (HardwareInterruptException hie) {
 				trace.info("start cycle "+incrementCycleCount());
 				trace.info("HW Interrupt from slave mode");
-				trace.fine(cpu.dumpInterupts());
+				trace.fine(cpu.dumpInterrupts());
 				done = interruptHandler();
 				inMasterMode = false;
 			}
@@ -757,7 +757,7 @@ public class Kernel {
 	 * Writes the process state and buffer to the output file
 	 * @throws IOException
 	 */
-	public void finishProccess() throws IOException {
+	public void finishProcess() throws IOException {
 		trace.finer("-->");
 		wr.write(p.getId()+" "+p.getTerminationStatus()+"\n");
 		wr.write(cpu.getState());
@@ -792,10 +792,9 @@ public class Kernel {
 	 * 
 	 * @param err
 	 */
-	public void setError(int err) {
+	public void setError(ErrorMessages errMsg) {
 		trace.finer("-->");
-		trace.fine("setting err="+err);
-		errMsg = ErrorMessages.set(err);
+		trace.fine("setting err="+errMsg.getErrCode()+"; "+errMsg.getMessage());
 		if (!p.getErrorInProcess()){
 			p.setErrorInProcess();
 			p.setTerminationStatus(errMsg.getMessage());	
