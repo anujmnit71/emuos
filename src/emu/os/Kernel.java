@@ -21,9 +21,6 @@ import java.util.logging.Logger;
 import emu.hw.CPU;
 import emu.hw.CPU.Interrupt;
 import emu.hw.MMU;
-import emu.hw.HardwareInterruptException;
-//import emu.hw.MMU;
-//import emu.hw.RAM;
 import emu.util.TraceFormatter;
 
 /**
@@ -69,15 +66,6 @@ public class Kernel {
 	 */
 	ArrayList<String> outputBuffer;
 	/**
-	 * Boot sector
-	 */
-	String bootSector = "H                                       ";
-	/**
-	 * Starts EmuOS
-	 * @param args
-	 */
-	boolean inMasterMode;
-	/**
 	 * Count of total cycles
 	 */
 	private int cycleCount;
@@ -92,6 +80,8 @@ public class Kernel {
 	 */
 	boolean lineBuffered = false;
 	
+	boolean EndOfProcessing = false;
+	
 	/**
 	 * Control Flags for interrupt handling
 	 * CONTINUE current processing and return to slaveMode
@@ -100,7 +90,10 @@ public class Kernel {
 	 * INTERRUPT iterate loop again
 	 */
 	private enum KernelStatus {
-		CONTINUE,ABORT, TERMINATE, INTERRUPT
+		CONTINUE,
+		ABORT,
+		TERMINATE, 
+		INTERRUPT
 	}
 	
 	/**
@@ -148,7 +141,7 @@ public class Kernel {
 	 * 		args[2] Trace Level
 	 * 		args[3] Trace file
 	 */
-	public static final void main(String[] args) {
+	public static void main(String[] args) {
 		
 		initTrace(args);
 		
@@ -164,13 +157,24 @@ public class Kernel {
 		
 		try {
 			emu = Kernel.init(inputFile, outputFile);
-			emu.boot();
 		} catch (IOException ioe) {
 			trace.log(Level.SEVERE, "IOException", ioe);
 		} catch (Exception e){
 			trace.log(Level.SEVERE, "Exception", e);
 		}
+		emu.run();
 
+
+	}
+	private void run() {
+		do {
+		  try {
+			load();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		} while (EndOfProcessing = false);
 	}
 	
 	/**
@@ -228,7 +232,6 @@ public class Kernel {
 		cpu = CPU.getInstance();
 		mmu = new MMU();
 		processCount = 0;
-		inMasterMode = true;
 
 		//Init I/O
 		br = new BufferedReader(new FileReader(inputFile));
@@ -256,225 +259,13 @@ public class Kernel {
 		return ref;
 	}
 	
-	/**
-	 * Starts the OS by loading the HALT instruction into memory
-	 * then calls to slaveMode to execute  
-	 * @throws IOException
-	 */
 
-	public void boot() throws IOException {
-		trace.finer("-->");
-		try {
-			//trace.info("starting boot process");
-			trace.info("start cycle "+incrementCycleCount());
-			cpu.initPageTable();
-			cpu.allocatePage(0);
-			cpu.writePage(0, bootSector);
-			masterMode();
-		} catch (HardwareInterruptException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {
-			br.close();
-			wr.close();
-			//Dump memory
-			trace.fine("\n"+cpu.dumpMemory());
-
-			trace.fine("Memory contents: " + cpu.dumpMemory());
-			//Dump Kernel stats
-			trace.fine("\n"+toString());
-			//Dump memory
-			trace.fine("\n"+cpu.toString());
-
-		}
-	}
 	
-	/**
-	 * Called when control needs to be passed back to the OS
-	 * though called masterMode this is more of and interrupt handler for the OS
-	 * Interrupts processed in two groups TI = 0(CLEAR) and TI = 2(TIME_ERROR)
-	 * @throws IOException
-	 */
-	public boolean interruptHandler() throws IOException {
-		boolean retval = false;
-		inMasterMode = true;
-		KernelStatus status = KernelStatus.INTERRUPT;
-		
-		/*
-		 * This is in a loop because new interrupts may be generated while processing request from
-		 * slaveMode. KernelStatus is used to control flow through this loop.
-		 */
+	public void abort(ErrorMessages error) {
 		trace.finer("-->");
-		trace.fine("Physical Memory:\n"+cpu.dumpMemory());
-		while (status == KernelStatus.INTERRUPT) {
-			//trace.info("start cycle "+incrementCycleCount());
-			trace.info(""+cpu.dumpInterrupts());
-			trace.fine("Kernel status="+status);
-			
-			switch (cpu.getTi()) {
-			
-			case CLEAR:
-				/*
-				 * Handle Supervisor Interrupt
-				 * TI SI
-				 * -- --
-				 * 0  1  READ
-				 * 0  2  WRITE
-				 * 0  3  TERMINATE(0)
-				 */
-				switch (cpu.getSi()) {
-				case READ:
-					trace.finest("Si interrupt read");
-					status = read();
-					break;
-				case WRITE:
-					trace.finest("Si interrupt write");
-					status = write();
-					break;
-				case TERMINATE:
-					//	Dump memory
-					trace.fine("Case:Terminate");
-
-					trace.fine("Memory contents: " + cpu.dumpMemory());
-					status = terminate();
-					break;
-				}
-				
-				/*
-				 * Handle Program Interrupt
-				 * TI PI
-				 * -- --
-				 * 0  1  TERMINATE(4)
-				 * 0  2  TERMINATE(5)
-				 * 0  3  If Page Fault, ALLOCATE, update page table, Adjust IC if necessary
-				 *       EXECUTE USER PROGRAM OTHERWISE TERMINTAE(6)
-				 */
-				switch (cpu.getPi()) {
-				case OPERAND_ERROR:
-					setError(ErrorMessages.OPERANDFAULT);
-					cpu.setPi(Interrupt.CLEAR);
-					status = KernelStatus.ABORT;
-					break;
-				case OPERATION_ERROR:
-					setError(ErrorMessages.OPCODEERROR);
-					cpu.setPi(Interrupt.CLEAR);
-					status = KernelStatus.ABORT;
-					break;
-				case PAGE_FAULT:
-					boolean valid = cpu.validatePageFault();
-					if (valid){
-						int frame = cpu.allocatePage(cpu.getOperand() / 10); //TODO cleaner way to determine page #?
-						trace.fine("frame "+frame+" allocated for page "+cpu.getOperand());
-						cpu.setPi(Interrupt.CLEAR);
-						cpu.decrement();
-						status = KernelStatus.CONTINUE;
-					} else {
-						setError(ErrorMessages.INVALIDPAGEFAULT);
-						status = KernelStatus.ABORT;
-						cpu.setPi(Interrupt.CLEAR);
-					}
-					break;
-				}
-				break;
-			case TIME_ERROR:
-				/*
-				 * Handle Supervisor Interrupt
-				 * TI SI
-				 * -- --
-				 * 2  1  TERMINATE(3)
-				 * 2  2  WRITE,THEN TERMINATE(3)
-				 * 2  3  TERMINATE(0)
-				 */	
-				switch (cpu.getSi()) {
-				case READ:
-					setError(ErrorMessages.TIMELIMITEXCEEDED);
-					status = KernelStatus.ABORT;
-					break;
-				case WRITE:
-					status = write();
-					setError(ErrorMessages.TIMELIMITEXCEEDED);
-					status = KernelStatus.ABORT;
-					break;
-				case TERMINATE:
-					//	Dump memory
-					trace.finer("\n"+cpu.dumpMemory());
-					status = terminate();
-					break;
-				}
-				
-				/*
-				 * Handle Program Interrupt
-				 * TI PI
-				 * -- --
-				 * 2  1  TERMINATE(3,4)
-				 * 2  2  TERMINATE(3,5)
-				 * 2  3  TERMINATE(3)
-				 */
-				switch (cpu.getPi()) {
-				case OPERAND_ERROR:
-					setError(ErrorMessages.TIMELIMITEXCEEDED);
-					setError(ErrorMessages.OPERANDFAULT);
-					cpu.setPi(Interrupt.CLEAR);
-					status = KernelStatus.ABORT;
-					break;
-				case OPERATION_ERROR:
-					setError(ErrorMessages.TIMELIMITEXCEEDED);
-					setError(ErrorMessages.OPCODEERROR);
-					cpu.setPi(Interrupt.CLEAR);
-					status = KernelStatus.ABORT;
-					break;
-				case PAGE_FAULT:
-					setError(ErrorMessages.TIMELIMITEXCEEDED);
-					status = KernelStatus.ABORT;
-					break;
-				}
-				
-				/*
-				 * Still have to handle a plain old Time Interrupt
-				 */
-				if (cpu.getPi().equals(Interrupt.CLEAR)
-					|| cpu.getPi().equals(Interrupt.CLEAR)) {
-						setError(ErrorMessages.TIMELIMITEXCEEDED);
-						cpu.setTi(Interrupt.CLEAR);
-						status = KernelStatus.ABORT;
-					}
-				break;
-			}
-			
-			/*
-			 * Abort for IO Interrupt
-			 */
-			if (cpu.getIOi().equals(Interrupt.IO)){
-				status = KernelStatus.ABORT;
-				cpu.setIOi(Interrupt.CLEAR);
-			}
-			
-			/*
-			 * This is handles a programming error i.e. bugs in setting Interrupts
-			 */
-			if (cpu.getPi().equals(Interrupt.WRONGTYPE)
-					|| cpu.getTi().equals(Interrupt.WRONGTYPE)
-					|| cpu.getSi().equals(Interrupt.WRONGTYPE)){
-				return true;
-			}
-			trace.fine("Status "+cpu.dumpInterrupts());
-			
-			/*
-			 * Normally the loop will restart and eventually find terminate.
-			 * No need to reiterate through loop if its going to call terminate.
-			 */
-			if (status == KernelStatus.ABORT) {
-				status = terminate();
-			}
-			trace.fine("End of Interrupt Handling loop "+status);
-		}
-
-		// Tell slaveMode that there are no more programs to run
-		if (status == KernelStatus.TERMINATE)
-			retval = true;
-		
-		trace.fine(retval+"<--");
-		return retval;
+		setError(error);
+		trace.fine("Aborting program");
+		terminate();
 	}
 	
 	/**
@@ -546,15 +337,9 @@ public class Kernel {
 						return retval;
 					}
 					else {
-					try {
 						trace.info("start cycle "+incrementCycleCount());
 						framenum = cpu.allocatePage(pagenum);
 						cpu.writeFrame(framenum, programLine);
-					} catch (HardwareInterruptException e) {
-						trace.log(Level.SEVERE,"HW Exception on load ",e);
-						retval = KernelStatus.ABORT;
-						break;
-					}
 					}
 					pagenum+=1;
 					programLine = br.readLine();
@@ -567,10 +352,9 @@ public class Kernel {
 		}
 
 		trace.info("No more jobs, exiting");
-		
+		EndOfProcessing = true;
 		checkForCurrentProcess();
-		
-		retval = KernelStatus.TERMINATE;
+
 		trace.finer("<--");
 		return retval;
 	}
@@ -592,9 +376,8 @@ public class Kernel {
 	/**
 	 * Processing of a read from the GD instruction
 	 * @return
-	 * @throws IOException
 	 */
-	public KernelStatus read() throws IOException{
+	public void read() {
 		KernelStatus retval = KernelStatus.CONTINUE;
 		trace.finer("-->");
 		trace.fine("Entering KernelStatus Read, who reads a line");
@@ -605,7 +388,12 @@ public class Kernel {
 
 		// read next data card
 		if (!lineBuffered) {
-			lastLineRead = br.readLine();
+				try {
+					lastLineRead = br.readLine();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			trace.fine("data line from input file: "+lastLineRead);			
 			lineBuffered = true;
 		}
@@ -616,13 +404,10 @@ public class Kernel {
 		trace.info("operand:"+irValue+" pi="+cpu.getPi().getValue());
 		// If next data card is $END, TERMINATE(1)
 		if (lastLineRead.startsWith(Process.JOB_END)){
-			setError(ErrorMessages.OUTOFDATA);
-			finishProcess();
-			retval = KernelStatus.ABORT;
+			abort(ErrorMessages.OUTOFDATA);
 		// Increment the time counter for the GD instruction
 		} else if (!p.incrementTimeCountMaster()){
-			setError(ErrorMessages.TIMELIMITEXCEEDED);
-			retval = KernelStatus.ABORT;
+			abort(ErrorMessages.TIMELIMITEXCEEDED);
 		} else {
 			// write data from data card to memory location
 			if (cpu.getPi() == Interrupt.CLEAR) {				
@@ -633,14 +418,13 @@ public class Kernel {
 				retval = KernelStatus.INTERRUPT;
 		}
 		trace.finer(retval+"<--");
-		return retval;
 	}
 	
 	/**
 	 * Processing of a write from the PD instruction
 	 * @return
 	 */
-	public KernelStatus write(){
+	public void write(){
 		KernelStatus retval = KernelStatus.CONTINUE;
 		trace.finer("-->");
 		int irValue = 0;
@@ -657,26 +441,20 @@ public class Kernel {
 			cpu.setPi(irValue);
 			if (cpu.getPi() == Interrupt.CLEAR) {
 				// write data from memory to the process outputBuffer
-				try {
 					p.write(cpu.readBlock(irValue));
-				} catch (HardwareInterruptException e) {
-					trace.info("HW interrupt:"+cpu.dumpInterrupts());
-					retval = KernelStatus.INTERRUPT;
-				}
 				cpu.setSi(Interrupt.CLEAR);
 			} else {
 				retval = KernelStatus.INTERRUPT;
 			}			
 		}
 		trace.finer(retval+"<--");
-		return retval;
 	}
 	
 	/**
 	 * Called on program termination.
 	 * @throws IOException
 	 */
-	public KernelStatus terminate() throws IOException {
+	public void terminate() {
 
 		trace.finer("-->");
 		
@@ -692,13 +470,22 @@ public class Kernel {
 		cpu.clearInterrupts();
 
 		//Write 2 empty lines to the output
-		wr.write("\n\n");
+		try {
+			wr.write("\n\n");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		// Load the next user program
-		retval = load();
+		try {
+			retval = load();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		trace.finer(retval+"<--");
-		return retval;
 	}
 	
 	/**
@@ -717,40 +504,153 @@ public class Kernel {
 	}
 
 	/**
-	 * Master execution cycle 
-	 * @throws HardwareInterruptException
-	 * @throws IOException 
-	 * @throws SoftwareInterruptException
+	 * Master mode 
 	 */
-	public void masterMode() throws IOException {
+	public void masterMode() {
 		trace.finer("-->");
-		inMasterMode = false;
-		boolean done = false;
-		while (!done) {
-			try {
-				trace.info("start cycle "+incrementCycleCount());
-				slaveMode();
-			} catch (HardwareInterruptException hie) {
-				trace.info("start cycle "+incrementCycleCount());
-				trace.info("HW Interrupt from slave mode");
-				trace.fine(cpu.dumpInterrupts());
-				done = interruptHandler();
-				inMasterMode = false;
+		trace.info("Entering master mode for cycle "+cycleCount);
+		
+		switch (cpu.getTi()) {
+		
+		case CLEAR:
+			/*
+			 * Handle Supervisor Interrupt
+			 * TI SI
+			 * -- --
+			 * 0  1  READ
+			 * 0  2  WRITE
+			 * 0  3  TERMINATE(0)
+			 */
+			switch (cpu.getSi()) {
+			case READ:
+				trace.finest("SI interrupt read");
+				read();
+				break;
+			case WRITE:
+				trace.finest("SI interrupt write");
+				write();
+				break;
+			case TERMINATE:
+				//	Dump memory
+				trace.finest("SI interrupt terminate");
+				terminate();
+				break;
 			}
+			
+			/*
+			 * Handle Program Interrupt
+			 * TI PI
+			 * -- --
+			 * 0  1  TERMINATE(4)
+			 * 0  2  TERMINATE(5)
+			 * 0  3  If Page Fault, ALLOCATE, update page table, Adjust IC if necessary
+			 *       EXECUTE USER PROGRAM OTHERWISE TERMINTAE(6)
+			 */
+			switch (cpu.getPi()) {
+			case OPERAND_ERROR:
+				abort(ErrorMessages.OPERANDFAULT);
+				break;
+			case OPERATION_ERROR:
+				abort(ErrorMessages.OPCODEERROR);
+				break;
+			case PAGE_FAULT:
+				boolean valid = mmu.validatePageFault(cpu.getIr());
+				if (valid){
+					int frame = cpu.allocatePage(cpu.getOperand() / 10); 
+					trace.fine("frame "+frame+" allocated for page "+cpu.getOperand());
+					cpu.decrement();
+				}	
+				else {
+					abort(ErrorMessages.INVALIDPAGEFAULT);
+				}
+				break;
+			}
+			break;
+		case TIME_ERROR:
+			/*
+			 * Handle Supervisor Interrupt
+			 * TI SI
+			 * -- --
+			 * 2  1  TERMINATE(3)
+			 * 2  2  WRITE,THEN TERMINATE(3)
+			 * 2  3  TERMINATE(0)
+			 */	
+			switch (cpu.getSi()) {
+			case READ:
+				abort(ErrorMessages.TIMELIMITEXCEEDED);
+				break;
+			case WRITE:
+				write();
+				abort(ErrorMessages.TIMELIMITEXCEEDED);
+				break;
+			case TERMINATE:
+				terminate();
+				break;
+			}
+			
+			/*
+			 * Handle Program Interrupt
+			 * TI PI
+			 * -- --
+			 * 2  1  TERMINATE(3,4)
+			 * 2  2  TERMINATE(3,5)
+			 * 2  3  TERMINATE(3)
+			 */
+			switch (cpu.getPi()) {
+			case OPERAND_ERROR:
+				setError(ErrorMessages.TIMELIMITEXCEEDED);
+				abort(ErrorMessages.OPERANDFAULT);
+				break;
+			case OPERATION_ERROR:
+				setError(ErrorMessages.TIMELIMITEXCEEDED);
+				abort(ErrorMessages.OPCODEERROR);
+				break;
+			case PAGE_FAULT:
+				abort(ErrorMessages.TIMELIMITEXCEEDED);
+				break;
+			default:
+				setError(ErrorMessages.TIMELIMITEXCEEDED);
+				abort(ErrorMessages.TIMELIMITEXCEEDED);
+				break;
+			}
+			break;
 		}
+		
+		/*
+		 * Abort for IO Interrupt
+		 */
+//		if (cpu.getIOi().equals(Interrupt.IO)){
+//			status = KernelStatus.ABORT;
+//			cpu.setIOi(Interrupt.CLEAR);
+//		}
+		
+		/*
+		 * This is handles a programming error i.e. bugs in setting Interrupts
+		 */
+		if (cpu.getPi().equals(Interrupt.WRONGTYPE)
+				|| cpu.getTi().equals(Interrupt.WRONGTYPE)
+				|| cpu.getSi().equals(Interrupt.WRONGTYPE)){
+			exit();
+		}
+		trace.fine("Status: "+cpu.dumpInterrupts());
+		
+
+		
+		
+		
+		
+		incrementCycleCount();
 		trace.finer("<--");
 	}
 	
 	/**
-	 * Slave execution cycle
-	 * @throws HardwareInterruptException
+	 * Slave mode
 	 */
-	public void slaveMode() throws HardwareInterruptException {
-		trace.info("start slave mode ");
+	public void slaveMode() {
+		trace.info("Entering slave mode for cycle "+cycleCount);
 		cpu.fetch();
 		cpu.increment();
 		cpu.execute();
-		p.incrementTimeCountSlave();
 	}
 	
 	/**

@@ -102,6 +102,7 @@ public class MMU implements MemoryUnit {
 		int ptr;
 		int logicalPageNum = logicalAddr/10;
 		int displacement = logicalAddr%10;
+		int realAddr = 0;
 		Integer frameNum = 0;
 		String pageTable;
 		
@@ -117,6 +118,8 @@ public class MMU implements MemoryUnit {
 		
 		try {
 			frameNum = new Integer(pageTableEntry);
+			realAddr = frameNum+displacement;
+			trace.info("logical->real : "+logicalAddr+"->"+realAddr);
 		}
 		catch (NumberFormatException e) {
 			//Does page being referenced have a frame allocated for it?
@@ -125,9 +128,6 @@ public class MMU implements MemoryUnit {
 			trace.finer("<--");
 //			throw new HardwareInterruptException();
 		}
-		
-		int realAddr = frameNum+displacement;
-		trace.info("logical->real : "+logicalAddr+"->"+realAddr);
 		
 		trace.finer("<--");
 		return realAddr;
@@ -240,5 +240,22 @@ public class MMU implements MemoryUnit {
 			mem = mem + read(i) + "\n";
 		}
 		return mem;	
+	}
+	/**
+	 * Checks if the page fault is valid based on the IR
+	 * @return
+	 */
+	public boolean validatePageFault(String ir) {
+
+		if (ir == null 
+				|| ir.startsWith(CPU.GET)
+				|| ir.startsWith(CPU.STORE)) {
+			trace.info("valid page fault on IR="+ir);
+			return true;
+		}
+		else {
+			trace.severe("invalid page fault on IR="+ir);
+			return false;
+		}
 	}
 }
