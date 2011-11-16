@@ -16,7 +16,7 @@ import java.util.logging.Logger;
  * @author claytonannam@gmail.com
  *
  */
-public class CPU {
+public class CPU implements Cloneable {
 	/**
 	 * For tracing
 	 */
@@ -100,11 +100,17 @@ public class CPU {
 	    WRITE           ( 2,517, InterruptType.SUPERVISOR, -1),
 	    TERMINATE       ( 3,518, InterruptType.SUPERVISOR, -1),
 		UNKNOWN         (-1,519, InterruptType.DEFAULT   , -1),
-		IO              ( 1,520, InterruptType.IO        , -1),
-		TIME_ERROR      ( 2,521, InterruptType.TIME      , 3),
-		OPERATION_ERROR ( 1,522, InterruptType.PROGRAM   , 4),
-		OPERAND_ERROR   ( 2,523, InterruptType.PROGRAM   , 5),
-		PAGE_FAULT      ( 3,524, InterruptType.PROGRAM   , 6);
+		IO_CHANNEL_1    ( 1,521, InterruptType.IO        , -1),
+		IO_CHANNEL_2    ( 2,522, InterruptType.IO        , -1),
+		IO_CHANNEL_12   ( 3,523, InterruptType.IO        , -1),
+		IO_CHANNEL_3    ( 4,524, InterruptType.IO        , -1),
+		IO_CHANNEL_13   ( 5,525, InterruptType.IO        , -1),
+		IO_CHANNEL_23   ( 6,526, InterruptType.IO        , -1),
+		IO_CHANNEL_123  ( 7,527, InterruptType.IO        , -1),
+		TIME_ERROR      ( 2,528, InterruptType.TIME      , 3),
+		OPERATION_ERROR ( 1,529, InterruptType.PROGRAM   , 4),
+		OPERAND_ERROR   ( 2,530, InterruptType.PROGRAM   , 5),
+		PAGE_FAULT      ( 3,531, InterruptType.PROGRAM   , 6);
 		private int value;
 		private int retval;
 		InterruptType type;
@@ -131,6 +137,13 @@ public class CPU {
 		public static Interrupt set(int irValue) {
 			for (Interrupt i: values()) {
 				if (i.getRetval() == irValue) return i;
+			}
+			return CLEAR;
+		}
+		public static Interrupt getIOi(int ioiValue) {
+			for (Interrupt i: values()) {
+				if (i.getType().equals(InterruptType.IO) && 
+						i.getValue() == ioiValue) return i;
 			}
 			return CLEAR;
 		}
@@ -361,12 +374,23 @@ public class CPU {
 	}
 	
 	/**
-	 * set IO interrupt based on integer value
+	 * Set the IO interrupt based on integer value
 	 * @param value
 	 */
 	public void setIOi(int value) {
-		Interrupt i = Interrupt.set(value);
-		setIOi(i);
+		trace.info("setting ioi="+value);
+		int newVal = ioi.getValue() | value;
+		setIOi(Interrupt.getIOi(newVal));
+	}
+	
+	/**
+	 * Clear the IO interrupt based on integer value
+	 * @param value
+	 */
+	public void clearIOi(int value) {
+		trace.info("clearing ioi="+value);
+		int newVal = (Interrupt.IO_CHANNEL_123.getValue() - value) & ioi.getValue();
+		setIOi(Interrupt.getIOi(newVal));
 	}
 	
 	/**
@@ -632,5 +656,26 @@ public class CPU {
 		}
 	}
 
-
+	@Override
+	public Object clone() throws CloneNotSupportedException {
+		// TODO Auto-generated method stub
+		return super.clone();
+	}
+	
+	/**
+	 * Restore the CPU based on the given CPU instance
+	 * @param cpu
+	 */
+	public void restore(CPU cpu) {
+		ref.c = cpu.c;
+		ref.ir = cpu.ir;
+		ref.gr = cpu.gr;
+		ref.ic = cpu.ic;
+		ref.ptr = cpu.ptr;
+		ref.ptl = cpu.ptl;
+		ref.si = cpu.si;
+		ref.ti = cpu.ti;
+		ref.pi = cpu.pi;
+		ref.ioi = cpu.ioi;
+	}
 }

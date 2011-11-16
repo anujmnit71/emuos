@@ -439,10 +439,10 @@ public class Kernel {
 			/*
 			 * Abort for IO Interrupt
 			 */
-			if (cpu.getIOi().equals(Interrupt.IO)){
-				status = KernelStatus.ABORT;
-				cpu.setIOi(Interrupt.CLEAR);
-			}
+//			if (cpu.getIOi().equals(Interrupt.IO)){
+//				status = KernelStatus.ABORT;
+//				cpu.setIOi(Interrupt.CLEAR);
+//			}
 			
 			/*
 			 * This is handles a programming error i.e. bugs in setting Interrupts
