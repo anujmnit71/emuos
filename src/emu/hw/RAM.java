@@ -39,7 +39,8 @@ public class RAM implements MemoryUnit {
 	private final int numFrames = 30;
 	private final int wordLength = 4;
 	private final int wordsInFrame = 10;
-	private final int frameSize = wordLength + wordsInFrame;
+	private final int wordsInMemory = wordsInFrame * numFrames;
+	private final int frameSize = wordLength * wordsInFrame;
 	
 	/**
 	 * Set containing all frames which are currently free
@@ -141,7 +142,7 @@ public class RAM implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String read(int frame) {
+	public String read(int frame) throws HardwareInterruptException {
 		
 		String block = "";
 		int blockAddr = frame * 10;
@@ -158,7 +159,7 @@ public class RAM implements MemoryUnit {
 	 * @param addr
 	 * @throws HardwareInterruptException 
 	 */
-	public void write(int frame, String data) {
+	public void write(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.fine("Frame#: "+frame+" Data:"+data);
 		
@@ -166,6 +167,7 @@ public class RAM implements MemoryUnit {
 		data = Utilities.padStringToLength(data, " ", frameSize, false);
 		
 		int blockAddr = frame*10;
+//		int blockAddr = frame;
 		
 		for (int i = 0 ; i < 10 ; i++) {
 			String word = data.substring(0,wordLength);
@@ -183,17 +185,17 @@ public class RAM implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String load(int addr) {
+	public String load(int addr) throws HardwareInterruptException {
+//		trace.info("read data at addr"+addr);
 		return new String(memory[addr]);
 	}
 	
 	/**
 	 * Store a word into memory
 	 * @param addr
-	 * @throws HardwareInterruptException 
 	 */
-	public void store(int addr, String data) {
-		//trace.info("store <"+data+"> at "+addr);
+	public void store(int addr, String data) throws HardwareInterruptException {
+//		trace.info("store <"+data+"> at "+addr);
 		memory[addr] = data.toCharArray();
 	}
 	
@@ -223,7 +225,7 @@ public class RAM implements MemoryUnit {
 	 * Clears memory.
 	 */
 	public void clear() {
-		memory = new char[numFrames][wordLength];
+		memory = new char[wordsInMemory][wordLength];
 		for (int i = 0; i < memory.length; i++) {
 				memory[i] = BLANKS.toCharArray();
 		}

@@ -396,7 +396,7 @@ public class CPU {
 	 * @throws HardwareInterruptException
 	 * @throws SoftwareInterruptException
 	 */
-	public void execute() {
+	public void execute() throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.info(toString());
 		clock++;
@@ -453,6 +453,7 @@ public class CPU {
 				|| si != Interrupt.CLEAR
 				|| pi != Interrupt.CLEAR){
 			trace.finer("<--");
+			throw new HardwareInterruptException();
 		}
 		trace.finer("<--");
 	}
@@ -462,7 +463,7 @@ public class CPU {
 	 * @param memory
 	 * @throws HardwareInterruptException 
 	 */
-	public void fetch() {
+	public void fetch() throws HardwareInterruptException {
 		ir = mmu.load(ic);
 		trace.info(ir+" from logical address "+ic);
 	}
@@ -521,7 +522,7 @@ public class CPU {
 	 * @param data
 	 * @throws HardwareInterruptException
 	 */
-	public void writeFrame(int frame, String data) {
+	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
 		mmu.writeFrame(frame, data);
 		trace.info(frame+"<-"+data);
@@ -555,7 +556,7 @@ public class CPU {
 	 * @return The data
 	 * @throws HardwareInterruptException
 	 */
-	public String readBlock(int logicalAddr) {
+	public String readBlock(int logicalAddr) throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.fine("Reading from " + logicalAddr);
 		trace.finer("<--");
@@ -610,5 +611,26 @@ public class CPU {
 		setPi(Interrupt.CLEAR);
 		setIOi(Interrupt.CLEAR);
 	}
+	public MMU getMMU() {
+		return mmu;
+	}
+	/**
+	 * Checks if the page fault is valid based on the IR
+	 * @return
+	 */
+	public boolean validatePageFault() {
+
+		if (ir == null 
+				|| ir.startsWith(CPU.GET)
+				|| ir.startsWith(CPU.STORE)) {
+			trace.info("valid page fault on IR="+ir);
+			return true;
+		}
+		else {
+			trace.severe("invalid page fault on IR="+ir);
+			return false;
+		}
+	}
+
 
 }
