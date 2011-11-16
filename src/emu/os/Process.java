@@ -166,7 +166,7 @@ public class Process {
 			return true;
 		} 
 		trace.severe("max prints ("+pcb.getMaxPrints()+") exceeded");
-		Kernel.getInstance().getCpu().setIOi(Interrupt.IO);
+		//Kernel.getInstance().getCpu().setIOi(Interrupt.IO);
 
 		Kernel.getInstance().setError( ErrorMessages.LINE_LIMIT_EXCEEDED.getErrCode());
 		return false;
