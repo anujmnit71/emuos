@@ -356,7 +356,7 @@ public class Kernel {
 					status = KernelStatus.ABORT;
 					break;
 				case PAGE_FAULT:
-					boolean valid = cpu.validatePageFault();
+					boolean valid = cpu.getMMU().validatePageFault(cpu.getIr());
 					if (valid){
 						int frame = cpu.allocatePage(cpu.getOperand() / 10); //TODO cleaner way to determine page #?
 						trace.fine("frame "+frame+" allocated for page "+cpu.getOperand());
