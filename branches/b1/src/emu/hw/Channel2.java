@@ -40,7 +40,9 @@ public class Channel2 extends Channel {
 		
 		try {
 			//Read block from input file (card reader) to the buffer.
-			printer.write(task.getBuffer().getData());
+			String data = task.getBuffer().getData();
+			trace.info("printing:'"+data+"'");
+			printer.write(data);
 			printer.newLine();
 			printer.flush();
 			//Update buffer status
