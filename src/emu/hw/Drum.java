@@ -25,10 +25,6 @@ public class Drum implements MemoryUnit {
 	 */
 	Logger trace = Logger.getLogger("emuos");
 	/**
-	 * blanks to initialize memory to
-	 */
-	public static final String BLANKS = "    ";
-	/**
 	 * Memory array
 	 */
 	String [] memory; 
@@ -37,7 +33,15 @@ public class Drum implements MemoryUnit {
 	 * static variables containing size of memory
 	 */
 	private final static int trackSize = 40;
+	/**
+	 * Number of tracks on the drum
+	 */
 	private final static int numTracks = 100;
+	/**
+	 * blanks to initialize memory to
+	 */
+	public static final String BLANKS = Utilities.padStringToLength(" ", " ", trackSize, false);
+
 	
 	/**
 	 * Set containing all tracks which are currently free
@@ -113,20 +117,14 @@ public class Drum implements MemoryUnit {
 	}
 	
 	/**
-	 * Read 1 block from memory
+	 * Read 1 block from track
 	 * @param frame
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String read(int frame) {
-		
-		String block = "";
-		int blockAddr = frame * 10;
-		
-		for (int i = 0 ; i < 10 ; i++) {
-			block += new String(memory[blockAddr+i]);
-		}
-		trace.fine("Reading frame# " + frame+"; data: "+block);
+	public String read(int track) {
+		String block = memory[track];
+		trace.info("Reading track# " + track+"; data: "+block);
 		return block;
 	}
 	
@@ -169,14 +167,21 @@ public class Drum implements MemoryUnit {
 	 * Dumps the memory contents to a single string
 	 */
 	public String toString() {
-		int i,j;
+
 		String dump = "\n0   |1   |2   |3   |4   |5   |6   |7   |8   |9   |\n";
-		for ( i = 0; i < trackSize; i=i+1) {
-			for ( j=0; j<10; j+=4) {
-				dump += new String(memory[i]).substring(j,j+4)+" ";
-				dump += new String(" : "+i+"\n");
+		
+		for (int j = 0; j < memory.length; j++) {
+			for (int i=0; i<40; i+=4) {
+				if (i < 36) {
+					dump += memory[j].substring(i,i+4)+" ";					
+				}
+				else {
+					dump += memory[j].substring(i);					
+				}
 			}
+			dump += "|"+j+"\n";
 		}
+
 		return dump;
 	}
 	

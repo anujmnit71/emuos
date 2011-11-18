@@ -19,25 +19,21 @@ public class Channel3 extends Channel {
 	 */
 	RAM memory;
 	
-	private Channel3(int cycleTime, CPU cpu) {
-		super(cycleTime, cpu);
-	}
-
 	/**
 	 * Creates Channel 3
 	 * @param cycleTime The number of cycles for channel 3
 	 * @param cpu A CPU reference
-	 * @param cardReader The input file.
 	 */
-	public Channel3(int cycleTime, CPU cpu, Drum drum, RAM memory) {
+	public Channel3(int cycleTime, CPU cpu) {
 		super(cycleTime, cpu);
-		this.drum = drum;
-		this.memory = memory;
-		
+		this.drum = cpu.getMMU().getDrum();
+		this.memory = cpu.getMMU().getRam();
 	}
 
 	@Override
 	void run() throws HardwareInterruptException {
+		
+		trace.info("running channel 3, task:"+task);
 		
 		//Switch over the possible tasks
 		switch (task.getType()) {
@@ -67,6 +63,8 @@ public class Channel3 extends Channel {
 		cpu.setIOi(CPU.Interrupt.IO_CHANNEL_3.getValue());
 		
 		busy = false;
+		
+		trace.info("ran channel 3, task:"+task);
 
 	}
 	
@@ -102,20 +100,28 @@ public class Channel3 extends Channel {
 	}
 
 	/**
-	 * Transfer a block of data from main memory to the buffer.
+	 * Transfer a block of data from the drum to the buffer.
 	 * @throws HardwareInterruptException 
 	 */
 	private void outputSpool() throws HardwareInterruptException {
-		task.getBuffer().setData(memory.read(task.getFrame()));
+		task.getBuffer().setData(drum.read(task.getTrack()));
 		//Update Buffer Status
 		task.getBuffer().setOutputFull();
 	}
 	
-	private void swapIn() {
-		//TODO Implement
+	/**
+	 * Reads a block of data from drum into memory
+	 * @throws HardwareInterruptException
+	 */
+	private void swapIn() throws HardwareInterruptException {
+		memory.write(task.getFrame(), drum.read(task.getTrack()));
 	}
 	
-	private void swapOut() {
-		//TODO Implement
+	/**
+	 * Writes the victim frame to the drum.
+	 * @throws HardwareInterruptException
+	 */
+	private void swapOut() throws HardwareInterruptException {
+		drum.write(task.getTrack(), memory.read(task.getFrame()));
 	}
 }

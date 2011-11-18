@@ -63,4 +63,7 @@ public class ChannelTask {
 	public void setTrack(int track) {
 		this.track = track;
 	}
+	public String toString() {
+		return "[ ChannelTask :: task="+type+", buffer="+buffer+", frame="+frame+", track="+track+" ]";
+	}
 }

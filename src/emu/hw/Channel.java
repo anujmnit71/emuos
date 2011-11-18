@@ -78,6 +78,12 @@ public abstract class Channel {
 	 * @throws HardwareInterruptException 
 	 */
 	public void increment() throws HardwareInterruptException {
+		
+		if (!busy) {
+			trace.info(this.getClass().getName()+":no work");
+			return;
+		}
+		
 		trace.info("increment "+currCycleTime);
 		currCycleTime++;
 		

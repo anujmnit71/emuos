@@ -36,11 +36,16 @@ public class Channel1 extends Channel {
 	}
 	@Override
 	void run() {
-		trace.info("running channel 1, task:"+task);
+		trace.info("running channel 1, task:"+task.getType());
 		
 		try {
-			//Read block from input file (card reader) to the buffer.
-			task.getBuffer().setData(cardReader.readLine());
+			//Read block from input file (card reader)
+			String data = cardReader.readLine();
+			if (data.length() > 40) {
+				data = data.substring(0,40);
+			}
+			//Write to the buffer
+			task.getBuffer().setData(data);
 			//Update buffer status
 			task.getBuffer().setInputFull();
 			//TODO CPU needs support for the

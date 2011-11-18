@@ -16,13 +16,12 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-//import javax.net.ssl.SSLEngineResult.Status;
-
 import emu.hw.CPU;
 import emu.hw.CPU.Interrupt;
+import emu.hw.Channel1;
+import emu.hw.Channel2;
+import emu.hw.Channel3;
 import emu.hw.HardwareInterruptException;
-//import emu.hw.MMU;
-//import emu.hw.RAM;
 import emu.util.TraceFormatter;
 
 /**
@@ -48,13 +47,17 @@ public class Kernel {
 	 */
 	Process p;
 	/**
-	 * The buffered reader for reading the input data
+	 * Reads data from input file (card reader)
 	 */
-	BufferedReader br;
+	Channel1 ch1;
 	/**
-	 * The writer for writing the output file.
+	 * Writes data to output file (printer)
 	 */
-	BufferedWriter wr;
+	Channel2 ch2;
+	/**
+	 * Transfers data between primary and secondary storage
+	 */
+	Channel3 ch3;
 	/**
 	 * number of processes executed
 	 */
@@ -172,7 +175,7 @@ public class Kernel {
 	 * Initialize the trace
 	 * @param args
 	 */
-	private static void initTrace(String[] args) {
+	public static void initTrace(String[] args) {
 		try {
 			
 			//Create Logger
@@ -226,8 +229,13 @@ public class Kernel {
 		inMasterMode = true;
 
 		//Init I/O
-		br = new BufferedReader(new FileReader(inputFile));
-		wr = new BufferedWriter(new FileWriter(outputFile));
+		BufferedReader input = new BufferedReader(new FileReader(inputFile));
+		BufferedWriter output = new BufferedWriter(new FileWriter(outputFile));
+		
+		//Create Channels
+		ch1 = new Channel1(3,cpu,input);
+		ch2 = new Channel2(4,cpu,output);
+		ch3 = new Channel3(2,cpu);
 
 	}
 	
@@ -270,8 +278,6 @@ public class Kernel {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
-			br.close();
-			wr.close();
 			//Dump memory
 			trace.fine("\n"+cpu.dumpMemory());
 
@@ -473,6 +479,8 @@ public class Kernel {
 	}
 	
 	/**
+	 * TODO some of this code will now need to be in the channel1 interrupt handling
+	 *  
 	 * Loads the program into memory and starts execution.
 	 * @throws IOException 
 	 */
@@ -480,9 +488,10 @@ public class Kernel {
 		KernelStatus retval = KernelStatus.CONTINUE;
 		trace.finer("-->");
 		
-		String nextLine = br.readLine();
+		String nextLine = null; //TODO nextLine needs to be replaced by the data in an ifb 
+		//which needs to be interrogated before starting ch3
 
-		while (nextLine != null) {
+//		while (nextLine != null) {
 			//Check for EOJ
 			if (nextLine.startsWith(Process.JOB_END)) {
 									
@@ -491,16 +500,12 @@ public class Kernel {
 				trace.fine("Finished job "+p.getId());
 				trace.info("Memory Dump of "+p.getId()+":"+cpu.dumpMemory());
 				
-				//read next line
-				nextLine = br.readLine();
 				trace.fine(nextLine);
 			}
 			
 			if (nextLine == null || nextLine.isEmpty()) {
 				trace.fine("skipping empty line...");
-				nextLine = br.readLine();
 				//exit();
-				continue;
 			}
 			else if (nextLine.startsWith(Process.JOB_START)) {
 				trace.info("Loading job:"+nextLine);
@@ -515,10 +520,10 @@ public class Kernel {
 				int maxTime = Integer.parseInt(nextLine.substring(8, 12));
 				int maxPrints = Integer.parseInt(nextLine.substring(12, 16));
 				
-				//Reads first program line
-				String programLine = br.readLine();
 				int pagenum = 0;
 				int framenum = 0;
+				
+				String programLine = null;
 				
 				//Write each block of program lines into memory
 				while (programLine != null) {
@@ -534,9 +539,9 @@ public class Kernel {
 						trace.fine("Memory contents: " + cpu.dumpMemory());
 						trace.fine("CPU: "+cpu.toString());
 						
-						p = new Process(id, maxTime, maxPrints, br, wr);
-						p.startExecution();
-						processCount++;
+//						p = new Process(id, maxTime, maxPrints, br, wr);
+//						p.startExecution();
+//						processCount++;
 						trace.finer("<-- DATA_START");
 						return retval;
 					}
@@ -552,14 +557,12 @@ public class Kernel {
 					}
 					}
 					pagenum+=1;
-					programLine = br.readLine();
 				}
 			}
 			else {
 				trace.warning("skipped data line:"+nextLine);
-				nextLine = br.readLine();
 			}
-		}
+//		}
 
 		trace.info("No more jobs, exiting");
 		
@@ -600,7 +603,7 @@ public class Kernel {
 
 		// read next data card
 		if (!lineBuffered) {
-			lastLineRead = br.readLine();
+			//lastLineRead = br.readLine();
 			trace.fine("data line from input file: "+lastLineRead);			
 			lineBuffered = true;
 		}
@@ -692,7 +695,7 @@ public class Kernel {
 		cpu.clearInterrupts();
 
 		//Write 2 empty lines to the output
-		wr.write("\n\n");
+		//wr.write("\n\n");
 		
 		// Load the next user program
 		retval = load();
@@ -747,31 +750,39 @@ public class Kernel {
 	 */
 	public void slaveMode() throws HardwareInterruptException {
 		trace.info("start slave mode ");
+		
 		cpu.fetch();
 		cpu.increment();
+		
+		//Increment channel clocks 
+		ch1.increment();
+		ch2.increment();
+		ch3.increment();
+		
 		cpu.execute();
 		p.incrementTimeCountSlave();
 	}
 	
 	/**
+	 * TODO each of these block need to be queued to ch3 as output spool tasks
 	 * Writes the process state and buffer to the output file
 	 * @throws IOException
 	 */
 	public void finishProccess() throws IOException {
 		trace.finer("-->");
-		wr.write(p.getId()+" "+p.getTerminationStatus()+"\n");
-		wr.write(cpu.getState());
-		wr.write("    "+p.getTime()+"    "+p.getLines());
-		wr.newLine();
-		wr.newLine();
-		wr.newLine();
-		
-		ArrayList<String> buf = p.getOutputBuffer();
-		for (String line : buf) {
-			 wr.write(line);
-			 wr.newLine();
-		}
-		wr.flush();
+//		wr.write(p.getId()+" "+p.getTerminationStatus()+"\n");
+//		wr.write(cpu.getState());
+//		wr.write("    "+p.getTime()+"    "+p.getLines());
+//		wr.newLine();
+//		wr.newLine();
+//		wr.newLine();
+//		
+//		ArrayList<String> buf = p.getOutputBuffer();
+//		for (String line : buf) {
+//			 wr.write(line);
+//			 wr.newLine();
+//		}
+//		wr.flush();
 		p.terminate();
 		trace.finer("<--");
 	}
