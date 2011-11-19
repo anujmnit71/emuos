@@ -129,6 +129,10 @@ public class MMU implements MemoryUnit {
 		trace.finest("LogicalAddr: " + logicalAddr + "; Logical Page@: "
 				+ logicalPageNum + "; Displacement: " + displacement);
 		// Determine page fault
+		// If the page is swapped
+		if (PT.getEntry(logicalPageNum).isSwapped())
+			throw new HardwareInterruptException();
+		//or if it has never been loaded
 		try {
 			frameNum = PT.getEntry(logicalPageNum).getBlockNum();
 		} catch (NumberFormatException e) {
@@ -151,11 +155,7 @@ public class MMU implements MemoryUnit {
 	public int initPageTable() {
 		int frame = allocateFrame();
 		PT = getNewPageTable();
-		try {
 			ram.write(frame, PT.toString());
-		} catch (HardwareInterruptException e) {
-			trace.severe("Error in init page table");
-		}
 		return frame;
 	}
 	
@@ -200,11 +200,7 @@ public class MMU implements MemoryUnit {
 		trace.info("Frame allocated: "+frameNum);
 		//Clear any residual data from the frame
 		String spaces = Utilities.padStringToLength(new String("")," ",40,false);
-		try {
-			ram.write(frameNum,spaces);
-		} catch (HardwareInterruptException e) {
-			trace.severe("Error in allocating a new frame");
-		}
+		ram.write(frameNum,spaces);
 		//Mark the frame we selected as allocated
 		ram.markAllocated(frameNum);
 		return frameNum;
@@ -222,19 +218,29 @@ public class MMU implements MemoryUnit {
 	 * @return The frame number
 	 */
 	public int allocatePage(int pageNumber) {
-		// Allocate a frame. Frame # returned
-		int frame = allocateFrame();
-		// Update page table entry.
-		//Read the current page table
-		PT = getPageTable();
-		//stick the new frame number in the correct PTE
-		PT.getEntry(pageNumber).setBlockNum(frame);
-		// store the updated page table
-		storePageTable();
-		// update the PTL to the total number of pages in memory
-		CPU.getInstance().setPtl(Math.max(CPU.getInstance().getPtl() + 1, pagesAllowedInMemory));
-		trace.info("page->frame : " + pageNumber + "->" + frame);
-		return frame;
+		//If we haven't already allocated 4 frames in memory (page table plus 3 frames
+		if (CPU.getInstance().getPtl() < pagesAllowedInMemory) { 
+			System.out.println("Allocating a page");
+			// Allocate a frame. Frame # returned
+			int frame = allocateFrame();
+			// Update page table entry.
+			//Read the current page table
+			PT = getPageTable();
+			//stick the new frame number in the correct PTE
+			PT.getEntry(pageNumber).setBlockNum(frame);
+			// store the updated page table
+			storePageTable();
+			// update the PTL to the total number of pages in memory
+			CPU.getInstance().setPtl(Math.min(CPU.getInstance().getPtl() + 1, pagesAllowedInMemory));
+			trace.info("page->frame : " + pageNumber + "->" + frame);
+			return frame;
+		}
+		// else we have used up all 4 and we need to swap out the LRU one
+		else {
+			System.out.println("Swapping");
+			Swap(pageNumber);
+		}
+		return 99;
 	}
 	
 	public RAM getRam() {
@@ -246,67 +252,93 @@ public class MMU implements MemoryUnit {
 	}
 	
 	public String toString() {
-		return ram.toString();	
+		return ram.toString() + "\n" + drum.toString();	
+//		return ram.toString();	
 	}
 	/**
 	 * Checks if the page fault is valid based on the IR
 	 * @return
 	 */
 	public boolean validatePageFault(String ir) {
-		trace.info("***Validating page fault for "+ir);
+		trace.info("Validating page fault for "+ir);
 		if (ir == null 
 				|| ir.startsWith(CPU.GET)
-				|| ir.startsWith(CPU.STORE)) {
+				|| ir.startsWith(CPU.STORE)
+				|| ir.startsWith(CPU.BRANCH)) {
 			trace.info("valid page fault on IR="+ir);
 			return true;
 		}
-		else {
-			trace.severe("invalid page fault on IR="+ir);
-			return false;
+		else if (ir.startsWith(CPU.PUT)
+				|| ir.startsWith(CPU.LOAD)
+				|| ir.startsWith(CPU.COMPARE)) {
+			int targetPage = Integer.parseInt(ir.substring(2,3));
+			System.out.println("Page: "+targetPage);
+			PT = getPageTable();
+			System.out.println("PTE: "+PT.getEntry(targetPage).toString());
+			if (PT.getEntry(targetPage).isSwapped()) {
+				trace.info("valid page fault on IR="+ir);
+				return true;
+			}
+			else {
+				trace.info("invalid page fault on IR="+ir);
+			}
 		}
+		else {
+			trace.info("invalid page fault on IR="+ir);
+		}
+			return false;
+		
+		
 	}
 	private PageTable getPageTable() {
 		int pageTableFrame = CPU.getInstance().getPtr();
-		try {
 		//Read the current page table
-			return new PageTable(ram.read(pageTableFrame));
-		}
-		catch (HardwareInterruptException e) {
-			trace.severe("Page table should be readable");
-		}
-		return new PageTable();
+		return new PageTable(ram.read(pageTableFrame));
 	}
 	private PageTable getNewPageTable() {
 		return new PageTable();
 	}
 	private void storePageTable() {
 		int pageTableFrame = CPU.getInstance().getPtr();
-		try {
 			trace.finest("Storing page table: "+PT.toString()+" at frame: "+pageTableFrame);
 			ram.write(pageTableFrame, PT.toString());
-		}
-		catch (HardwareInterruptException e) {
-			trace.severe("Page table should be updatable");
-		}
-	}
-	private void Swap(int newPage) {
-		// Find victim page: LRU[3]
-		// Find victim frame to swap out
-		// if dirty bit for victim page is on, call proc SwapOut to swap out victim
-		// call proc SwapIn to swap in the new page
 	}
 	
-	private void SwapIn(int newPage, int frame) {
-		// write new page to specified frame
-		// clear swapped/dirty bits in PTE
-		// write frame num to PTE
+	public void Swap(int newPage) {
+		// Find victim page: LRU[3]
+		int victimPage = PT.getVictim();
+		// Find victim frame to swap out
+		int victimFrame = PT.getEntry(victimPage).getBlockNum();
+		// if dirty bit for victim page is on, call proc SwapOut to swap out victim
+		if (PT.getEntry(victimPage).isDirty())
+			SwapOut(victimPage,victimFrame);
+		PT.getEntry(victimPage).setSwap();
+		// call proc SwapIn to swap in the new page
+		SwapIn(newPage,victimFrame);
+		storePageTable();
 	}
-	private void SwapOut(int victimPage, int frame) {
+	
+	public void SwapIn(int newPage, int frame) {
+		// write new page to specified frame if it's on the drum -- this will get queued on the swap queue
+		if (PT.getEntry(newPage).isSwapped())
+		ram.write(frame, drum.read(PT.getEntry(newPage).getBlockNum()));
+		// clear swapped/dirty bits in PTE
+		PT.getEntry(newPage).setDirty(false);
+		PT.getEntry(newPage).setSwap(false);
+		// write frame num to PTE
+		PT.getEntry(newPage).setBlockNum(frame);
+	}
+	public void SwapOut(int victimPage, int frame) {
 		// Get a free drum track
+		Random generator = new Random();
+		int drumTrack = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
 		// read victim page from specified frame
-		// write victim page to drum track
+		String victimPageData = ram.read(frame);
+		// write victim page to drum track -- this will get queued up on the swap queue
+		drum.write(drumTrack, victimPageData);
 		// write drum track to PTE
-		// set swapped bit in PTE
+		PT.getEntry(victimPage).setBlockNum(drumTrack);
 		// clear dirty bit in PTE
+		PT.getEntry(victimPage).setDirty(false);
 	}
 }
