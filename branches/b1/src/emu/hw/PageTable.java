@@ -36,6 +36,15 @@ public class PageTable {
 		pageTable[entryNum] = newEntry;
 	}
 	
+	public int getVictim() {
+		for (int i=0; i < entries; i++) {
+			if (pageTable[i].getLRU() == 3)
+				return i;
+		}
+		System.out.println("Error in getVictim");
+		return 0;
+	}
+	
 	public void setLRU(PageTableEntry recentEntry) {
 		if (recentEntry.getLRU() == 1)
 			return;

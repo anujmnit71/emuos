@@ -68,11 +68,11 @@ public class PageTableEntry {
 	}
 	
 	public boolean isDirty() {
-		return dirtySwap == "D";
+		return (dirtySwap.equals("D"));
 	}
 	
 	public boolean isSwapped() {
-		return dirtySwap == "S";
+		return (dirtySwap.equals("S"));
 	}
 	
 	public String toString() {
