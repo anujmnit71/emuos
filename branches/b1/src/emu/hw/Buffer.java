@@ -1,5 +1,7 @@
 package emu.hw;
 
+import java.util.Random;
+
 import emu.os.State;
 
 /**
@@ -25,6 +27,7 @@ public class Buffer {
 			return stateName;
 		}
 	}
+	int id;
 	/**
 	 * Current state
 	 */
@@ -38,6 +41,8 @@ public class Buffer {
 	 * Default Constructor, defaults to an empty buffer.
 	 */
 	public Buffer() {
+		Random generator = new Random();
+		id = generator.nextInt();
 		state = new State();
 		state.setCurrent(BufferState.EMPTY.getStateName());
 	}
@@ -78,7 +83,7 @@ public class Buffer {
 
 	
 	public String toString() {
-		return "[ Buffer :: data="+data+", state="+state+" ]";
+		return "[ Buffer :: id="+id+", data="+data+", state="+state+" ]";
 	}
 
 }

@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import emu.hw.CPU;
+import emu.hw.CPUState;
+import emu.hw.CPUState.Interrupt;
 import emu.hw.HardwareInterruptException;
-import emu.hw.CPU.Interrupt;
-import emu.os.Kernel.ErrorMessages;
 
 /**
  * Process Control Block
@@ -20,6 +20,9 @@ public class PCB {
 	 * Tracer
 	 */
 	static Logger trace = Logger.getLogger("emuos");
+	public static final String JOB_START = "$AMJ";
+	public static final String DATA_START = "$DTA";
+	public static final String JOB_END = "$EOJ";
 	/**
 	 * Process ID 
 	 */
@@ -33,17 +36,17 @@ public class PCB {
 	 */
 	int maxPrints;
 	/**
-	 * Current number of time cycles this process has been running
+	 * Current number of total time cycles this process has been running
 	 */
 	int currentTime;
 	/**
-	 * Buffers the program output
+	 * Current number of cycles since last context switch
 	 */
-	ArrayList<String> outputBuffer;
+	int currentQuantum;
 	/**
-	 * Current execution time
+	 * Maximun number of cycles before context switch
 	 */
-	int currTime = 1;
+	int maxQuantum = 10;
 	/**
 	 * Current number of prints
 	 */
@@ -63,21 +66,73 @@ public class PCB {
 	/**
 	 * The saved CPU state after context switch
 	 */
-	CPU cpu;
-	
+	CPUState cpuState;
+	/**
+	 * Tracks containing output to be spooled to the printer
+	 */
 	private List<Integer> outputTracks;
+	/**
+	 * Tracks containing programs instructions
+	 */
 	private List<Integer> instructionTracks;
+	/**
+	 * Tracks containing program data
+	 */
 	private List<Integer> dataTracks;
+	/**
+	 * The process state
+	 */
+	State state;
+	/**
+	 * Set true if program cards need to be spooled, 
+	 * otherwise it is assumed data cards are to follow
+	 */
+	boolean programCardsToFollow = true;
+	
+	/**
+	 * Control Flags for processing PCBs
+	 * READY Process is ready to execute
+	 * EXECUTE Process is executing
+	 * IO  Process is waiting for IO
+	 * MEMORY Process is waiting for memory
+	 * TERMINATE Process is terminating
+	 * SWAP Process is swapping memory
+	 * SPOOL Process is being spooled 
+	 */
+	private enum ProcessStates {
+		READY ("ready"),
+		EXECUTE ("execute"),
+		IO ("io"),
+		MEMORY ("memory"),
+		TERMINATE ("terminate"),
+		SWAP ("swap"),
+		SPOOL ("spool");
+		
+		String name;
+		ProcessStates(String name) {
+			this.name = name;
+		}
+		public String getName() {
+			return name;
+		}
+	}
 
 	/**
-	 * was there an error in this process
+	 * 
+	 * @param id
+	 * @param maxTime
+	 * @param maxPrints
 	 */
-	
 	public PCB(String id, int maxTime, int maxPrints) {
 		trace.info("id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints);
 		this.id = id;
 		this.maxTime = maxTime;
 		this.maxPrints = maxPrints;
+		this.outputTracks = new ArrayList<Integer>();
+		this.instructionTracks = new ArrayList<Integer>();
+		this.dataTracks = new ArrayList<Integer>();
+		this.state = new State();
+		state.setCurrent(ProcessStates.SPOOL.getName());
 	}
 	
 	public String getId() {
@@ -109,10 +164,6 @@ public class PCB {
 	public int getCurrentTime() {
 		return currentTime;
 	}
-	public int incrementCurrentTime() {
-		currentTime = currentTime + 1;
-		return currentTime;
-	}
 	public int getCurrentPrints() {
 		return outputTracks.size();
 	}
@@ -141,28 +192,9 @@ public class PCB {
 		trace.info("starting process "+id);
 		running = true;
 		Kernel.getInstance().getCpu().setIc(0);
-		Kernel.getInstance().getCpu().setSi(CPU.Interrupt.CLEAR);
+		Kernel.getInstance().getCpu().setSi(Interrupt.CLEAR);
 		setTerminationStatus("Normal Execution");
 		trace.fine("<--");
-	}
-	
-	/**
-	 * Writes to the programs output buffer
-	 * @param data
-	 */
-	public void write(String data) {
-		trace.fine("-->");
-		trace.info("buffered output:"+data);
-		outputBuffer.add(data);
-		trace.fine("<--");
-	}
-	
-	/**
-	 * return output buffer to caller
-	 * @return
-	 */
-	public ArrayList<String> getOutputBuffer() {
-		return outputBuffer;
 	}
 	
 	/**
@@ -189,24 +221,24 @@ public class PCB {
 	 * @return
 	 */
 	private boolean incrementTime() {
-		currTime++;
-		
-		if (currTime <= maxTime) {
-			trace.fine("curr time: "+currTime+", max time="+maxTime);
+		currentTime++;
+		currentQuantum++;
+
+		if (currentQuantum <= maxQuantum) {
+			trace.fine("pid: "+id+", currentQuantum: "+currentQuantum);
+		}
+		else {
+			trace.info("quantum reached for "+id);
+			//TODO What now?
+		}
+		if (currentTime <= maxTime) {
+			trace.fine("curr time: "+currentTime+", max time="+maxTime);
 		} else {
 			trace.severe("max time ("+maxTime+") exceeded");
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
 			return false;
 		}
 		return true;
-	}
-	
-	/**
-	 * get the running time of a process.
-	 * @return
-	 */
-	public int getTime() {
-		return currTime;
 	}
 		
 	/**
@@ -291,11 +323,19 @@ public class PCB {
 		setRunning(false);
 	}
 
-	public CPU getCpu() {
-		return cpu;
+	public CPUState getCpuState() {
+		return cpuState;
 	}
 
-	public void setCpu(CPU cpu) {
-		this.cpu = cpu;
+	public void setCpuState(CPUState cpu) {
+		this.cpuState = cpu;
+	}
+
+	public boolean isProgramCardsToFollow() {
+		return programCardsToFollow;
+	}
+
+	public void setProgramCardsToFollow(boolean programCardsToFollow) {
+		this.programCardsToFollow = programCardsToFollow;
 	}
 }

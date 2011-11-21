@@ -53,6 +53,8 @@ public class ChannelTest {
 	private static void inputSpoolTest() throws HardwareInterruptException {
 		// TODO Auto-generated method stub
 
+		System.out.println(cpu.toString());
+		
 		BufferedReader input = null;
 		
 		try {
@@ -80,6 +82,10 @@ public class ChannelTest {
 		while (true) {
 			trace.info("****************************************************************************");
 			trace.info("CPU:"+cpu);
+			
+			if (cpu.getIOi().getValue() < 0) {
+				break;
+			}
 			
 			ch1.increment();
 			ch3.increment();

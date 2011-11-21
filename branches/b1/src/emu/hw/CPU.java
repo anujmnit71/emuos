@@ -9,6 +9,9 @@ package emu.hw;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import emu.hw.CPUState.Interrupt;
+import emu.hw.CPUState.InterruptType;
+
 /**
  * CPU Data Structure
  * @author b.j.drew@gmail.com
@@ -36,127 +39,131 @@ public class CPU implements Cloneable {
 	 */
 	static CPU ref;
 	/**
-	 * Instruction Register
+	 * 
 	 */
-	String ir;
-	/**
-	 * General Register
-	 */
-	String gr;
-	/**
-	 * Page Table Register
-	 */
-	int ptr;
-	/**
-	 * Page Table Length
-	 */
-	int ptl;
-	/**
-	 * Toggle 
-	 */
-	boolean c;
-	/**
-	 * Instruction counter
-	 */
-	int ic;
-	/**
-	 * cpu clock
-	 */
-	int clock;
-	/**
-	 * System interrupt
-	 */
-	Interrupt si;
-	/**
-	 * Program interrupt	
-	 */
-	Interrupt pi;
-	/**
-	 * time interrupt
-	 */
-	Interrupt ti;
-	/** 
-	 * input and output interrupt
-	 */
-	Interrupt ioi;
+	CPUState state;
+//	/**
+//	 * Instruction Register
+//	 */
+//	String ir;
+//	/**
+//	 * General Register
+//	 */
+//	String gr;
+//	/**
+//	 * Page Table Register
+//	 */
+//	int ptr;
+//	/**
+//	 * Page Table Length
+//	 */
+//	int ptl;
+//	/**
+//	 * Toggle 
+//	 */
+//	boolean c;
+//	/**
+//	 * Instruction counter
+//	 */
+//	int ic;
+//	/**
+//	 * cpu clock
+//	 */
+//	int clock;
+//	/**
+//	 * System interrupt
+//	 */
+//	Interrupt si;
+//	/**
+//	 * Program interrupt	
+//	 */
+//	Interrupt pi;
+//	/**
+//	 * time interrupt
+//	 */
+//	Interrupt ti;
+//	/** 
+//	 * input and output interrupt
+//	 */
+//	Interrupt ioi;
 	/**
 	 * Memory Management Unit
 	 */
 	private MMU mmu;
 	
-	/**
-	 * All interrupts are grouped together. Their types are verified upon setting when set.
-	 * value represents what is specified in the phase 2 doc
-	 * retval is what a function will return if an interrupt is thrown
-	 * type is the type of interrupt 
-	 * errorCode is the error message to which the interrupt corresponds 
-	 * @author wmosley
-	 *
-	 */
-	public enum Interrupt {
-		CLEAR           ( 0,515, InterruptType.MASTER    , -1),
-		WRONGTYPE       (-1,525, InterruptType.MASTER    , -1),
-	    READ            ( 1,516, InterruptType.SUPERVISOR, -1),
-	    WRITE           ( 2,517, InterruptType.SUPERVISOR, -1),
-	    TERMINATE       ( 3,518, InterruptType.SUPERVISOR, -1),
-		UNKNOWN         (-1,519, InterruptType.DEFAULT   , -1),
-		IO_CHANNEL_1    ( 1,521, InterruptType.IO        , -1),
-		IO_CHANNEL_2    ( 2,522, InterruptType.IO        , -1),
-		IO_CHANNEL_12   ( 3,523, InterruptType.IO        , -1),
-		IO_CHANNEL_3    ( 4,524, InterruptType.IO        , -1),
-		IO_CHANNEL_13   ( 5,525, InterruptType.IO        , -1),
-		IO_CHANNEL_23   ( 6,526, InterruptType.IO        , -1),
-		IO_CHANNEL_123  ( 7,527, InterruptType.IO        , -1),
-		TIME_ERROR      ( 2,528, InterruptType.TIME      , 3),
-		OPERATION_ERROR ( 1,529, InterruptType.PROGRAM   , 4),
-		OPERAND_ERROR   ( 2,530, InterruptType.PROGRAM   , 5),
-		PAGE_FAULT      ( 3,531, InterruptType.PROGRAM   , 6);
-		private int value;
-		private int retval;
-		InterruptType type;
-		int errorCode;
-
-		Interrupt (int value, int retval,InterruptType type, int errorCode) {
-			this.value = value;
-			this.retval = retval;
-			this.type = type;
-			this.errorCode = errorCode;
-		}
-		public int getValue() {
-			return value;
-		}
-		public int getErrorCode(){
-			return errorCode;
-		}
-		public InterruptType getType(){
-			return type;
-		}
-		public int getRetval(){
-			return retval;
-		}
-		public static Interrupt set(int irValue) {
-			for (Interrupt i: values()) {
-				if (i.getRetval() == irValue) return i;
-			}
-			return CLEAR;
-		}
-		public static Interrupt getIOi(int ioiValue) {
-			for (Interrupt i: values()) {
-				if (i.getType().equals(InterruptType.IO) && 
-						i.getValue() == ioiValue) return i;
-			}
-			return CLEAR;
-		}
-		
-	}
-	
+//	/**
+//	 * All interrupts are grouped together. Their types are verified upon setting when set.
+//	 * value represents what is specified in the phase 2 doc
+//	 * retval is what a function will return if an interrupt is thrown
+//	 * type is the type of interrupt 
+//	 * errorCode is the error message to which the interrupt corresponds 
+//	 * @author wmosley
+//	 *
+//	 */
+//	public enum Interrupt {
+//		CLEAR           ( 0,515, InterruptType.MASTER    , -1),
+//		WRONGTYPE       (-1,525, InterruptType.MASTER    , -1),
+//	    READ            ( 1,516, InterruptType.SUPERVISOR, -1),
+//	    WRITE           ( 2,517, InterruptType.SUPERVISOR, -1),
+//	    TERMINATE       ( 3,518, InterruptType.SUPERVISOR, -1),
+//		UNKNOWN         (-1,519, InterruptType.DEFAULT   , -1),
+//		IO_CHANNEL_1    ( 1,521, InterruptType.IO        , -1),
+//		IO_CHANNEL_2    ( 2,522, InterruptType.IO        , -1),
+//		IO_CHANNEL_12   ( 3,523, InterruptType.IO        , -1),
+//		IO_CHANNEL_3    ( 4,524, InterruptType.IO        , -1),
+//		IO_CHANNEL_13   ( 5,525, InterruptType.IO        , -1),
+//		IO_CHANNEL_23   ( 6,526, InterruptType.IO        , -1),
+//		IO_CHANNEL_123  ( 7,527, InterruptType.IO        , -1),
+//		TIME_ERROR      ( 2,528, InterruptType.TIME      , 3),
+//		OPERATION_ERROR ( 1,529, InterruptType.PROGRAM   , 4),
+//		OPERAND_ERROR   ( 2,530, InterruptType.PROGRAM   , 5),
+//		PAGE_FAULT      ( 3,531, InterruptType.PROGRAM   , 6);
+//		private int value;
+//		private int retval;
+//		InterruptType type;
+//		int errorCode;
+//
+//		Interrupt (int value, int retval,InterruptType type, int errorCode) {
+//			this.value = value;
+//			this.retval = retval;
+//			this.type = type;
+//			this.errorCode = errorCode;
+//		}
+//		public int getValue() {
+//			return value;
+//		}
+//		public int getErrorCode(){
+//			return errorCode;
+//		}
+//		public InterruptType getType(){
+//			return type;
+//		}
+//		public int getRetval(){
+//			return retval;
+//		}
+//		public static Interrupt set(int irValue) {
+//			for (Interrupt i: values()) {
+//				if (i.getRetval() == irValue) return i;
+//			}
+//			return CLEAR;
+//		}
+//		public static Interrupt getIOi(int ioiValue) {
+//			for (Interrupt i: values()) {
+//				if (i.getType().equals(InterruptType.IO) && 
+//						i.getValue() == ioiValue) return i;
+//			}
+//			return CLEAR;
+//		}
+//		
+//	}
+//	
 	/**
 	 * Initialize CPU
 	 */
 	private CPU() {
-		clearInterrupts();
-		trace.info(dumpInterrupts());
+		state = new CPUState();
 		mmu = new MMU();
+		trace.info(dumpInterrupts());
 	}
 	
 	/**
@@ -165,10 +172,7 @@ public class CPU implements Cloneable {
 	 */
 	public String dumpInterrupts() {
 
-		return "si="+getSi().getValue()+" " +
-				"pi="+getPi().getValue()+" " +
-				"ti="+getTi().getValue()+" " +
-				"ioi="+getIOi().getValue();
+		return state.dumpInterrupts();
 	}
 
 	/**
@@ -184,26 +188,26 @@ public class CPU implements Cloneable {
 		return ref;
 		
 	}
-	/**
-	 * All the valid interrupt types
-	 * @author wmosley
-	 *
-	 */
-	public enum InterruptType {
-		MASTER,
-		SUPERVISOR,
-		PROGRAM,
-		TIME,
-		IO,
-		DEFAULT;
-	}
+//	/**
+//	 * All the valid interrupt types
+//	 * @author wmosley
+//	 *
+//	 */
+//	public enum InterruptType {
+//		MASTER,
+//		SUPERVISOR,
+//		PROGRAM,
+//		TIME,
+//		IO,
+//		DEFAULT;
+//	}
 	
 	/**
 	 * get instruction register
 	 * @return
 	 */
 	public String getIr() {
-		return ir;
+		return state.ir;
 	}
 
 	/**
@@ -211,7 +215,7 @@ public class CPU implements Cloneable {
 	 * @param ir
 	 */
 	public void setIr(String ir) {
-		this.ir = ir;
+		state.ir = ir;
 	}
 
 	/**
@@ -219,7 +223,7 @@ public class CPU implements Cloneable {
 	 * @return
 	 */
 	public boolean isC() {
-		return c;
+		return state.c;
 	}
 	
 	/**
@@ -227,7 +231,7 @@ public class CPU implements Cloneable {
 	 * @return
 	 */
 	public String getCString() {
-		return Boolean.toString(c).substring(0,1).toUpperCase();
+		return Boolean.toString(state.c).substring(0,1).toUpperCase();
 	}
 
 	/**
@@ -235,13 +239,13 @@ public class CPU implements Cloneable {
 	 * @param c
 	 */
 	public void setC(boolean c) {
-		this.c = c;
+		state.c = c;
 	}
 	/** 
 	 * get the current instruction count
 	 */
 	public int getIc() {
-		return ic;
+		return state.ic;
 	}
 
 	/**
@@ -249,13 +253,13 @@ public class CPU implements Cloneable {
 	 * @param ic
 	 */
 	public void setIc(int ic) {
-		this.ic = ic;
+		this.state.ic = ic;
 	}
 	/**
 	 * get the cpu clock
 	 */
 	public int getClock() {
-		return clock;
+		return state.clock;
 	}
 
 	/**
@@ -263,7 +267,7 @@ public class CPU implements Cloneable {
 	 * @return
 	 */
 	public Interrupt getSi() {
-		return si;
+		return state.si;
 	}
 
 	/**
@@ -273,10 +277,10 @@ public class CPU implements Cloneable {
 	public void setSi(Interrupt si) {
 		if (si.getType().equals(InterruptType.SUPERVISOR)
 				|| si.getType().equals(InterruptType.MASTER))
-			this.si = si;
+			state.si = si;
 		else {
 			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for Supervisor Interrupt: " +si);
-			this.pi = Interrupt.WRONGTYPE;
+			state.pi = Interrupt.WRONGTYPE;
 		}
 	}
 	
@@ -294,7 +298,7 @@ public class CPU implements Cloneable {
 	 * @return
 	 */
 	public Interrupt getPi() {
-		return pi;
+		return state.pi;
 	}
 
 	/**
@@ -304,10 +308,10 @@ public class CPU implements Cloneable {
 	public void setPi(Interrupt pi) {
 		if (pi.getType().equals(InterruptType.PROGRAM)
 				|| pi.getType().equals(InterruptType.MASTER))
-			this.pi = pi;
+			state.pi = pi;
 		else {
 			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for Program Interrupt: " +pi);
-			this.pi = Interrupt.WRONGTYPE;
+			state.pi = Interrupt.WRONGTYPE;
 		}
 	}
 	
@@ -325,7 +329,7 @@ public class CPU implements Cloneable {
 	 * @return
 	 */
 	public Interrupt getTi() {
-		return ti;
+		return state.ti;
 	}
 
 	/**
@@ -335,10 +339,10 @@ public class CPU implements Cloneable {
 	public void setTi(Interrupt ti) {
 		if (ti.getType().equals(InterruptType.TIME)
 				|| ti.getType().equals(InterruptType.MASTER))
-			this.ti = ti;
+			state.ti = ti;
 		else {
 			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for Time Interrupt: " +ti);
-			this.ti = Interrupt.WRONGTYPE;
+			state.ti = Interrupt.WRONGTYPE;
 		}
 	}
 	
@@ -356,7 +360,7 @@ public class CPU implements Cloneable {
 	 * @return
 	 */
 	public Interrupt getIOi() {
-		return ioi;
+		return state.ioi;
 	}
 
 	/**
@@ -365,11 +369,12 @@ public class CPU implements Cloneable {
 	 */
 	public void setIOi(Interrupt ioi) {
 		if (ioi.getType().equals(InterruptType.IO)
-				|| ioi.getType().equals(InterruptType.MASTER))
-			this.ioi = ioi;
+				|| ioi.getType().equals(InterruptType.MASTER) 
+				|| ioi.equals(Interrupt.CLEAR))
+			state.ioi = ioi;
 		else {
-			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for Time Interrupt: " +ioi);
-			this.ioi = Interrupt.WRONGTYPE;
+			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for IO Interrupt: " +ioi);
+			state.ioi = Interrupt.WRONGTYPE;
 		}
 	}
 	
@@ -379,7 +384,7 @@ public class CPU implements Cloneable {
 	 */
 	public void setIOi(int value) {
 		trace.info("setting ioi="+value);
-		int newVal = ioi.getValue() | value;
+		int newVal = state.ioi.getValue() | value;
 		setIOi(Interrupt.getIOi(newVal));
 	}
 	
@@ -389,7 +394,7 @@ public class CPU implements Cloneable {
 	 */
 	public void clearIOi(int value) {
 		trace.info("clearing ioi="+value);
-		int newVal = (Interrupt.IO_CHANNEL_123.getValue() - value) & ioi.getValue();
+		int newVal = (Interrupt.IO_CHANNEL_123.getValue() - value) & state.ioi.getValue();
 		setIOi(Interrupt.getIOi(newVal));
 	}
 	
@@ -402,10 +407,10 @@ public class CPU implements Cloneable {
 		
 		int retval = -1; 
 		try {
-			retval = Integer.parseInt(ir.substring(2,4));
+			retval = Integer.parseInt(state.ir.substring(2,4));
 			trace.fine("operand: "+retval);
 		} catch (NumberFormatException e) {
-			trace.severe("invalid operand format:"+ir.substring(2,4));
+			trace.severe("invalid operand format:"+state.ir.substring(2,4));
 		}
 			
 		if (retval < 0 || retval > 100){
@@ -423,62 +428,66 @@ public class CPU implements Cloneable {
 	public void execute() throws HardwareInterruptException {
 		trace.finer("-->");
 		trace.info(toString());
-		clock++;
+		state.clock++;
 		int logicalAddr = 0;
-		if (ir.startsWith(LOAD)) {
+		if (state.ir == null) {
+			trace.info("noop");
+		}
+		else if (state.ir.startsWith(LOAD)) {
 			logicalAddr = getOperand();
-			pi = Interrupt.set(logicalAddr);
-			if (pi == Interrupt.CLEAR) {
-				gr = mmu.load(logicalAddr);
-				trace.info("r<-"+gr);
+			state.pi = Interrupt.set(logicalAddr);
+			if (state.pi == Interrupt.CLEAR) {
+				state.gr = mmu.load(logicalAddr);
+				trace.info("r<-"+state.gr);
 			}
-		}else if (ir.startsWith(STORE)) {
-			if (gr == null)
-				pi = Interrupt.OPERAND_ERROR;
+		}else if (state.ir.startsWith(STORE)) {
+			if (state.gr == null)
+				state.pi = Interrupt.OPERAND_ERROR;
 			else {
 				logicalAddr = getOperand();
-				pi = Interrupt.set(logicalAddr);
-					if (pi == Interrupt.CLEAR)
-						mmu.store(logicalAddr,gr);
+				state.pi = Interrupt.set(logicalAddr);
+					if (state.pi == Interrupt.CLEAR)
+						mmu.store(logicalAddr,state.gr);
 			}
-		}else if (ir.startsWith(COMPARE)) {
+		}else if (state.ir.startsWith(COMPARE)) {
 			logicalAddr = getOperand();
-			pi = Interrupt.set(logicalAddr);
-				if (pi == Interrupt.CLEAR) {
-					c = mmu.load(logicalAddr).equals(gr);
-					trace.info("c<-"+c);
+			state.pi = Interrupt.set(logicalAddr);
+				if (state.pi == Interrupt.CLEAR) {
+					state.c = mmu.load(logicalAddr).equals(state.gr);
+					trace.info("c<-"+state.c);
 				}
-		}else if (ir.startsWith(BRANCH)) {
-			if (c) {
+		}else if (state.ir.startsWith(BRANCH)) {
+			if (state.c) {
 				logicalAddr = getOperand();
-				pi = Interrupt.set(logicalAddr);
-					if (pi == Interrupt.CLEAR)
-						ic = logicalAddr;
+				state.pi = Interrupt.set(logicalAddr);
+					if (state.pi == Interrupt.CLEAR)
+						state.ic = logicalAddr;
 			}			
-		}else if (ir.startsWith(GET)) {
-			si = Interrupt.READ;
+		}else if (state.ir.startsWith(GET)) {
+			state.si = Interrupt.READ;
 			//trace.info("si<-"+Interrupt.READ.getValue());
-		}else if (ir.startsWith(PUT)) {
-			si = Interrupt.WRITE;
+		}else if (state.ir.startsWith(PUT)) {
+			state.si = Interrupt.WRITE;
 			//trace.info("<-"+Interrupt.WRITE.getValue());
-		}else if (ir.startsWith(HALT)) {
-			si = Interrupt.TERMINATE;	
-			//trace.info("si<-"+Interrupt.TERMINATE.getValue());
+		}else if (state.ir.startsWith(HALT)) {
+			state.si = Interrupt.TERMINATE;	
+			//trace.info("state.si<-"+Interrupt.TERMINATE.getValue());
 		}else {
-			trace.severe("unknown operation:"+ir);
-			pi = Interrupt.OPERATION_ERROR;
+			trace.severe("unknown operation:"+state.ir);
+			state.pi = Interrupt.OPERATION_ERROR;
 		}
 		
 		/*
 		 * wait until all instructions have been handled before throwing
 		 * exception
 		 */
-		if (ti != Interrupt.CLEAR
-				|| si != Interrupt.CLEAR
-				|| pi != Interrupt.CLEAR){
-			trace.finer("<--");
-			throw new HardwareInterruptException();
-		}
+		//TODO commented out for testing, have we decidced if we're keeping interrupts?
+//		if (state.ti != Interrupt.CLEAR
+//				|| state.si != Interrupt.CLEAR
+//				|| state.pi != Interrupt.CLEAR){
+//			trace.finer("<--");
+//			throw new HardwareInterruptException();
+//		}
 		trace.finer("<--");
 	}
 	
@@ -488,31 +497,31 @@ public class CPU implements Cloneable {
 	 * @throws HardwareInterruptException 
 	 */
 	public void fetch() throws HardwareInterruptException {
-		ir = mmu.load(ic);
-		trace.info(ir+" from logical address "+ic);
+		state.ir = mmu.load(state.ic);
+		trace.info(state.ir+" from logical address "+state.ic);
 	}
 	
 	/**
 	 * Increment the instruction counter.
 	 */
 	public void increment() {
-		 ic++;
-		 trace.info("ic<-"+ic);
+		state.ic++;
+		trace.info("ic<-"+state.ic);
 	}
 
 	/**
 	 * Decrement the instruction counter.
 	 */
 	public void decrement() {
-		 ic--;
-		 trace.info("ic<-"+ic);
+		 state.ic--;
+		 trace.info("ic<-"+state.ic);
 	}
 	
 	/**
 	 * String representation of the the current state.
 	 */
 	public String toString() {
-		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
+		return state.toString();
 		
 	}
 	
@@ -521,15 +530,15 @@ public class CPU implements Cloneable {
 	 * @return
 	 */
 	public String getState() {
-		return ic+"    "+ir+"    "+gr+"    "+getCString();
+		return state.getState();
 	}
 	
 	public int getPtr() {
-		return ptr;
+		return state.ptr;
 	}
 
 	public void setPtr(int ptr) {
-		this.ptr = ptr;
+		state.ptr = ptr;
 	}
 	
 	/**
@@ -597,15 +606,15 @@ public class CPU implements Cloneable {
 	}
 
 	public int getPtl() {
-		return ptl;
+		return state.ptl;
 	}
 
 	public void setPtl(int ptl) {
-		this.ptl = ptl;
+		state.ptl = ptl;
 	}
 	
 	public int incrementPtl() {
-		return ptl++;
+		return state.ptl++;
 	}
 
 	/**
@@ -626,15 +635,15 @@ public class CPU implements Cloneable {
 		
 	}
 
-	/**
-	 * Clears all interrupts.
-	 */
-	public void clearInterrupts() {
-		setSi(Interrupt.CLEAR);
-		setTi(Interrupt.CLEAR);
-		setPi(Interrupt.CLEAR);
-		setIOi(Interrupt.CLEAR);
-	}
+//	/**
+//	 * Clears all interrupts.
+//	 */
+//	public void clearInterrupts() {
+//		setSi(Interrupt.CLEAR);
+//		setTi(Interrupt.CLEAR);
+//		setPi(Interrupt.CLEAR);
+//		setIOi(Interrupt.CLEAR);
+//	}
 	public MMU getMMU() {
 		return mmu;
 	}
@@ -644,38 +653,30 @@ public class CPU implements Cloneable {
 	 */
 	public boolean validatePageFault() {
 
-		if (ir == null 
-				|| ir.startsWith(CPU.GET)
-				|| ir.startsWith(CPU.STORE)) {
-			trace.info("valid page fault on IR="+ir);
+		if (state.ir == null 
+				|| state.ir.startsWith(CPU.GET)
+				|| state.ir.startsWith(CPU.STORE)) {
+			trace.info("valid page fault on IR="+state.ir);
 			return true;
 		}
 		else {
-			trace.severe("invalid page fault on IR="+ir);
+			trace.severe("invalid page fault on IR="+state.ir);
 			return false;
 		}
 	}
-
-	@Override
-	public Object clone() throws CloneNotSupportedException {
-		// TODO Auto-generated method stub
-		return super.clone();
-	}
 	
 	/**
-	 * Restore the CPU based on the given CPU instance
+	 * Restore the CPUState based on the given instance
 	 * @param cpu
 	 */
-	public void restore(CPU cpu) {
-		ref.c = cpu.c;
-		ref.ir = cpu.ir;
-		ref.gr = cpu.gr;
-		ref.ic = cpu.ic;
-		ref.ptr = cpu.ptr;
-		ref.ptl = cpu.ptl;
-		ref.si = cpu.si;
-		ref.ti = cpu.ti;
-		ref.pi = cpu.pi;
-		ref.ioi = cpu.ioi;
+	public void setState(CPUState state) {
+		this.state = state;
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public CPUState getCPUState() {
+		return state;
 	}
 }

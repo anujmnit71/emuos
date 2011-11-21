@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.logging.Level;
 
+import emu.hw.CPUState.Interrupt;
 import emu.os.ChannelTask;
 
 /**
@@ -48,7 +49,7 @@ public class Channel2 extends Channel {
 			//Update buffer status
 			task.getBuffer().setEmpty();
 			//Set CPU interrupt
-			cpu.setIOi(CPU.Interrupt.IO_CHANNEL_2.getValue());
+			cpu.setIOi(Interrupt.IO_CHANNEL_2.getValue());
 
 			trace.info("Buffer:"+task.getBuffer());
 			
@@ -61,9 +62,10 @@ public class Channel2 extends Channel {
 	}
 	
 	@Override
-	public void start(ChannelTask task) {
+	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
-		cpu.clearIOi(cpu.getIOi().getValue() - CPU.Interrupt.IO_CHANNEL_2.getValue());
+		trace.info("starting channel 2");
+		cpu.clearIOi(cpu.getIOi().getValue() - Interrupt.IO_CHANNEL_2.getValue());
 	}
 	
 }
