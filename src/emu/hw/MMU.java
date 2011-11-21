@@ -3,7 +3,7 @@ package emu.hw;
 import java.util.Random;
 import java.util.logging.Logger;
 
-import emu.hw.CPU.Interrupt;
+import emu.hw.CPUState.Interrupt;
 import emu.util.Utilities;
 
 

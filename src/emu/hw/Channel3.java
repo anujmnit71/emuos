@@ -1,5 +1,6 @@
 package emu.hw;
 
+import emu.hw.CPUState.Interrupt;
 import emu.os.ChannelTask;
 
 
@@ -60,7 +61,7 @@ public class Channel3 extends Channel {
 		}
 		
 		//Set CPU interrupt
-		cpu.setIOi(CPU.Interrupt.IO_CHANNEL_3.getValue());
+		cpu.setIOi(Interrupt.IO_CHANNEL_3.getValue());
 		
 		busy = false;
 		
@@ -69,9 +70,10 @@ public class Channel3 extends Channel {
 	}
 	
 	@Override
-	public void start(ChannelTask task) {
+	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
-		cpu.clearIOi(cpu.getIOi().getValue() - CPU.Interrupt.IO_CHANNEL_3.getValue());
+		trace.info("starting channel 3");
+		cpu.clearIOi(cpu.getIOi().getValue() - Interrupt.IO_CHANNEL_3.getValue());
 	}
 	
 	/**

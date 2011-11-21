@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.logging.Level;
 
+import emu.hw.CPUState.Interrupt;
 import emu.os.ChannelTask;
 
 /**
@@ -49,21 +50,24 @@ public class Channel1 extends Channel {
 			//Update buffer status
 			task.getBuffer().setInputFull();
 			//TODO CPU needs support for the
-			cpu.setIOi(CPU.Interrupt.IO_CHANNEL_1.getValue());
+			cpu.setIOi(Interrupt.IO_CHANNEL_1.getValue());
 
 			trace.info("Buffer:"+task.getBuffer());
 		} catch (IOException e) {
 			//What TODO here?
 			trace.log(Level.WARNING, "Failed to read from card reader.", e);
+		} catch (NullPointerException e) {
+			trace.info("End of input");
 		}
 		
 		busy = false;
 	}
 
 	@Override
-	public void start(ChannelTask task) {
+	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
-		cpu.clearIOi(CPU.Interrupt.IO_CHANNEL_1.getValue());
+		trace.info("starting channel 1");
+		cpu.clearIOi(Interrupt.IO_CHANNEL_1.getValue());
 	}
 
 }

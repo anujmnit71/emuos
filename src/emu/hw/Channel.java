@@ -41,6 +41,7 @@ public abstract class Channel {
 	 * @param cpu 
 	 */
 	public Channel(int cycleTime, CPU cpu) {
+		trace.info("init channel, cycleTime:"+cycleTime);
 		this.cycleTime = cycleTime;
 		this.cpu = cpu;
 	}
@@ -66,8 +67,14 @@ public abstract class Channel {
 	/**
 	 * Starts the channel.
 	 * @param task
+	 * @throws HardwareInterruptException 
 	 */
-	public void start(ChannelTask task) {
+	public void start(ChannelTask task) throws HardwareInterruptException {
+		
+		if (busy) {
+			throw new HardwareInterruptException(this.getClass().getName()+" is busy");
+		}
+		
 		this.task = task;
 		busy = true;
 		currCycleTime = 0;
@@ -84,8 +91,8 @@ public abstract class Channel {
 			return;
 		}
 		
-		trace.info("increment "+currCycleTime);
 		currCycleTime++;
+		trace.info(this.getClass().getName()+":count="+currCycleTime);
 		
 		if (currCycleTime == cycleTime) {
 			trace.fine("running "+task.getType());

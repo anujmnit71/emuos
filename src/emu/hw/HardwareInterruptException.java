@@ -28,4 +28,7 @@ public class HardwareInterruptException extends Exception {
 	public HardwareInterruptException() {
 
 	}
+	public HardwareInterruptException(String string) {
+		super(string);
+	}
 }
