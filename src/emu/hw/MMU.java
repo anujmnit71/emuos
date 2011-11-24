@@ -206,6 +206,22 @@ public class MMU implements MemoryUnit {
 		return frameNum;
 	}
 	
+	/**
+	 * Find a new track on the drum to use, return the track
+	 * @return The track number.
+	 */
+	public int allocateTrack() {
+		Random generator = new Random();
+		int trackNum = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
+		trace.info("track allocated: "+trackNum);
+		//Clear any residual data from the frame
+		String spaces = Utilities.padStringToLength(new String("")," ",40,false);
+		drum.write(trackNum,spaces);
+		//Mark the frame we selected as allocated
+		drum.markAllocated(trackNum);
+		return trackNum;
+	}
+	
 	@Override
 	public void clear() {
 		ram.clear();
