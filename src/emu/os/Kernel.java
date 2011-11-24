@@ -136,6 +136,10 @@ public class Kernel {
 		CONTINUE,ABORT, TERMINATE, INTERRUPT
 	}
 	
+	private enum ProcessQueues {
+		READYQ,IOQ,TERMINATEQ,SWAPQ,MEMORYQ
+	}
+	
 	/**
 	 * table containing error messages
 	 */
@@ -413,18 +417,22 @@ public class Kernel {
 				switch (cpu.getSi()) {
 				case READ:
 					trace.finest("Si interrupt read");
-					status = read();
+					contextSwitch(ProcessQueues.IOQ);
+//					status = read();
 					break;
 				case WRITE:
 					trace.finest("Si interrupt write");
-					status = write();
+					contextSwitch(ProcessQueues.IOQ);
+//					status = write();
 					break;
 				case TERMINATE:
 					//	Dump memory
 					trace.fine("Case:Terminate");
 
 					trace.fine("Memory contents: " + cpu.dumpMemory());
-					status = terminate();
+
+					contextSwitch(ProcessQueues.TERMINATEQ);
+//					status = terminate();
 					break;
 				}
 				
@@ -464,6 +472,9 @@ public class Kernel {
 					break;
 				}
 				break;
+			case TIME_QUANTUM:
+				contextSwitch(ProcessQueues.READYQ);
+				
 			case TIME_ERROR:
 				/*
 				 * Handle Supervisor Interrupt
@@ -552,7 +563,9 @@ public class Kernel {
 			 * No need to reiterate through loop if its going to call terminate.
 			 */
 			if (status == KernelStatus.ABORT) {
-				status = terminate();
+
+				contextSwitch(ProcessQueues.TERMINATEQ);
+//				status = terminate();
 			}
 			trace.fine("End of Interrupt Handling loop "+status);
 		//}
@@ -625,6 +638,16 @@ public class Kernel {
 		}
 		ChannelTask task = new ChannelTask();
 		
+		if (swapQueue.size() > 0) {
+			// TODO: swapping: PCB contains swap out and/or swap in information
+		}
+		else if (terminateQueue.size() > 0) {
+			// TODO: output spooling -- 2 header lines first, then output, then blank lines
+		}
+		else if (ioQueue.size() > 0) {
+			// TODO: GD/PD: PCB contains information
+		}
+//		else               TODO: Uncomment this line when there might be a swap, terminate, or IO activity to do
 		if (getInputFullBuffer() != null) {
 			task.setBuffer(getInputFullBuffer());
 			task.setType(ChannelTask.TaskType.INPUT_SPOOLING);
@@ -637,6 +660,8 @@ public class Kernel {
 					e.printStackTrace();
 				}
 		}
+
+		
 		else {
 			trace.info("nothing to do for ch3!");
 		}
@@ -762,6 +787,9 @@ public class Kernel {
 
 		//Once the EOJ is reached, move the PCB to the ready queue.
 		readyQueue.add(inputPCB);
+		// If the ready queue was previously empty set the CPU state now
+		if (readyQueue.size() == 1)
+			cpu.setState(getCurrentProcess().getCpuState());
 		
 		//Return buffer to ebq
 		b.setEmpty();
@@ -1084,5 +1112,44 @@ public class Kernel {
 	 */
 	private PCB getCurrentProcess() {
 		return readyQueue.peek();
+	}
+	
+	private void contextSwitch(ProcessQueues targetQ) {
+
+		
+		// Switches currently running process from head of ready queue to tail of the target queue
+		PCB movePCB = readyQueue.remove();
+		// Reset the quantum for the process so next time it gets to execute 10 cycles
+		movePCB.resetCurrentQuantum();
+		// Stores CPU status to the PCB that is being switched
+		movePCB.setCpuState(cpu.getCPUState());
+		switch (targetQ) {
+		case READYQ: 
+			readyQueue.add(movePCB);
+			trace.fine("Swap to end of ReadyQ. ReadyQ contains "+readyQueue.size()+" processes");
+			break;
+		case IOQ:
+			ioQueue.add(movePCB);
+			trace.fine("Swap to IOQ. ReadyQ now contains "+readyQueue.size()+" processes. IOQ contains "+ioQueue.size()+" processes");
+			break;
+		case MEMORYQ:
+			memoryQueue.add(movePCB);
+			trace.fine("Swap to MemoryQ. ReadyQ now contains "+readyQueue.size()+" processes. MemoryQ contains "+memoryQueue.size()+" processes");
+			break;
+		case SWAPQ:
+			swapQueue.add(movePCB);
+			trace.fine("Swap to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
+			break;
+		case TERMINATEQ:
+			terminateQueue.add(movePCB);
+			trace.fine("Swap to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
+			break;
+		}
+
+		// Load CPU status from new head of ready queue to CPU
+		if (readyQueue.size() >= 1)
+			cpu.setState(getCurrentProcess().getCpuState());
+		 
+		
 	}
 }

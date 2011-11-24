@@ -212,6 +212,7 @@ public class MMU implements MemoryUnit {
 	 */
 	public int allocateTrack() {
 		Random generator = new Random();
+		try {
 		int trackNum = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
 		trace.info("track allocated: "+trackNum);
 		//Clear any residual data from the frame
@@ -220,6 +221,12 @@ public class MMU implements MemoryUnit {
 		//Mark the frame we selected as allocated
 		drum.markAllocated(trackNum);
 		return trackNum;
+		}
+		catch (IllegalArgumentException e) {
+			trace.severe("*** Drum is full");
+			trace.severe(drum.toString());
+		}
+		return 9999;
 	}
 	
 	@Override
