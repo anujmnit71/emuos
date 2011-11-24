@@ -366,17 +366,33 @@ public class Kernel {
 			trace.fine("Kernel status="+status);
 	
 			//TODO here for testing, this may change.
+			trace.info("+++IOI: "+cpu.getIOi());
 			switch (cpu.getIOi()) {
 				case CLEAR:
 					break;
 				case IO_CHANNEL_1:
-					proccesCh1();
+					processCh1();
 					break;
+				case IO_CHANNEL_2:
+					processCh2();
 				case IO_CHANNEL_3:
 					processCh3();
 					break;
+				case IO_CHANNEL_12:
+					processCh1();
+					processCh2();
+					break;
 				case IO_CHANNEL_13:
-					proccesCh1();
+					processCh1();
+					processCh3();
+					break;
+				case IO_CHANNEL_23:
+					processCh2();
+					processCh3();
+					break;
+				case IO_CHANNEL_123:
+					processCh1();
+					processCh2();
 					processCh3();
 					break;
 			}
@@ -554,6 +570,7 @@ public class Kernel {
 	 */
 	private void processCh3() {
 		trace.finest("-->");
+		//process the current task
 		//Switch over the possible tasks
 		switch (ch3.getTask().getType()) {
 			case GD:
@@ -563,10 +580,13 @@ public class Kernel {
 				//TODO Implement
 				break;
 			case INPUT_SPOOLING:
+				trace.info("+++Adding track"+ch3.getTask().getTrack());
 				if (inputPCB.isProgramCardsToFollow()) {
+					trace.info("+++adding instruction track");
 					inputPCB.addInstructionTrack(ch3.getTask().getTrack());
 				}
 				else {
+					trace.info("+++adding data track");
 					inputPCB.addDataTrack(ch3.getTask().getTrack());
 				}
 				ch3.getTask().getBuffer().setEmpty();
@@ -583,7 +603,12 @@ public class Kernel {
 			default:
 				trace.severe("Unknown task");
 		}
+
 		
+		
+		//Decrement IOi by 4 to signal channel handled
+		trace.finer("Decrementing IOi by 4");
+		cpu.setIOi(-4);
 		trace.finest("<--");
 	}
 	
@@ -591,7 +616,7 @@ public class Kernel {
 	 * Assign the next task to ch3
 	 * @throws HardwareInterruptException 
 	 */
-	private void assignChannel3 () throws HardwareInterruptException {
+	private void assignChannel3 () {
 		trace.finest("-->");
 		
 		if (ch3.isBusy()) {
@@ -603,10 +628,14 @@ public class Kernel {
 		if (getInputFullBuffer() != null) {
 			task.setBuffer(getInputFullBuffer());
 			task.setType(ChannelTask.TaskType.INPUT_SPOOLING);
-			//TODO needs to be allocate drum, using a frame number for now;
-			int track = cpu.getMMU().allocateFrame(); 
+			int track = cpu.getMMU().allocateTrack(); 
 			task.setTrack(track);
-			ch3.start(task);
+				try {
+					ch3.start(task);
+				} catch (HardwareInterruptException e) {
+					trace.severe("Tried to start a task on a channel that was busy");
+					e.printStackTrace();
+				}
 		}
 		else {
 			trace.info("nothing to do for ch3!");
@@ -619,20 +648,10 @@ public class Kernel {
 	 * Process the ch1 interrupt
 	 * @throws HardwareInterruptException 
 	 */
-	private void proccesCh1() throws HardwareInterruptException {
+	private void processCh1() throws HardwareInterruptException {
 		trace.finer("-->");
 		
-		if (getEmptyBuffer() != null) {
-			ChannelTask task = new ChannelTask();
-			task.setBuffer(getEmptyBuffer());
-			task.setType(TaskType.INPUT_SPOOLING);
-			ch1.start(task);
-		}
-		else {
-			trace.warning("No empty buffers!");
-		}
-		
-		//Get the ifb
+		//Get the ifb from the current task
 		Buffer b = getInputFullBuffer();
 		if (b != null) {
 			String data = b.getData();
@@ -652,6 +671,47 @@ public class Kernel {
 			trace.fine("No ifb's");
 		}
 		
+		//start another task for channel 1
+		if (getEmptyBuffer() != null) {
+			ChannelTask task = new ChannelTask();
+			task.setBuffer(getEmptyBuffer());
+			task.setType(TaskType.INPUT_SPOOLING);
+			ch1.start(task);
+		}
+		else {
+			trace.warning("No empty buffers!");
+		}
+		
+		//Decrement IOi by 1 to signal channel 1 handled
+		trace.finer("Decrementing IOi by 1");
+		cpu.setIOi(-1);
+		trace.finer("<--");
+	}
+	
+	/**
+	 * Process the ch1 interrupt
+	 * @throws HardwareInterruptException 
+	 */
+	private void processCh2() throws HardwareInterruptException {
+		trace.finer("-->");
+		
+		// Process the current (previous) task
+		// TODO: handle output spooling
+		
+		// start another task for channel 2
+		if (getOutputFullBuffer() != null) {
+			ChannelTask task = new ChannelTask();
+			task.setBuffer(getOutputFullBuffer());
+			task.setType(TaskType.OUTPUT_SPOOLING);
+			ch2.start(task);
+		}
+		else {
+			trace.warning("No Outputfull buffers!");
+		}
+		
+		//Decrement IOi by 2 to signal channel 2 handled
+		trace.finer("Decrementing IOi by 2");
+		cpu.setIOi(-2);
 		trace.finer("<--");
 	}
 	
@@ -696,7 +756,10 @@ public class Kernel {
 		String eojCard = b.getData();
 		String id = eojCard.substring(4, 8);
 		trace.fine("Finished spooling in job "+id);
-		
+		//AMC
+		trace.info("***"+cpu.getMMU().toString());
+		trace.info("***"+inputPCB.toString());
+
 		//Once the EOJ is reached, move the PCB to the ready queue.
 		readyQueue.add(inputPCB);
 		
@@ -979,7 +1042,7 @@ public class Kernel {
 	 */
 	private Buffer getEmptyBuffer() {
 		return getBufferOfState(BufferState.EMPTY);
-	}
+	}	
 	
 	/**
 	 * Gets the next input-full buffer

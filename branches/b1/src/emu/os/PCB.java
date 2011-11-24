@@ -338,4 +338,15 @@ public class PCB {
 	public void setProgramCardsToFollow(boolean programCardsToFollow) {
 		this.programCardsToFollow = programCardsToFollow;
 	}
+	
+	public String toString() {
+		return "PCB for process "+id+": " + 
+	           "\n  maxTime = "+maxTime+"; currentTime = "+currentTime+
+	           "\n  maxPrints = "+maxPrints+"; currentPrints = "+currPrints+
+	           "\n  maxQuantum = "+maxQuantum+"; currentQuantum = "+currentQuantum+
+	           "\n  outputTracks: "+outputTracks.toString()+
+	           "\n  instructionTracks:"+instructionTracks.toString()+
+	           "\n  dataTracks:"+dataTracks.toString()+
+	           "\n";
+	}
 }
