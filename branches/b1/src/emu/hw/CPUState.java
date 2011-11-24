@@ -88,6 +88,7 @@ public class CPUState implements Cloneable {
 		IO_CHANNEL_13   ( 5,525, InterruptType.IO        , -1),
 		IO_CHANNEL_23   ( 6,526, InterruptType.IO        , -1),
 		IO_CHANNEL_123  ( 7,527, InterruptType.IO        , -1),
+		TIME_QUANTUM    ( 1,550, InterruptType.TIME      , -1),
 		TIME_ERROR      ( 2,528, InterruptType.TIME      , 3),
 		OPERATION_ERROR ( 1,529, InterruptType.PROGRAM   , 4),
 		OPERAND_ERROR   ( 2,530, InterruptType.PROGRAM   , 5),

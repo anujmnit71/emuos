@@ -229,6 +229,8 @@ public class PCB {
 		}
 		else {
 			trace.info("quantum reached for "+id);
+			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_QUANTUM);
+			return true;
 			//TODO What now?
 		}
 		if (currentTime <= maxTime) {
@@ -337,6 +339,10 @@ public class PCB {
 
 	public void setProgramCardsToFollow(boolean programCardsToFollow) {
 		this.programCardsToFollow = programCardsToFollow;
+	}
+	
+	public void resetCurrentQuantum() {
+		currentQuantum = 0;
 	}
 	
 	public String toString() {
