@@ -1197,7 +1197,11 @@ public class Kernel {
 		// Reset the quantum for the process so next time it gets to execute 10 cycles
 		movePCB.resetCurrentQuantum();
 		// Stores CPU status to the PCB that is being switched
-		movePCB.setCpuState(cpu.getCPUState());
+		try {
+			movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
+		} catch (CloneNotSupportedException e) {
+			trace.log(Level.WARNING, "Failed to clone current CPU state", e);
+		}
 		switch (targetQ) {
 		case READYQ: 
 			readyQueue.add(movePCB);
