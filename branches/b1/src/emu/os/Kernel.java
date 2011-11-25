@@ -638,7 +638,9 @@ public class Kernel {
 				
 				Buffer b = getEmptyBuffer();
 				if (b != null) {
+					//Prepare blank lines for print in between program output
 					b.setData("\n\n");					
+					b.setOutputFull();
 				}
 				else {
 					//TODO what now?
