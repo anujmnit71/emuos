@@ -124,7 +124,7 @@ public class Kernel {
 	 * Maximum number of buffers
 	 */
 	private int maxBuffers = 4;
-	
+
 	/** 
 	 * Raised interrupts
 	 */
@@ -271,7 +271,6 @@ public class Kernel {
 		cpu = CPU.getInstance();
 
 		processCount = 0;
-		inMasterMode = true;
 
 		//Init I/O
 		BufferedReader input = new BufferedReader(new FileReader(inputFile));
@@ -360,72 +359,63 @@ public class Kernel {
 	 */
 	public boolean masterMode() throws IOException, HardwareInterruptException {
 		boolean retval = false;
-		inMasterMode = true;
 		KernelStatus status = KernelStatus.INTERRUPT;
-
-		/*
-		 * This is in a loop because new interrupts may be generated while processing request from
-		 * slaveMode. KernelStatus is used to control flow through this loop.
-		 */
-		trace.finer("-->");
-		//trace.fine("Physical Memory:\n"+cpu.dumpMemory());
-		//while (status == KernelStatus.INTERRUPT) {
-		//trace.info("start cycle "+incrementCycleCount());
-		trace.info(""+cpu.dumpInterrupts());
-		trace.fine("Kernel status="+status);
-
-		//TODO here for testing, this may change.
-		trace.info("+++IOI: "+cpu.getIOi());
-		
-		if ((cpu.getIOi().getValue() & 2 ) == 2)
-		{
-			processCh2();
-		}
-		
-		if ((cpu.getIOi().getValue() & 4 ) == 4)
-		{
-			processCh3();
-		}
-		
-		if ((cpu.getIOi().getValue() & 1 ) == 1)
-		{
-			processCh1();
-		}
-
-		assignChannel3();
-
-		if (!(cpu.getTi().equals(Interrupt.CLEAR)))
-		{
-			status = handleTimeInterrupt();
-		}
-		
-		if (!(cpu.getPi().equals(Interrupt.CLEAR)))
-		{
-			status = handleProgramInterrupt();
-		}
-		
-		if (!(cpu.getPi().equals(Interrupt.CLEAR)))
-		{
-			status = handleServiceInterrupt();
-		}
-			
-
-		/*
-		 * Abort for IO Interrupt
-		 */
-		//			if (cpu.getIOi().equals(Interrupt.IO)){
-		//				status = KernelStatus.ABORT;
-		//				cpu.setIOi(Interrupt.CLEAR);
-		//			}
 
 		/*
 		 * This is handles a programming error i.e. bugs in setting Interrupts
 		 */
 		if (cpu.getPi().equals(Interrupt.WRONGTYPE)
 				|| cpu.getTi().equals(Interrupt.WRONGTYPE)
-				|| cpu.getSi().equals(Interrupt.WRONGTYPE)){
+				|| cpu.getSi().equals(Interrupt.WRONGTYPE)
+				|| cpu.getIOi().equals(Interrupt.WRONGTYPE)){
 			return true;
+		}		
+
+		trace.finer("-->");
+		trace.info(""+cpu.dumpInterrupts());
+		trace.fine("Kernel status="+status);
+
+		if (!(cpu.getTi().equals(Interrupt.CLEAR)))
+		{
+			status = handleTimeInterrupt();
+			raisedInterrupts--;
 		}
+
+		if (!(cpu.getPi().equals(Interrupt.CLEAR)) && !status.equals(KernelStatus.ABORT))
+		{
+			status = handleProgramInterrupt(false);
+			raisedInterrupts--;
+		}
+
+		if (!(cpu.getPi().equals(Interrupt.CLEAR)) && !status.equals(KernelStatus.ABORT))
+		{
+			status = handleServiceInterrupt(false);
+			raisedInterrupts--;
+		}
+
+		//TODO here for testing, this may change.
+		trace.info("+++IOI: "+cpu.getIOi());
+
+		if ((cpu.getIOi().getValue() & 2 ) == 2)
+		{
+			processCh2();
+			raisedInterrupts--;
+		}
+
+		if ((cpu.getIOi().getValue() & 4 ) == 4)
+		{
+			processCh3();
+			raisedInterrupts--;
+		}
+
+		if ((cpu.getIOi().getValue() & 1 ) == 1)
+		{
+			processCh1();
+			raisedInterrupts--;
+		}
+
+		assignChannel3();
+
 		trace.fine("Status "+cpu.dumpInterrupts());
 
 		/*
@@ -434,12 +424,10 @@ public class Kernel {
 		 */
 		if (status == KernelStatus.ABORT) {
 			contextSwitch(ProcessQueues.TERMINATEQ);
-			//				status = terminate();
 		}
 		trace.fine("End of Interrupt Handling loop "+status);
-		//}
 
-		// Tell slaveMode that there are no more programs to run
+		// Tell mainLoop that there are no more programs to run
 		if (status == KernelStatus.TERMINATE)
 			retval = true;
 
@@ -447,80 +435,10 @@ public class Kernel {
 		return retval;
 	}
 
-	private KernelStatus handleProgramInterrupt() {
+	private KernelStatus handleProgramInterrupt(boolean timeError) {
 		KernelStatus retval = KernelStatus.CONTINUE;
-		return retval;
-	}
-
-	private KernelStatus handleServiceInterrupt()
-	{
-		KernelStatus retval = KernelStatus.CONTINUE;
-		/*
-		 * Handle Service Interrupt
-		 * TI SI
-		 * -- --
-		 * 0  1  READ
-		 * 0  2  WRITE
-		 * 0  3  TERMINATE(0)
-		 */
-		switch (cpu.getSi()) {
-		case READ:
-			trace.finest("Si interrupt read");
-			contextSwitch(ProcessQueues.IOQ);
-			//					status = read();
-			break;
-		case WRITE:
-			trace.finest("Si interrupt write");
-			contextSwitch(ProcessQueues.IOQ);
-			//					status = write();
-			break;
-		case TERMINATE:
-			//	Dump memory
-			trace.fine("Case:Terminate");
-
-			trace.fine("Memory contents: " + cpu.dumpMemory());
-
-			contextSwitch(ProcessQueues.TERMINATEQ);
-			//					status = terminate();
-			break;
-		}
-		return retval;
-	}
-	
-	private KernelStatus handleTimeInterrupt() throws IOException
-	{
-		KernelStatus retval = KernelStatus.CONTINUE;
-		switch (cpu.getTi()) {
-
-		case TIME_QUANTUM:
-			contextSwitch(ProcessQueues.READYQ);
-
-		case TIME_ERROR:
-			/*
-			 * Handle Supervisor Interrupt
-			 * TI SI
-			 * -- --
-			 * 2  1  TERMINATE(3)
-			 * 2  2  WRITE,THEN TERMINATE(3)
-			 * 2  3  TERMINATE(0)
-			 */	
-			switch (cpu.getSi()) {
-			case READ:
-				setError( Interrupt.TIME_ERROR.getErrorCode());
-				retval = KernelStatus.ABORT;
-				break;
-			case WRITE:
-				retval = write();
-				setError( Interrupt.TIME_ERROR.getErrorCode());
-				retval = KernelStatus.ABORT;
-				break;
-			case TERMINATE:
-				//	Dump memory
-				trace.finer("\n"+cpu.dumpMemory());
-				retval = terminate();
-				break;
-			}
-
+		if (timeError)
+		{
 			/*
 			 * Handle Program Interrupt
 			 * TI PI
@@ -531,34 +449,146 @@ public class Kernel {
 			 */
 			switch (cpu.getPi()) {
 			case OPERAND_ERROR:
-				setError(Interrupt.TIME_ERROR.getErrorCode());
 				setError(Interrupt.OPERAND_ERROR.getErrorCode());
-				cpu.setPi(Interrupt.CLEAR);
 				retval = KernelStatus.ABORT;
 				break;
 			case OPERATION_ERROR:
-				setError(Interrupt.TIME_ERROR.getErrorCode());
 				setError(Interrupt.OPERATION_ERROR.getErrorCode());
-				cpu.setPi(Interrupt.CLEAR);
 				retval = KernelStatus.ABORT;
 				break;
 			case PAGE_FAULT:
-				setError(Interrupt.TIME_ERROR.getErrorCode());
 				retval = KernelStatus.ABORT;
 				break;
 			}
+			
+		}
+		else
+		{
+			/*
+			 * Handle Program Interrupt
+			 * TI PI
+			 * -- --
+			 * 0  1  TERMINATE(4)
+			 * 0  2  TERMINATE(5)
+			 * 0  3  If Page Fault, ALLOCATE, update page table, Adjust IC if necessary
+			 *       EXECUTE USER PROGRAM OTHERWISE TERMINTAE(6)
+			 */
+			switch (cpu.getPi()) {
+			case OPERAND_ERROR:
+				setError( Interrupt.OPERAND_ERROR.getErrorCode());
+				retval = KernelStatus.ABORT;
+				break;
+			case OPERATION_ERROR:
+				setError( Interrupt.OPERATION_ERROR.getErrorCode());
+				retval = KernelStatus.ABORT;
+				break;
+			case PAGE_FAULT:
+				boolean valid = cpu.getMMU().validatePageFault(cpu.getIr());
+				if (valid){
+					int frame = cpu.allocatePage(cpu.getOperand() / 10); //TODO cleaner way to determine page #?
+							trace.fine("frame "+frame+" allocated for page "+cpu.getOperand());
+									cpu.decrement();
+				} else {
+					setError( ErrorMessages.INVALID_PAGE_FAULT.getErrCode());
+					retval = KernelStatus.ABORT;
+				}
+				break;
+			}
+		}
+
+		if (!(cpu.getPi().equals(Interrupt.CLEAR)))
+			cpu.setPi(Interrupt.CLEAR);
+
+		return retval;
+	}
+
+	private KernelStatus handleServiceInterrupt(boolean timeError)
+	{
+		KernelStatus retval = KernelStatus.CONTINUE;
+		if (timeError)
+		{
+			/*
+			 * Handle Supervisor Interrupt
+			 * TI SI
+			 * -- --
+			 * 2  1  TERMINATE(3)
+			 * 2  2  WRITE,THEN TERMINATE(3)
+			 * 2  3  TERMINATE(0)
+			 */	
+			switch (cpu.getSi()) {
+			case READ:
+				retval = KernelStatus.ABORT;
+				break;
+			case WRITE:
+				contextSwitch(ProcessQueues.IOQ);
+				retval = KernelStatus.ABORT;
+				break;
+			case TERMINATE:
+				//	Dump memory
+				trace.finer("\n"+cpu.dumpMemory());
+				retval = KernelStatus.ABORT;
+				break;
+			}
+		}
+		else
+		{
+			/*
+			 * Handle Service Interrupt
+			 * TI SI
+			 * -- --
+			 * 0  1  READ
+			 * 0  2  WRITE
+			 * 0  3  TERMINATE(0)
+			 */
+			switch (cpu.getSi()) {
+			case READ:
+				trace.finest("Si interrupt read");
+				contextSwitch(ProcessQueues.IOQ);
+				break;
+			case WRITE:
+				trace.finest("Si interrupt write");
+				contextSwitch(ProcessQueues.IOQ);
+				break;
+			case TERMINATE:
+				//	Dump memory
+				trace.fine("Case:Terminate");
+
+				trace.fine("Memory contents: " + cpu.dumpMemory());
+
+				retval = KernelStatus.ABORT;
+				break;
+			}
+		}
+		if (!(cpu.getSi().equals(Interrupt.CLEAR)))
+			cpu.setSi(Interrupt.CLEAR);
+
+		return retval;
+	}
+
+	private KernelStatus handleTimeInterrupt() throws IOException
+	{
+		KernelStatus retval = KernelStatus.CONTINUE;
+		switch (cpu.getTi()) {
+
+		case TIME_QUANTUM:
+			contextSwitch(ProcessQueues.READYQ);
+
+		case TIME_ERROR:
+			retval = handleServiceInterrupt(true);
+
+			if (retval.equals(KernelStatus.CONTINUE))
+				retval = handleProgramInterrupt(true);
 
 			/*
 			 * Still have to handle a plain old Time Interrupt
 			 */
-			if (cpu.getPi().equals(Interrupt.CLEAR)
-					|| cpu.getPi().equals(Interrupt.CLEAR)) {
-				setError(Interrupt.TIME_ERROR.getErrorCode());
-				cpu.setTi(Interrupt.CLEAR);
-				retval = KernelStatus.ABORT;
-			}
+			setError(Interrupt.TIME_ERROR.getErrorCode());
+			retval = KernelStatus.ABORT;
 			break;
 		}
+		if (!(cpu.getTi().equals(Interrupt.CLEAR)))
+			cpu.setTi(Interrupt.CLEAR);
+
 		return retval;
 	}
 
@@ -705,7 +735,6 @@ public class Kernel {
 		trace.finer("-->");
 
 		// Process the current (previous) task
-		// TODO: handle output spooling
 
 		// start another task for channel 2
 		if (getOutputFullBuffer() != null) {
@@ -945,10 +974,8 @@ public class Kernel {
 			simulateHardware();
 			if (raisedInterrupts > 0)
 			{
-				masterMode();
+				done = masterMode();
 			}
-
-			done = !ch1.isBusy();
 		}
 
 		trace.finer("<--");
