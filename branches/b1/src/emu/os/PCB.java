@@ -201,9 +201,8 @@ public class PCB {
 	 * Increment time count and throw exception if max time limit is exceeded
 	 * @throws HardwareInterruptException if there is an error
 	 */
-	public void incrementTimeCountSlave() throws HardwareInterruptException {
+	public void incrementTimeCount() throws HardwareInterruptException {
 		if (!incrementTime()) {
-			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
 			throw new HardwareInterruptException();
 		}
 	}
@@ -221,6 +220,7 @@ public class PCB {
 	 * @return
 	 */
 	private boolean incrementTime() {
+		boolean retval = true;
 		currentTime++;
 		currentQuantum++;
 
@@ -230,17 +230,17 @@ public class PCB {
 		else {
 			trace.info("quantum reached for "+id);
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_QUANTUM);
-			return true;
-			//TODO What now?
+			retval = false;
 		}
+		
 		if (currentTime <= maxTime) {
 			trace.fine("curr time: "+currentTime+", max time="+maxTime);
 		} else {
 			trace.severe("max time ("+maxTime+") exceeded");
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
-			return false;
+			retval = false;
 		}
-		return true;
+		return retval;
 	}
 		
 	/**
