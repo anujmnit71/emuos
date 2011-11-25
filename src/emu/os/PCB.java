@@ -2,7 +2,9 @@ package emu.os;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.logging.Logger;
 
 import emu.hw.CPU;
@@ -70,7 +72,7 @@ public class PCB {
 	/**
 	 * Tracks containing output to be spooled to the printer
 	 */
-	private List<Integer> outputTracks;
+	private Queue<Integer> outputTracks;
 	/**
 	 * Tracks containing programs instructions
 	 */
@@ -88,6 +90,10 @@ public class PCB {
 	 * otherwise it is assumed data cards are to follow
 	 */
 	boolean programCardsToFollow = true;
+	/**
+	 * The number of header lines that have output spooled. These are the lines that precede the programs outout.
+	 */
+	int headerLinedPrinted = 0;
 	
 	/**
 	 * Control Flags for processing PCBs
@@ -128,7 +134,7 @@ public class PCB {
 		this.id = id;
 		this.maxTime = maxTime;
 		this.maxPrints = maxPrints;
-		this.outputTracks = new ArrayList<Integer>();
+		this.outputTracks = new LinkedList<Integer>();
 		this.instructionTracks = new ArrayList<Integer>();
 		this.dataTracks = new ArrayList<Integer>();
 		this.state = new State();
@@ -181,6 +187,7 @@ public class PCB {
 		return instructionTracks.size();
 	}
 	public int getNumDataTracks() {
+		
 		return dataTracks.size();
 	}
 	/**
@@ -319,10 +326,24 @@ public class PCB {
 	public void setRunning(boolean running) {
 		this.running = running;
 	}
-	
+	/**
+	 * Free resources allocated by this process.
+	 */
 	public void terminate() {
 		trace.info("terminating process "+id);
 		setRunning(false);
+		
+		//Free instruction tracks
+		for (int t : instructionTracks) {
+			CPU.getInstance().getMMU().getDrum().freeTrack(t);
+		}
+		
+		//Free data tracks
+		for (int d : dataTracks) {
+			CPU.getInstance().getMMU().getDrum().freeTrack(d);
+		}
+		
+		CPU.getInstance().getMMU().freePageTable(cpuState.getPtr());
 	}
 
 	public CPUState getCpuState() {
@@ -354,5 +375,31 @@ public class PCB {
 	           "\n  instructionTracks:"+instructionTracks.toString()+
 	           "\n  dataTracks:"+dataTracks.toString()+
 	           "\n";
+	}
+
+	public int getHeaderLinedPrinted() {
+		return headerLinedPrinted;
+	}
+
+	public void setHeaderLinedPrinted(int headerLinedPrinted) {
+		this.headerLinedPrinted = headerLinedPrinted;
+	}
+	
+	public void incrementHeaderLinedPrinted() {
+		this.headerLinedPrinted++;
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public int getNextOutputTrack() {
+		return outputTracks.remove();
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public boolean outputComplete() {
+		return outputTracks.isEmpty();
 	}
 }

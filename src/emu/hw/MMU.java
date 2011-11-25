@@ -159,14 +159,28 @@ public class MMU implements MemoryUnit {
 		return frame;
 	}
 	
-	/*
+	/**
 	 * Free the frames pointed to by the page table and free the page table itself
 	 * when a process is terminating
 	 */
 	public void freePageTable() {
-		int frameNum = 0;
 		//Read the current page table			
-		PT = getPageTable();
+		PageTable PT = getPageTable();
+		freePageTable(PT);
+	}
+	/**
+	 * Free the page table at the given frame
+	 * @param ptFrame
+	 */
+	public void freePageTable(int ptFrame) {
+		freePageTable(getPageTable(ptFrame));
+	}
+	/**
+	 * Free the given PageTable
+	 * @param PT
+	 */
+	public void freePageTable(PageTable PT) {
+		int frameNum = 0;
 		trace.finest("Page table: "+PT.toString());
 	
 		//Free the frames referenced in the page table
@@ -313,10 +327,23 @@ public class MMU implements MemoryUnit {
 		
 		
 	}
+	/**
+	 * Get the current page table in use by the CPU
+	 * @return
+	 */
 	private PageTable getPageTable() {
 		int pageTableFrame = CPU.getInstance().getPtr();
 		//Read the current page table
-		return new PageTable(ram.read(pageTableFrame));
+		return getPageTable(pageTableFrame);
+	}
+	/**
+	 * Get the page table stored at the given frame
+	 * @param frame
+	 * @return
+	 */
+	private PageTable getPageTable(int frame) { 
+		return new PageTable(ram.read(frame));
+
 	}
 	private PageTable getNewPageTable() {
 		return new PageTable();
