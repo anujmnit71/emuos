@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -619,7 +620,30 @@ public class Kernel {
 			ch3.getTask().getBuffer().setEmpty();
 			break;
 		case OUTPUT_SPOOLING:
-			//TODO Implement
+			//release track
+			cpu.getMMU().getDrum().freeTrack(ch3.getTask().getTrack());
+		
+			//Get the PCB being output spooled.
+			PCB p = terminateQueue.peek();
+			//Increment the print count
+			p.incrementPrintCount();
+
+			//Check if output spooling is complete.
+			if (p.outputComplete()) {
+				trace.fine("Output Spooling complete for pid:"+p.getId());
+				PCB terminatedPCB = terminateQueue.remove();
+				
+				//Terminate the process
+				terminatedPCB.terminate();
+				
+				Buffer b = getEmptyBuffer();
+				if (b != null) {
+					b.setData("\n\n");					
+				}
+				else {
+					//TODO what now?
+				}
+			}
 			break;
 		case SWAP_IN:
 			//TODO Implement
@@ -633,9 +657,9 @@ public class Kernel {
 
 
 
-		//Decrement IOi by 4 to signal channel handled
-		trace.finer("Decrementing IOi by 4");
-		cpu.setIOi(-4);
+//		//Decrement IOi by 4 to signal channel handled
+//		trace.finer("Decrementing IOi by 4");
+//		cpu.setIOi(-4);//BJD Not needed, already done in each channels start() method.
 		trace.finest("<--");
 	}
 
@@ -655,29 +679,50 @@ public class Kernel {
 		if (swapQueue.size() > 0) {
 			// TODO: swapping: PCB contains swap out and/or swap in information
 		}
-		else if (terminateQueue.size() > 0) {
-			// TODO: output spooling -- 2 header lines first, then output, then blank lines
+		else if (terminateQueue.size() > 0 && getEmptyBuffer() != null) {
+			
+			Buffer b = getEmptyBuffer();
+
+			PCB p = terminateQueue.peek();
+			
+			if (p.getHeaderLinedPrinted() == 0) {
+				b.setData(p.getId()+" "+p.getTerminationStatus());
+				p.incrementHeaderLinedPrinted();
+				b.setOutputFull();
+			}
+			else if (p.getHeaderLinedPrinted() == 1) {
+				b.setData(cpu.getState()+"    "+p.getCurrentTime()+"    "+p.getLines()+"\n\n");
+				p.incrementHeaderLinedPrinted();
+				b.setOutputFull();
+			}
+			else {
+				int track = p.getNextOutputTrack();
+				//Set the track to read from
+				task.setType(ChannelTask.TaskType.OUTPUT_SPOOLING);
+				task.setTrack(track);
+				task.setBuffer(b);
+			}	
 		}
 		else if (ioQueue.size() > 0) {
 			// TODO: GD/PD: PCB contains information
 		}
-		//		else               TODO: Uncomment this line when there might be a swap, terminate, or IO activity to do
-		if (getInputFullBuffer() != null) {
+		else if (getInputFullBuffer() != null) {
 			task.setBuffer(getInputFullBuffer());
 			task.setType(ChannelTask.TaskType.INPUT_SPOOLING);
 			int track = cpu.getMMU().allocateTrack(); 
 			task.setTrack(track);
-			try {
-				ch3.start(task);
-			} catch (HardwareInterruptException e) {
-				trace.severe("Tried to start a task on a channel that was busy");
-				e.printStackTrace();
-			}
 		}
-
-
 		else {
 			trace.info("nothing to do for ch3!");
+		}
+
+		
+		//If a task type was set, start the channel
+		if (task.getType() != null) try {
+			ch3.start(task);
+		} catch (HardwareInterruptException e) {
+			trace.severe("Tried to start a task on a channel that was busy");
+			e.printStackTrace();
 		}
 
 		trace.finest("<--");
@@ -722,8 +767,8 @@ public class Kernel {
 		}
 
 		//Decrement IOi by 1 to signal channel 1 handled
-		trace.finer("Decrementing IOi by 1");
-		cpu.setIOi(-1);
+//		trace.finer("Decrementing IOi by 1");
+//		cpu.setIOi(-1);										//BJD Not needed, already done in each channels start() method.
 		trace.finer("<--");
 	}
 
@@ -733,8 +778,6 @@ public class Kernel {
 	 */
 	private void processCh2() throws HardwareInterruptException {
 		trace.finer("-->");
-
-		// Process the current (previous) task
 
 		// start another task for channel 2
 		if (getOutputFullBuffer() != null) {
@@ -747,9 +790,9 @@ public class Kernel {
 			trace.warning("No Outputfull buffers!");
 		}
 
-		//Decrement IOi by 2 to signal channel 2 handled
-		trace.finer("Decrementing IOi by 2");
-		cpu.setIOi(-2);
+//		//Decrement IOi by 2 to signal channel 2 handled
+//		trace.finer("Decrementing IOi by 2");
+//		cpu.setIOi(-2);										//BJD Not needed, already done in each channels start() method.
 		trace.finer("<--");
 	}
 
@@ -1024,7 +1067,7 @@ public class Kernel {
 		try {
 			PCB p = getCurrentProcess();
 			if (p != null) {
-				p.incrementTimeCountSlave();			
+				p.incrementTimeCount();			
 			}
 		}
 		catch (HardwareInterruptException hie){
