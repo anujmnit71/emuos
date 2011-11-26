@@ -80,7 +80,7 @@ public class PCB {
 	/**
 	 * Tracks containing program data
 	 */
-	private List<Integer> dataTracks;
+	private Queue<Integer> dataTracks;
 	/**
 	 * The process state
 	 */
@@ -105,10 +105,11 @@ public class PCB {
 	 * SWAP Process is swapping memory
 	 * SPOOL Process is being spooled 
 	 */
-	private enum ProcessStates {
+	public enum ProcessStates {
 		READY ("ready"),
 		EXECUTE ("execute"),
-		IO ("io"),
+		IO_READ ("io-read"),
+		IO_WRITE ("io-write"),
 		MEMORY ("memory"),
 		TERMINATE ("terminate"),
 		SWAP ("swap"),
@@ -136,7 +137,7 @@ public class PCB {
 		this.maxPrints = maxPrints;
 		this.outputTracks = new LinkedList<Integer>();
 		this.instructionTracks = new ArrayList<Integer>();
-		this.dataTracks = new ArrayList<Integer>();
+		this.dataTracks = new LinkedList<Integer>();
 		this.state = new State();
 		state.setCurrent(ProcessStates.SPOOL.getName());
 	}
@@ -177,15 +178,40 @@ public class PCB {
 		outputTracks.add(track);
 		return outputTracks.size();
 	}
+	
 	public void addInstructionTrack(int track) {
 		instructionTracks.add(track);
 	}
+	
+	/**
+	 * @param ic
+	 * @return the track containing the instruction
+	 */
+	public int getNextInstruction(int ic) {
+		int retval = -1;
+		//WM not sure about this
+		if (getNumInstructionTracks() > 0) {
+			int value = ic % getNumInstructionTracks();
+			retval = instructionTracks.get(value);
+		}
+		return retval;
+	}
+	
 	public void addDataTrack(int track) {
 		dataTracks.add(track);
 	}
+	
+	public int getNextDataTrack() {
+		int retval = -1;
+		if (getNumDataTracks() > 0)
+			retval = dataTracks.remove();
+		return retval;
+	}
+	
 	public int getNumInstructionTracks() {
 		return instructionTracks.size();
 	}
+	
 	public int getNumDataTracks() {
 		
 		return dataTracks.size();
@@ -252,7 +278,7 @@ public class PCB {
 		
 	/**
 	 * Increment print count and throw exception if max print limit is exceeded
-	 * @throws SoftwareInterruptException
+	 * This will only be called from masterMode so an exception is not necessary
 	 */
 	public boolean incrementPrintCount() {
 		
@@ -262,8 +288,6 @@ public class PCB {
 			return true;
 		} 
 		trace.severe("max prints ("+maxPrints+") exceeded");
-		//Kernel.getInstance().getCpu().setIOi(Interrupt.IO);
-		//Kernel.getInstance().setError(ErrorMessages.LINE_LIMIT_EXCEEDED); //TODO fix?
 		return false;
 	}
 	
@@ -353,7 +377,23 @@ public class PCB {
 	public void setCpuState(CPUState cpu) {
 		this.cpuState = cpu;
 	}
+	
+	public void setState(ProcessStates state) {
+		this.state.setCurrent(state.getName());
+	}
 
+	public String getState() {
+		return state.getCurrent();
+	}
+	
+	public void setNextState(ProcessStates state) {
+		this.state.setNext(state.getName());
+	}
+	
+	public String getNextState() {
+		return state.getNext();
+	}
+	
 	public boolean isProgramCardsToFollow() {
 		return programCardsToFollow;
 	}
@@ -371,6 +411,7 @@ public class PCB {
 	           "\n  maxTime = "+maxTime+"; currentTime = "+currentTime+
 	           "\n  maxPrints = "+maxPrints+"; currentPrints = "+currPrints+
 	           "\n  maxQuantum = "+maxQuantum+"; currentQuantum = "+currentQuantum+
+	    //       "\n  pageTable = "+cpuState.getPtr()+
 	           "\n  outputTracks: "+outputTracks.toString()+
 	           "\n  instructionTracks:"+instructionTracks.toString()+
 	           "\n  dataTracks:"+dataTracks.toString()+
@@ -393,7 +434,10 @@ public class PCB {
 	 * @return
 	 */
 	public int getNextOutputTrack() {
-		return outputTracks.remove();
+		int retval = -1;
+		if (outputTracks.size() > 0)
+			retval = outputTracks.remove();
+		return retval;
 	}
 	/**
 	 * 
