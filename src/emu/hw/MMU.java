@@ -298,8 +298,10 @@ public class MMU implements MemoryUnit {
 	 */
 	public boolean validatePageFault(String ir) {
 		trace.info("Validating page fault for "+ir);
-		if (ir == null 
-				|| ir.startsWith(CPU.GET)
+		if (ir == null) 
+			return false;
+		
+		if (ir.startsWith(CPU.GET)
 				|| ir.startsWith(CPU.STORE)
 				|| ir.startsWith(CPU.BRANCH)) {
 			trace.info("valid page fault on IR="+ir);
@@ -324,8 +326,6 @@ public class MMU implements MemoryUnit {
 			trace.info("invalid page fault on IR="+ir);
 		}
 			return false;
-		
-		
 	}
 	/**
 	 * Get the current page table in use by the CPU
