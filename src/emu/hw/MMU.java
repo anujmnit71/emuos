@@ -289,7 +289,7 @@ public class MMU implements MemoryUnit {
 	}
 	
 	public String toString() {
-		return ram.toString() + "\n" + drum.toString();	
+		return "RAM..." + ram.toString() + "\nDRUM..." + drum.toString();	
 //		return ram.toString();	
 	}
 	/**
@@ -298,10 +298,9 @@ public class MMU implements MemoryUnit {
 	 */
 	public boolean validatePageFault(String ir) {
 		trace.info("Validating page fault for "+ir);
-		if (ir == null) 
-			return false;
 		
-		if (ir.startsWith(CPU.GET)
+		if (ir == null
+				|| ir.startsWith(CPU.GET)
 				|| ir.startsWith(CPU.STORE)
 				|| ir.startsWith(CPU.BRANCH)) {
 			trace.info("valid page fault on IR="+ir);
@@ -378,6 +377,7 @@ public class MMU implements MemoryUnit {
 		// write frame num to PTE
 		PT.getEntry(newPage).setBlockNum(frame);
 	}
+
 	public void SwapOut(int victimPage, int frame) {
 		// Get a free drum track
 		Random generator = new Random();
@@ -390,5 +390,9 @@ public class MMU implements MemoryUnit {
 		PT.getEntry(victimPage).setBlockNum(drumTrack);
 		// clear dirty bit in PTE
 		PT.getEntry(victimPage).setDirty(false);
+	}
+
+	public int getFrame(int logicalAddr) throws HardwareInterruptException {
+		return translateAddr(logicalAddr);
 	}
 }
