@@ -104,7 +104,7 @@ public class PCB {
 	 * The number of header lines that have output spooled. These are the lines that precede the programs outout.
 	 */
 	int headerLinedPrinted = 0;
-	
+
 	/**
 	 * Control Flags for processing PCBs
 	 * READY Process is ready to execute
@@ -125,7 +125,7 @@ public class PCB {
 		SWAP      ("swap"),
 		SWAP_IN   ("swap-in"),
 		SPOOL     ("spool");
-		
+
 		String name;
 		ProcessStates(String name) {
 			this.name = name;
@@ -152,7 +152,7 @@ public class PCB {
 		this.state = new State();
 		state.setCurrent(ProcessStates.SPOOL.getName());
 	}
-	
+
 	public String getId() {
 		return id;
 	}
@@ -178,7 +178,7 @@ public class PCB {
 		this.maxPrints = maxPrints;
 		return maxPrints;
 	}
-	
+
 	public int getCurrentTime() {
 		return currentTime;
 	}
@@ -189,11 +189,11 @@ public class PCB {
 		outputTracks.add(track);
 		return outputTracks.size();
 	}
-	
+
 	public void addInstructionTrack(int track) {
 		instructionTracks.add(track);
 	}
-	
+
 	/**
 	 * @param ic
 	 * @return the track containing the instruction
@@ -207,24 +207,24 @@ public class PCB {
 		}
 		return retval;
 	}
-	
+
 	public void addDataTrack(int track) {
 		dataTracks.add(track);
 	}
-	
+
 	public int getNextDataTrack() {
 		int retval = -1;
 		if (getNumDataTracks() > 0)
 			retval = dataTracks.remove();
 		return retval;
 	}
-	
+
 	public int getNumInstructionTracks() {
 		return instructionTracks.size();
 	}
-	
+
 	public int getNumDataTracks() {
-		
+
 		return dataTracks.size();
 	}
 	/**
@@ -240,7 +240,7 @@ public class PCB {
 		setTerminationStatus("Normal Execution");
 		trace.fine("<--");
 	}
-	
+
 	/**
 	 * Increment time count and throw exception if max time limit is exceeded
 	 * @throws HardwareInterruptException if there is an error
@@ -250,7 +250,7 @@ public class PCB {
 			throw new HardwareInterruptException();
 		}
 	}
-	
+
 	/**
 	 * Increment time count and throw exception if max time limit is exceeded
 	 * return false if there is an error
@@ -258,7 +258,7 @@ public class PCB {
 	public boolean incrementTimeCountMaster()  {
 		return incrementTime();
 	}
-	
+
 	/**
 	 * 
 	 * @return
@@ -272,11 +272,11 @@ public class PCB {
 			trace.fine("pid: "+id+", currentQuantum: "+currentQuantum);
 		}
 		else {
-				trace.info("quantum reached for "+id);
-				Kernel.getInstance().getCpu().setTi(Interrupt.TIME_QUANTUM);
-				retval = false;
+			trace.info("quantum reached for "+id);
+			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_QUANTUM);
+			retval = false;
 		}
-		
+
 		if (currentTime <= maxTime) {
 			trace.fine("curr time: "+currentTime+", max time="+maxTime);
 		} else {
@@ -288,22 +288,22 @@ public class PCB {
 		}
 		return retval;
 	}
-		
+
 	/**
 	 * Increment print count and throw exception if max print limit is exceeded
 	 * This will only be called from masterMode so an exception is not necessary
 	 */
 	public boolean incrementPrintCount() {
-		
+
 		currPrints++;
-		
+
 		if (currPrints <= maxPrints) {
 			return true;
 		} 
 		trace.severe("max prints ("+maxPrints+") exceeded");
 		return false;
 	}
-	
+
 	/**
 	 * get the number of printed lines of a process
 	 * @return
@@ -311,7 +311,7 @@ public class PCB {
 	public int getLines() {
 		return currPrints;		
 	}
-	
+
 	/**
 	 * Clear exiting message
 	 * @param msg
@@ -320,7 +320,7 @@ public class PCB {
 		terminationStatus = msg;
 		trace.finer(""+terminationStatus);
 	}
-	
+
 	/**
 	 * append incoming message to existing message
 	 * @param msg
@@ -329,7 +329,7 @@ public class PCB {
 		terminationStatus += ", " + msg;
 		trace.finer(""+terminationStatus);
 	}
-	
+
 	/**
 	 * Return the termination status of process
 	 * @return
@@ -338,7 +338,7 @@ public class PCB {
 		trace.finer(""+terminationStatus);
 		return terminationStatus;		
 	}
-	
+
 	/**
 	 * flag to know that an error message will be displayed
 	 */
@@ -346,7 +346,7 @@ public class PCB {
 		errorInProcess = true;
 		trace.finer("<-->");
 	}
-	
+
 	/**
 	 * return error status of process
 	 * @return
@@ -355,7 +355,7 @@ public class PCB {
 		trace.finer("getErrorInProcess(): "+errorInProcess);
 		return errorInProcess;
 	}
-	
+
 	public boolean isRunning() {
 		return running;
 	}
@@ -369,17 +369,17 @@ public class PCB {
 	public void terminate() {
 		trace.info("terminating process "+id);
 		setRunning(false);
-		
+
 		//Free instruction tracks
 		for (int t : instructionTracks) {
 			CPU.getInstance().getMMU().getDrum().freeTrack(t);
 		}
-		
+
 		//Free data tracks
 		for (int d : dataTracks) {
 			CPU.getInstance().getMMU().getDrum().freeTrack(d);
 		}
-		
+
 		CPU.getInstance().getMMU().freePageTable(cpuState.getPtr());
 	}
 
@@ -390,11 +390,11 @@ public class PCB {
 	public void setCpuState(CPUState cpu) {
 		this.cpuState = cpu;
 	}
-	
+
 	public void setState(ProcessStates state,ProcessStates next) {
 		if (state != null)
 			this.state.setCurrent(state.getName());
-		
+
 		if (next != null)
 			this.state.setNext(next.getName());
 	}
@@ -402,11 +402,11 @@ public class PCB {
 	public String getState() {
 		return state.getCurrent();
 	}
-	
+
 	public String getNextState() {
 		return state.getNext();
 	}
-	
+
 	public boolean isProgramCardsToFollow() {
 		return programCardsToFollow;
 	}
@@ -414,21 +414,21 @@ public class PCB {
 	public void setProgramCardsToFollow(boolean programCardsToFollow) {
 		this.programCardsToFollow = programCardsToFollow;
 	}
-	
+
 	public void resetCurrentQuantum() {
 		currentQuantum = 0;
 	}
-	
+
 	public String toString() {
 		return "PCB for process "+id+": " + 
-	           "\n  maxTime = "+maxTime+"; currentTime = "+currentTime+
-	           "\n  maxPrints = "+maxPrints+"; currentPrints = "+currPrints+
-	           "\n  maxQuantum = "+maxQuantum+"; currentQuantum = "+currentQuantum+
-	    //       "\n  pageTable = "+cpuState.getPtr()+
-	           "\n  outputTracks: "+outputTracks.toString()+
-	           "\n  instructionTracks:"+instructionTracks.toString()+
-	           "\n  dataTracks:"+dataTracks.toString()+
-	           "\n";
+				"\n  maxTime = "+maxTime+"; currentTime = "+currentTime+
+				"\n  maxPrints = "+maxPrints+"; currentPrints = "+currPrints+
+				"\n  maxQuantum = "+maxQuantum+"; currentQuantum = "+currentQuantum+
+				//       "\n  pageTable = "+cpuState.getPtr()+
+				"\n  outputTracks: "+outputTracks.toString()+
+				"\n  instructionTracks:"+instructionTracks.toString()+
+				"\n  dataTracks:"+dataTracks.toString()+
+				"\n";
 	}
 
 	public int getHeaderLinedPrinted() {
@@ -438,7 +438,7 @@ public class PCB {
 	public void setHeaderLinedPrinted(int headerLinedPrinted) {
 		this.headerLinedPrinted = headerLinedPrinted;
 	}
-	
+
 	public void incrementHeaderLinedPrinted() {
 		this.headerLinedPrinted++;
 	}
@@ -459,49 +459,60 @@ public class PCB {
 	public boolean outputComplete() {
 		return outputTracks.isEmpty();
 	}
-	
+
 	/**
 	 * A copy of the page table for this process
 	 */
 	public void setPageTable(PageTable pt) {
 		this.pageTable = pt;
 	}
-	
+
 	/**
 	 * return a copy of the page table for this processs
 	 */
 	public PageTable getPageTable() {
+		//trace.info("ptr=" + cpuState.getPtr());
 		if (pageTable == null)
-			pageTable = MMU.getPageTable(cpuState.getPtr());
+			pageTable = getPageTable(cpuState.getPtr());
 		return pageTable;
 	}
+
+	/**
+	 * Get the page table stored at the given frame
+	 * @param frame
+	 * @return
+	 */
+	public PageTable getPageTable(int frame) { 
+		return new PageTable(MMU.getInstance().getRam().read(cpuState.getPtr(),frame));
+	}
 	
+
 	/**
 	 * 
 	 * @param pageNumber
 	 * @return The frame number
 	 */
 	public int allocatePage(int pageNumber) {
-		if (cpuState == null)
-			cpuState = CPU.getInstance().getCPUState();
 		//If we haven't already allocated 4 frames in memory (page table plus 3 frames
 		if (cpuState.getPtl() < pagesAllowedInMemory) { 
 			System.out.println("Allocating a page");
 			// Allocate a frame. Frame # returned
-			int frame = MMU.allocateFrame();
+			int frame = MMU.getInstance().allocateFrame();
 			// Update page table entry.
 			//Read the current page table
 			pageTable = getPageTable();
 			//stick the new frame number in the correct PTE
 			pageTable.getEntry(pageNumber).setBlockNum(frame);
+			// store the updated page table
+			pageTable.storePageTable(cpuState.getPtr());
 			// update the PTL to the total number of pages in memory
-			cpuState.setPtl(Math.min(cpuState.getPtl() + 1, pagesAllowedInMemory));
+			cpuState.setPtl(Math.min(CPU.getInstance().getPtl() + 1, pagesAllowedInMemory));
 			trace.info("page->frame : " + pageNumber + "->" + frame);
 			return frame;
 		}
 		// else we have used up all 4 and we need to swap out the LRU one
 		else {
-			System.out.println("schedule a Swap");
+			System.out.println("Swapping");
 			//Swap(pageNumber);
 		}
 		return 99;
