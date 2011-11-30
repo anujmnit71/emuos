@@ -73,7 +73,7 @@ public class Channel3 extends Channel {
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
 		trace.info("starting channel 3");
-		cpu.clearIOi(cpu.getIOi().getValue() - Interrupt.IO_CHANNEL_3.getValue());
+		//cpu.clearIOi(Interrupt.IO_CHANNEL_3.getValue());
 	}
 	
 	/**
@@ -125,5 +125,10 @@ public class Channel3 extends Channel {
 	 */
 	private void swapOut() throws HardwareInterruptException {
 		drum.write(task.getTrack(), memory.read(task.getFrame()));
+	}
+
+	@Override
+	public void close() {
+		return;
 	}
 }

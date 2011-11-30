@@ -67,7 +67,13 @@ public class Channel1 extends Channel {
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
 		trace.info("starting channel 1");
-		cpu.clearIOi(Interrupt.IO_CHANNEL_1.getValue());
+		//cpu.clearIOi(Interrupt.IO_CHANNEL_1.getValue());
+	}
+
+	@Override
+	public
+	void close() throws IOException {
+		cardReader.close();		
 	}
 
 }

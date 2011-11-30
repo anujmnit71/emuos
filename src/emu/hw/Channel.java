@@ -1,5 +1,6 @@
 package emu.hw;
 
+import java.io.IOException;
 import java.util.logging.Logger;
 
 import emu.os.ChannelTask;
@@ -65,6 +66,12 @@ public abstract class Channel {
 	abstract void run () throws HardwareInterruptException;
 	
 	/**
+	 * Shutdown the channel
+	 * @throws IOException 
+	 */
+	abstract void close () throws IOException;
+	
+	/**
 	 * Starts the channel.
 	 * @param task
 	 * @throws HardwareInterruptException 
@@ -97,6 +104,7 @@ public abstract class Channel {
 		if (currCycleTime == cycleTime) {
 			trace.fine("running "+task.getType());
 			run();
+			throw new HardwareInterruptException();
 		}
 	}
 
