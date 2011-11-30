@@ -9,6 +9,8 @@ import java.util.logging.Logger;
 
 import emu.hw.CPU;
 import emu.hw.CPUState;
+import emu.hw.MMU;
+import emu.hw.PageTable;
 import emu.hw.CPUState.Interrupt;
 import emu.hw.HardwareInterruptException;
 
@@ -86,6 +88,14 @@ public class PCB {
 	 */
 	State state;
 	/**
+	 * PageTable
+	 */
+	private PageTable pageTable;
+	/**
+	 * 
+	 */
+	protected final int pagesAllowedInMemory = 3; /* 4 are allowed but one will always be the page table */
+	/**
 	 * Set true if program cards need to be spooled, 
 	 * otherwise it is assumed data cards are to follow
 	 */
@@ -106,14 +116,15 @@ public class PCB {
 	 * SPOOL Process is being spooled 
 	 */
 	public enum ProcessStates {
-		READY ("ready"),
-		EXECUTE ("execute"),
-		IO_READ ("io-read"),
-		IO_WRITE ("io-write"),
-		MEMORY ("memory"),
+		READY     ("ready"),
+		EXECUTE   ("execute"),
+		IO_READ   ("io-read"),
+		IO_WRITE  ("io-write"),
+		MEMORY    ("memory"),
 		TERMINATE ("terminate"),
-		SWAP ("swap"),
-		SPOOL ("spool");
+		SWAP      ("swap"),
+		SWAP_IN   ("swap-in"),
+		SPOOL     ("spool");
 		
 		String name;
 		ProcessStates(String name) {
@@ -261,17 +272,19 @@ public class PCB {
 			trace.fine("pid: "+id+", currentQuantum: "+currentQuantum);
 		}
 		else {
-			trace.info("quantum reached for "+id);
-			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_QUANTUM);
-			retval = false;
+				trace.info("quantum reached for "+id);
+				Kernel.getInstance().getCpu().setTi(Interrupt.TIME_QUANTUM);
+				retval = false;
 		}
 		
 		if (currentTime <= maxTime) {
 			trace.fine("curr time: "+currentTime+", max time="+maxTime);
 		} else {
-			trace.severe("max time ("+maxTime+") exceeded");
-			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
-			retval = false;
+			if (maxTime >= 0) {
+				trace.severe("max time ("+maxTime+") exceeded");
+				Kernel.getInstance().getCpu().setTi(Interrupt.TIME_ERROR);
+				retval = false;
+			}
 		}
 		return retval;
 	}
@@ -370,7 +383,7 @@ public class PCB {
 		CPU.getInstance().getMMU().freePageTable(cpuState.getPtr());
 	}
 
-	public CPUState getCpuState() {
+	public CPUState getCPUState() {
 		return cpuState;
 	}
 
@@ -378,16 +391,16 @@ public class PCB {
 		this.cpuState = cpu;
 	}
 	
-	public void setState(ProcessStates state) {
-		this.state.setCurrent(state.getName());
+	public void setState(ProcessStates state,ProcessStates next) {
+		if (state != null)
+			this.state.setCurrent(state.getName());
+		
+		if (next != null)
+			this.state.setNext(next.getName());
 	}
 
 	public String getState() {
 		return state.getCurrent();
-	}
-	
-	public void setNextState(ProcessStates state) {
-		this.state.setNext(state.getName());
 	}
 	
 	public String getNextState() {
@@ -445,5 +458,52 @@ public class PCB {
 	 */
 	public boolean outputComplete() {
 		return outputTracks.isEmpty();
+	}
+	
+	/**
+	 * A copy of the page table for this process
+	 */
+	public void setPageTable(PageTable pt) {
+		this.pageTable = pt;
+	}
+	
+	/**
+	 * return a copy of the page table for this processs
+	 */
+	public PageTable getPageTable() {
+		if (pageTable == null)
+			pageTable = MMU.getPageTable(cpuState.getPtr());
+		return pageTable;
+	}
+	
+	/**
+	 * 
+	 * @param pageNumber
+	 * @return The frame number
+	 */
+	public int allocatePage(int pageNumber) {
+		if (cpuState == null)
+			cpuState = CPU.getInstance().getCPUState();
+		//If we haven't already allocated 4 frames in memory (page table plus 3 frames
+		if (cpuState.getPtl() < pagesAllowedInMemory) { 
+			System.out.println("Allocating a page");
+			// Allocate a frame. Frame # returned
+			int frame = MMU.allocateFrame();
+			// Update page table entry.
+			//Read the current page table
+			pageTable = getPageTable();
+			//stick the new frame number in the correct PTE
+			pageTable.getEntry(pageNumber).setBlockNum(frame);
+			// update the PTL to the total number of pages in memory
+			cpuState.setPtl(Math.min(cpuState.getPtl() + 1, pagesAllowedInMemory));
+			trace.info("page->frame : " + pageNumber + "->" + frame);
+			return frame;
+		}
+		// else we have used up all 4 and we need to swap out the LRU one
+		else {
+			System.out.println("schedule a Swap");
+			//Swap(pageNumber);
+		}
+		return 99;
 	}
 }
