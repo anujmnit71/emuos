@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Random;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -27,7 +28,9 @@ import emu.hw.CPUState.Interrupt;
 import emu.hw.Channel1;
 import emu.hw.Channel2;
 import emu.hw.Channel3;
+import emu.hw.Drum;
 import emu.hw.HardwareInterruptException;
+import emu.hw.PageTable;
 import emu.os.ChannelTask.TaskType;
 import emu.os.PCB.ProcessStates;
 import emu.util.TraceFormatter;
@@ -50,6 +53,10 @@ public class Kernel {
 	 * CPU instance
 	 */
 	CPU cpu;
+	/**
+	 * Dummy Kernel process
+	 */
+	PCB dummyPCB;
 	/**
 	 * Reads data from input file (card reader)
 	 */
@@ -95,6 +102,10 @@ public class Kernel {
 	boolean lineBuffered = false;
 	/**
 	 * The program currently being input spooled 
+	 */
+	boolean inputSpoolingComplete = false;
+	/**
+	 * The program currently being input spooled
 	 */
 	PCB inputPCB;
 	/**
@@ -263,14 +274,20 @@ public class Kernel {
 	 * @param inputFile
 	 * @param outputFile
 	 * @throws IOException
+	 * @throws CloneNotSupportedException 
 	 */
-	private Kernel(String inputFile, String outputFile) throws IOException {
+	private Kernel(String inputFile, String outputFile) throws IOException, CloneNotSupportedException {
 
 		trace.info("input:"+inputFile);
 		trace.info("output:"+outputFile);
 
 		//Init HW
 		cpu = CPU.getInstance();
+		cpu.setState(new CPUState());
+		cpu.initPageTable();
+
+		dummyPCB = new PCB("kernel process", -1, -1);
+		dummyPCB.setCpuState((CPUState) cpu.getCPUState().clone());
 
 		processCount = 0;
 
@@ -313,8 +330,9 @@ public class Kernel {
 	 * @param outputFile
 	 * @return
 	 * @throws IOException
+	 * @throws CloneNotSupportedException 
 	 */
-	public static Kernel init(String inputFile, String outputFile) throws IOException {
+	public static Kernel init(String inputFile, String outputFile) throws IOException, CloneNotSupportedException {
 		ref = new Kernel(inputFile, outputFile);
 		return ref;
 	}
@@ -329,16 +347,15 @@ public class Kernel {
 		trace.finer("-->");
 		try {
 			//trace.info("starting boot process");
-			trace.info("start cycle "+incrementCycleCount());
-			//			cpu.initPageTable();
-			//			cpu.allocatePage(0);
-			//			cpu.writePage(0, bootSector);
-			//Initialize input spooling
+			trace.info("start cycle "+cycleCount);
 			cpu.setIOi(Interrupt.IO_CHANNEL_1.getValue());
 			mainLoop();
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
+			ch1.close();
+			ch2.close();
+			ch3.close();
 			//Dump memory
 			trace.fine("\n"+cpu.dumpMemory());
 
@@ -348,6 +365,7 @@ public class Kernel {
 			//Dump memory
 			trace.fine("\n"+cpu.toString());
 
+
 		}
 	}
 
@@ -355,23 +373,33 @@ public class Kernel {
 	 * Master execution cycle 
 	 * @throws HardwareInterruptException
 	 * @throws IOException 
+	 * @throws CloneNotSupportedException 
 	 * @throws SoftwareInterruptException
 	 */
-	public void mainLoop() throws IOException, HardwareInterruptException {
+	public void mainLoop() throws IOException, HardwareInterruptException, CloneNotSupportedException {
 		trace.finer("-->");
 		boolean done = false;
 		while (!done) {
-			trace.info("start cycle "+incrementCycleCount());
 			simulateHardware();
 			if (raisedInterrupts > 0)
 			{
-				trace.info("----------------------------------------------------------------------------");
-				done = masterMode();
+				trace.info("cycle :" + incrementCycleCount() + " ----------------------------------------------------------------------------");
+				masterMode();
 			}
-			trace.info("****************************************************************************");
+			trace.info("cycle :" + cycleCount + " ****************************************************************************");
 			slaveMode();
-			// for testing purpose
-			if (cycleCount > 100)
+
+			trace.info("   loaded processes = " + processCount +
+					"\n         ready queue size = " + readyQueue.size() +
+					"\n          swap queue size = " + swapQueue.size() +
+					"\n     terminate queue size = " + terminateQueue.size() +
+					"\n            io queue size = " + ioQueue.size() +
+					"\n        memory queue size = " + memoryQueue.size());
+			if (inputSpoolingComplete && processCount == 0) {
+				done = queuesEmpty();
+				trace.info("are all queues empty ? " + done);
+			}
+			if (cycleCount > 350)
 				done = true;
 
 		}
@@ -379,20 +407,38 @@ public class Kernel {
 		trace.finer("<--");
 	}
 
+	private boolean queuesEmpty() {
+		if (readyQueue.size() == 0
+				&& ioQueue.size() == 0
+				&& terminateQueue.size() == 0
+				&& swapQueue.size() == 0
+				&& memoryQueue.size() == 0)
+			return true;
+		return false;
+	}
+
 	public void slaveMode() throws HardwareInterruptException {
-		trace.info("start slave mode ");
+		trace.info("start slave mode [raised interrupts = " + raisedInterrupts + "]");
 		try {
 			cpu.fetch();
-			cpu.increment();
+		}
+		catch (HardwareInterruptException hie) {
+			raisedInterrupts++;
+			trace.info("++Cpu fetch raised interrupt = " + raisedInterrupts + "]");
+			return;
+		}
+		cpu.increment();
+		try {
 			cpu.execute();
 		}
-		catch (HardwareInterruptException hie){
+		catch (HardwareInterruptException hie) {
 			raisedInterrupts++;
+			trace.info("++Cpu execute raised interrupt = " + raisedInterrupts + "]");
 		}
 	}
 
 	/**
-	 * Slave execution cycle
+	 * simulate Hardware cycle
 	 * @throws HardwareInterruptException
 	 */
 	public void simulateHardware() throws HardwareInterruptException {
@@ -402,27 +448,34 @@ public class Kernel {
 		if (!cpu.getIOi().equals(Interrupt.CLEAR))
 		{
 			raisedInterrupts++;
+			trace.info("++IO interrupt raised = " + raisedInterrupts + "]");
 		}
+		else
+		{
 
-		try {
-			ch1.increment();
-		}
-		catch (HardwareInterruptException hie){
-			raisedInterrupts++;
-		}
+			try {
+				ch1.increment();
+			}
+			catch (HardwareInterruptException hie){
+				raisedInterrupts++;
+				trace.info("++Channel 1 interrupt raised = " + raisedInterrupts + "]");
+			}
 
-		try {
-			ch2.increment();
-		}
-		catch (HardwareInterruptException hie){
-			raisedInterrupts++;
-		}
+			try {
+				ch2.increment();
+			}
+			catch (HardwareInterruptException hie){
+				raisedInterrupts++;
+				trace.info("++Channel 2 interrupt raised = " + raisedInterrupts + "]");
+			}
 
-		try {
-			ch3.increment();
-		}
-		catch (HardwareInterruptException hie){
-			raisedInterrupts++;
+			try {
+				ch3.increment();
+			}
+			catch (HardwareInterruptException hie){
+				raisedInterrupts++;
+				trace.info("++Channel 3 interrupt raised = " + raisedInterrupts + "]");
+			}
 		}
 
 		try {
@@ -433,7 +486,9 @@ public class Kernel {
 		}
 		catch (HardwareInterruptException hie){
 			raisedInterrupts++;
-		}		
+			trace.info("++Time interrupt raised = " + raisedInterrupts + "]");
+		}
+		trace.info("raised interrupts = "+raisedInterrupts);
 	}
 
 	/**
@@ -442,10 +497,9 @@ public class Kernel {
 	 * Interrupts processed in two groups TI = 0(CLEAR) and TI = 2(TIME_ERROR)
 	 * @throws IOException
 	 * @throws HardwareInterruptException 
+	 * @throws CloneNotSupportedException 
 	 */
-	public boolean masterMode() throws IOException, HardwareInterruptException {
-		boolean retval = false;
-		KernelStatus status = KernelStatus.INTERRUPT;
+	public void masterMode() throws IOException, HardwareInterruptException, CloneNotSupportedException {
 
 		/*
 		 * This is handles a programming error i.e. bugs in setting Interrupts
@@ -454,32 +508,44 @@ public class Kernel {
 				|| cpu.getTi().equals(Interrupt.WRONGTYPE)
 				|| cpu.getSi().equals(Interrupt.WRONGTYPE)
 				|| cpu.getIOi().equals(Interrupt.WRONGTYPE)){
-			return true;
+			trace.info("Wrong interrupt specified");
+			return;
 		}		
 
 		trace.finer("-->");
 		trace.info(""+cpu.dumpInterrupts());
-		trace.fine("Kernel status="+status);
 
 		if (!(cpu.getTi().equals(Interrupt.CLEAR)))
 		{
-			status = handleTimeInterrupt();
+			handleTimeInterrupt();
 			raisedInterrupts--;
 		}
 
-		if (!(cpu.getPi().equals(Interrupt.CLEAR)) && !status.equals(KernelStatus.ABORT))
+		if (!(cpu.getPi().equals(Interrupt.CLEAR)))
 		{
-			status = handleProgramInterrupt(false);
+			handleProgramInterrupt(false);
 			raisedInterrupts--;
 		}
 
-		if (!(cpu.getPi().equals(Interrupt.CLEAR)) && !status.equals(KernelStatus.ABORT))
+		if (!(cpu.getSi().equals(Interrupt.CLEAR)))
 		{
-			status = handleServiceInterrupt(false);
+			handleServiceInterrupt(false);
 			raisedInterrupts--;
 		}
 
-		//TODO here for testing, this may change.
+		if (!(cpu.getIOi().equals(Interrupt.CLEAR)))
+			handleIOInterrupt();
+
+		assignChannel3();
+		assignChannel2();
+		trace.fine("End of Interrupt Handling");
+
+		dispatch();
+
+		trace.fine("<--");
+	}
+
+	private void handleIOInterrupt() throws HardwareInterruptException, IOException {
 		trace.info("+++IOI: "+cpu.getIOi());
 
 		// Process channel 2
@@ -503,31 +569,10 @@ public class Kernel {
 			raisedInterrupts--;
 		}
 
-		assignChannel3();
 		trace.fine("Status "+cpu.dumpInterrupts());
-
-		/*
-		 * Normally the loop will restart and eventually find terminate.
-		 * No need to reiterate through loop if its going to call terminate.
-		 */
-		//if (status == KernelStatus.ABORT) {
-		//	contextSwitch(ProcessQueues.TERMINATEQ);
-		//}
-
-
-		trace.fine("End of Interrupt Handling"+status);
-
-		dispatch();
-		// Tell mainLoop that there are no more programs to run
-		if (status == KernelStatus.TERMINATE)
-			retval = true;
-
-		trace.fine(retval+"<--");
-		return retval;
 	}
 
-	private KernelStatus handleProgramInterrupt(boolean timeError) {
-		KernelStatus retval = KernelStatus.CONTINUE;
+	private void handleProgramInterrupt(boolean timeError) {
 		PCB p = getCurrentProcess();
 		if (timeError)
 		{
@@ -541,18 +586,18 @@ public class Kernel {
 			 */
 			switch (cpu.getPi()) {
 			case OPERAND_ERROR:
-				setError(Interrupt.OPERAND_ERROR.getErrorCode());
-				p.setState(ProcessStates.TERMINATE);
+				setError(p,Interrupt.OPERAND_ERROR.getErrorCode());
+				p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 				break;
 			case OPERATION_ERROR:
-				setError(Interrupt.OPERATION_ERROR.getErrorCode());
-				p.setState(ProcessStates.TERMINATE);
+				setError(p,Interrupt.OPERATION_ERROR.getErrorCode());
+				p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 				break;
 			case PAGE_FAULT:
-				p.setState(ProcessStates.TERMINATE);
+				p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 				break;
 			}
-			
+
 		}
 		else
 		{
@@ -567,41 +612,78 @@ public class Kernel {
 			 */
 			switch (cpu.getPi()) {
 			case OPERAND_ERROR:
-				setError( Interrupt.OPERAND_ERROR.getErrorCode());
-				p.setState(ProcessStates.TERMINATE);
+				setError(p,Interrupt.OPERAND_ERROR.getErrorCode());
+				p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 				break;
 			case OPERATION_ERROR:
-				setError( Interrupt.OPERATION_ERROR.getErrorCode());
-				p.setState(ProcessStates.TERMINATE);
+				setError(p,Interrupt.OPERATION_ERROR.getErrorCode());
+				p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 				break;
 			case PAGE_FAULT:
-				boolean valid = cpu.getMMU().validatePageFault(cpu.getIr());
-				if (valid){
-					if (p != null) {
-						int frame = cpu.allocatePage(cpu.getOperand() / 10); //TODO cleaner way to determine page #?
-						trace.fine("frame "+frame+" allocated for page "+cpu.getOperand());
-						cpu.decrement();
-					}
-				} else {
-					setError( ErrorMessages.INVALID_PAGE_FAULT.getErrCode());
-					p.setState(ProcessStates.TERMINATE);
-				}
+				handlePageFault(p,true);
 				break;
 			}
 		}
 
 		if (!(cpu.getPi().equals(Interrupt.CLEAR)))
 			cpu.setPi(Interrupt.CLEAR);
-		
+
 		if (p != null)
-			trace.info("+++ PCB state = "+p.getState()+" next = "+p.getNextState());
-		
-		return retval;
+			trace.info("+++ PCB:" + p.getId() + " state = "+p.getState()+" next = "+p.getNextState());
 	}
 
-	private KernelStatus handleServiceInterrupt(boolean timeError)
+	private void handlePageFault(PCB p, boolean hasCPU) {
+		boolean valid = false;
+		int pageNumber = 0;
+		int frame = 0;
+
+		PCB pcb = p;
+		if (pcb == null)
+			pcb = getCurrentProcess();
+
+		String ir = new String();
+		if (hasCPU) { 
+			ir = cpu.getIr();
+		} else {
+			ir = pcb.getCPUState().getIr();
+		}
+
+		if (ir == null) 
+			return;
+
+		valid = cpu.getMMU().validatePageFault(ir);
+
+
+		if (pcb != null) {
+			if (valid){
+				if (hasCPU) {
+					pageNumber = cpu.getOperand() / 10;
+					frame = cpu.allocatePage(pageNumber); //TODO cleaner way to determine page #?
+				} else {
+					pageNumber = pcb.getCPUState().getOperand() / 10;
+					frame = pcb.allocatePage(pageNumber); //TODO cleaner way to determine page #?
+				}
+
+				if (frame == 99) {
+					trace.info("Need to do some swapping");
+					if (hasCPU) 
+						pcb.setPageTable(cpu.getMMU().getPageTable());
+					pcb.setState(ProcessStates.SWAP,ProcessStates.READY);
+				}
+				else
+				{
+					trace.fine("frame "+frame+" allocated for page "+pageNumber);
+					//cpu.decrement();
+				}
+			} else {
+				setError(pcb,ErrorMessages.INVALID_PAGE_FAULT.getErrCode());
+				pcb.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
+			}
+		}
+	}
+
+	private void handleServiceInterrupt(boolean timeError)
 	{
-		KernelStatus retval = KernelStatus.CONTINUE;
 		PCB p = getCurrentProcess();
 		if (timeError)
 		{
@@ -616,18 +698,17 @@ public class Kernel {
 			switch (cpu.getSi()) {
 			case READ:
 				p.setTerminationStatus(ErrorMessages.TIME_LIMIT_EXCEEDED.getMessage());
-				p.setState(ProcessStates.TERMINATE);				
+				p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 				break;
 			case WRITE:
-				p.setState(ProcessStates.IO_WRITE);
 				//contextSwitch(ProcessQueues.IOQ);
 				p.setTerminationStatus(ErrorMessages.TIME_LIMIT_EXCEEDED.getMessage());
-				p.setNextState(ProcessStates.TERMINATE);
+				p.setState(ProcessStates.IO_WRITE,ProcessStates.TERMINATE);
 				break;
 			case TERMINATE:
 				//	Dump memory
 				trace.finer("\n"+cpu.dumpMemory());
-				p.setState(ProcessStates.TERMINATE);
+				p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 				break;
 			}
 		}
@@ -644,69 +725,71 @@ public class Kernel {
 			switch (cpu.getSi()) {
 			case READ:
 				trace.finest("Si interrupt read");
-				p.setState(ProcessStates.IO_READ);
+				p.setState(ProcessStates.IO_READ,ProcessStates.READY);
 				break;
 			case WRITE:
 				trace.finest("Si interrupt write");
-				p.setState(ProcessStates.IO_WRITE);
+				p.setState(ProcessStates.IO_WRITE,ProcessStates.READY);
 				break;
 			case TERMINATE:
 				//	Dump memory
 				trace.fine("Case:Terminate");
 
 				trace.fine("Memory contents: " + cpu.dumpMemory());
-				p.setState(ProcessStates.TERMINATE);
+				p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 				break;
 			}
 		}
+
 		if (!(cpu.getSi().equals(Interrupt.CLEAR)))
 			cpu.setSi(Interrupt.CLEAR);
-		
+
 		if (p != null)
-			trace.info("+++ PCB state = "+p.getState()+" next = "+p.getNextState());
-		
-		return retval;
+			trace.info("+++ PCB:" + p.getId() + " state = "+p.getState()+" next = "+p.getNextState());
+
 	}
 
-	private KernelStatus handleTimeInterrupt() throws IOException
+	private void handleTimeInterrupt() throws IOException
 	{
 		KernelStatus retval = KernelStatus.CONTINUE;
 		PCB p = getCurrentProcess();
 		switch (cpu.getTi()) {
 
 		case TIME_QUANTUM:
-			p.setState(ProcessStates.READY);
+			p.setState(ProcessStates.READY,ProcessStates.READY);
 			break;
 		case TIME_ERROR:
-			retval = handleServiceInterrupt(true);
+			handleServiceInterrupt(true);
 
 			if (retval.equals(KernelStatus.CONTINUE))
-				retval = handleProgramInterrupt(true);
+				handleProgramInterrupt(true);
 
 			/*
 			 * Still have to handle a plain old Time Interrupt
 			 */
-			setError(Interrupt.TIME_ERROR.getErrorCode());
-			p.setState(ProcessStates.TERMINATE);
+			setError(p,Interrupt.TIME_ERROR.getErrorCode());
+			p.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
+			//System.exit(-1);
 			break;
 		}
 		if (!(cpu.getTi().equals(Interrupt.CLEAR)))
 			cpu.setTi(Interrupt.CLEAR);
-		
+
 		if (p != null)
-			trace.info("+++ PCB state = "+p.getState()+" next = "+p.getNextState());
-		
-		return retval;
+			trace.info("+++ PCB:" + p.getId() + " state = "+p.getState()+" next = "+p.getNextState());
+
 	}
 
 	/**
 	 * Process the channel 3 interrupt
+	 * @throws HardwareInterruptException 
 	 */
-	private void processCh3() {
+	private void processCh3() throws HardwareInterruptException {
 		trace.finest("-->");
 		//process the current task
 		//Switch over the possible tasks
-		switch (ch3.getTask().getType()) {
+		ChannelTask task = ch3.getTask();
+		switch (task.getType()) {
 		case GD:
 			getDataTask();
 			break;
@@ -720,12 +803,10 @@ public class Kernel {
 			outputSpoolingTask();
 			break;
 		case SWAP_IN:
-			//TODO Implement
-			//SwapInTask();
+			swapInTask();
 			break;
 		case SWAP_OUT:
-			//TODO Implement
-			//SwapOutTask();
+			swapOutTask();
 			break;
 		default:
 			trace.severe("Unknown task");
@@ -733,9 +814,43 @@ public class Kernel {
 
 		//		//Decrement IOi by 4 to signal channel handled
 		//		trace.finer("Decrementing IOi by 4");
-		//		cpu.setIOi(-4);//BJD Not needed, already done in each channels start() method.
+		cpu.clearIOi(Interrupt.IO_CHANNEL_3.getValue());
 
 		trace.finest("<--");
+	}
+
+	private void swapOutTask() {
+		PCB swapPCB = swapQueue.remove();
+		PageTable pt = swapPCB.getPageTable();
+
+		int drumTrack = ch3.getTask().getTrack();
+		int victimPage = (Integer) ch3.getTask().getMisc();
+
+		// write drum track to PTE
+		pt.getEntry(victimPage).setBlockNum(drumTrack);
+		// clear dirty bit in PTE
+		pt.getEntry(victimPage).setDirty(false);
+		pt.getEntry(victimPage).setSwap();
+		swapPCB.setPageTable(pt);
+		swapPCB.setState(null,ProcessStates.SWAP_IN);
+		schedule(swapPCB);
+	}
+
+	private void swapInTask() {
+		PCB swapPCB = swapQueue.remove();
+		PageTable pt = swapPCB.getPageTable();
+
+		int newPage = (Integer) ch3.getTask().getMisc();
+		int victimFrame = ch3.getTask().getFrame();
+
+		// clear swapped/dirty bits in PTE
+		pt.getEntry(newPage).setDirty(false);
+		pt.getEntry(newPage).setSwap(false);
+		// write frame num to PTE
+		pt.getEntry(newPage).setBlockNum(victimFrame);
+		swapPCB.setPageTable(pt);
+		swapPCB.setState(null,ProcessStates.READY);
+		schedule(swapPCB);
 	}
 
 	//	/**
@@ -762,6 +877,8 @@ public class Kernel {
 		trace.finer("-->");
 
 		PCB ioPCB = ioQueue.remove();
+		trace.info(ioPCB.getCPUState().toString());
+		ioPCB.setState(ProcessStates.READY, ProcessStates.READY);
 		schedule(ioPCB);
 
 		trace.finer(retval+"<--");
@@ -777,34 +894,32 @@ public class Kernel {
 		trace.finer("-->");
 
 		PCB ioPCB = ioQueue.remove();
+		trace.info(ioPCB.getCPUState().toString());
+		ioPCB.setState(ProcessStates.READY, ProcessStates.READY);
 		schedule(ioPCB);
 
 		trace.finer(retval+"<--");
 		return retval;
 	}
 
-	private void outputSpoolingTask() {
+	private void outputSpoolingTask() throws HardwareInterruptException {
 		//release track
 		cpu.getMMU().getDrum().freeTrack(ch3.getTask().getTrack());
-
 		//Get the PCB being output spooled.
 		PCB p = terminateQueue.peek();
+		trace.info("output spooling " + p.getId());
 		//this is checked when the task is assigned to channel 3
 		//p.incrementPrintCount();
 
 		//Check if output spooling is complete.
 		if (p.outputComplete()) {
 			trace.fine("Output Spooling complete for pid:"+p.getId());
-			PCB terminatedPCB = terminateQueue.remove();
-
-			//Terminate the process
-			terminatedPCB.terminate();
-
 			Buffer b = getEmptyBuffer();
 			if (b != null) {
 				//Prepare blank lines for print in between program output
 				b.setData("\n\n");					
 				b.setOutputFull();
+
 			}
 			else {
 				//TODO what now?
@@ -828,8 +943,9 @@ public class Kernel {
 	/**
 	 * Assign the next task to ch3
 	 * @throws HardwareInterruptException 
+	 * @throws IOException 
 	 */
-	private void assignChannel3 () throws HardwareInterruptException {
+	private void assignChannel3 () throws HardwareInterruptException, IOException {
 		trace.finest("-->");
 
 		if (ch3.isBusy()) {
@@ -840,57 +956,119 @@ public class Kernel {
 
 		if (swapQueue.size() > 0) {
 			PCB swapPCB = swapQueue.peek();
-			// TODO: swapping: PCB contains swap out and/or swap in information
+			trace.info(swapPCB.getId() + ": assign a swap task to channel 3");
+			PageTable pt = swapPCB.getPageTable();
+			int newPage = swapPCB.getCPUState().getOperand() / 10;
+			// Find victim page: LRU[3]
+			int victimPage = pt.getVictim();
+			// Find victim frame to swap out
+			int victimFrame = pt.getEntry(victimPage).getBlockNum();
+			// if dirty bit for victim page is on, call proc SwapOut to swap out victim
+			if (pt.getEntry(victimPage).isDirty()) {
+				// Get a free drum track
+				Random generator = new Random();
+				Drum drum = cpu.getMMU().getDrum();
+				// assignSwapOut(task,pt,victimPage,victimFrame);
+				int drumTrack = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
+				// write victim page to drum track -- this will get queued up on the swap queue
+				task.setType(TaskType.SWAP_OUT);
+				task.setTrack(drumTrack);
+				task.setFrame(victimFrame);
+				task.setMisc(victimPage);
+			}
+			else
+			{
+				pt.getEntry(victimPage).setSwap();
+				// call proc SwapIn to swap in the new page
+				if (pt.getEntry(newPage).isSwapped()) {
+					task.setType(TaskType.SWAP_IN);
+					task.setFrame(victimFrame);
+					task.setMisc(newPage);				
+					task.setTrack(pt.getEntry(newPage).getBlockNum());
+				}
+				else {
+					swapPCB = swapQueue.remove();
+					// clear swapped/dirty bits in PTE
+					pt.getEntry(newPage).setDirty(false);
+					pt.getEntry(newPage).setSwap(false);
+					// write frame num to PTE
+					pt.getEntry(newPage).setBlockNum(victimFrame);
+					swapPCB.setPageTable(pt);
+					swapPCB.setState(ProcessStates.READY, null);
+					schedule(swapPCB);
+				}
+			}
 		}
 		else if (terminateQueue.size() > 0) {
-
 			Buffer eb = getEmptyBuffer();
 			if (eb != null) {
 				PCB termPCB = terminateQueue.peek();
-
 				if (termPCB.getHeaderLinedPrinted() == 0) {
+					trace.info(termPCB.getId()+": assign header line 1 to channel 3");
 					eb.setData(termPCB.getId()+" "+termPCB.getTerminationStatus());
 					termPCB.incrementHeaderLinedPrinted();
 					eb.setOutputFull();
 				}
 				else if (termPCB.getHeaderLinedPrinted() == 1) {
+					trace.info(termPCB.getId()+": assign header line 2 to channel 3");
 					eb.setData(cpu.getState()+"    "+termPCB.getCurrentTime()+"    "+termPCB.getLines()+"\n\n");
 					termPCB.incrementHeaderLinedPrinted();
 					eb.setOutputFull();
 				}
 				else {
 					int track = termPCB.getNextOutputTrack();
+					trace.info(termPCB.getId()+": assign output " + track + " to channel 3");
 					//Set the track to read from
 					if (track >= 0) {
 						task.setType(ChannelTask.TaskType.OUTPUT_SPOOLING);
 						task.setTrack(track);
 						task.setBuffer(eb);
 					}
-				}	
+				}
+				trace.info(termPCB.toString());
 			}
 		}
 		else if (ioQueue.size() > 0) {
 			PCB ioPCB = ioQueue.peek();
+			trace.info(ioPCB.getId()+": assign a IO task to channel 3");
 			int irValue = 0;
 			int track = 0;
+			int frame = 0;
 			if (ioPCB.getState().equals(ProcessStates.IO_READ.getName()))
 			{
-				irValue = cpu.getOperand();
+
+				irValue = ioPCB.getCPUState().getOperand();
 				cpu.setPi(irValue);
 				track = ioPCB.getNextDataTrack();
-				if (track >= 0) {
-					setError(ErrorMessages.TIME_LIMIT_EXCEEDED.getErrCode());
-					ioPCB.setNextState(ProcessStates.TERMINATE);
+
+				try {
+					frame = cpu.getMMU().getFrame(irValue);
+				}
+				catch(HardwareInterruptException hie) {
+					if ((cpu.getPi().equals(Interrupt.PAGE_FAULT)))
+					{
+						trace.info("allocate frame before starting Channel 3");
+						handlePageFault(ioPCB,ioPCB.isRunning());
+						cpu.setPi(Interrupt.CLEAR);
+					}
+					else {
+						trace.info("We are not supposed to be here");
+					}
+				}
+
+				if (track <= 0) {
+					setError(ioPCB,ErrorMessages.TIME_LIMIT_EXCEEDED.getErrCode());
+					ioPCB.setState(null,ProcessStates.TERMINATE);
 				}
 				else
 				{
 					if (cpu.getPi() == Interrupt.CLEAR) {
 						task.setTrack(track);
-						task.setFrame(cpu.getMMU().getFrame(irValue));
+						task.setFrame(frame);
 						task.setType(TaskType.GD);
 					} else {
-						setError(ErrorMessages.OPERAND_FAULT.getErrCode());
-						ioPCB.setState(ProcessStates.TERMINATE);
+						setError(ioPCB,ErrorMessages.OPERAND_FAULT.getErrCode());
+						ioPCB.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 					}			
 				}
 			}
@@ -898,26 +1076,43 @@ public class Kernel {
 			{
 				// Increment the line limit counter
 				if (!ioPCB.incrementPrintCount()){
-					setError(ErrorMessages.LINE_LIMIT_EXCEEDED.getErrCode());
-					ioPCB.setNextState(ProcessStates.TERMINATE);
+					setError(ioPCB,ErrorMessages.LINE_LIMIT_EXCEEDED.getErrCode());
+					ioPCB.setState(null,ProcessStates.TERMINATE);
 				} else {
 					// get memory location and set exception if one exists
-					irValue = cpu.getOperand();
+					irValue = ioPCB.getCPUState().getOperand();
+
+					try {
+						frame = cpu.getMMU().getFrame(irValue);
+					}
+					catch(HardwareInterruptException hie) {
+						if ((cpu.getPi().equals(Interrupt.PAGE_FAULT)))
+						{
+							trace.info("allocate frame before starting Channel 3");
+							handlePageFault(ioPCB,ioPCB.isRunning());
+							cpu.setPi(Interrupt.CLEAR);
+						}
+						else {
+							trace.info("We are not supposed to be here");
+						}
+					}
+
 					cpu.setPi(irValue);
 					if (cpu.getPi() == Interrupt.CLEAR) {
 						track = cpu.getMMU().allocateTrack();
 
 						ioPCB.addDataTrack(track);
-						task.setFrame(cpu.getMMU().getFrame(irValue));
+						task.setFrame(frame);
 						task.setType(ChannelTask.TaskType.PD);
 					} else {
-						setError(ErrorMessages.OPERAND_FAULT.getErrCode());
-						ioPCB.setState(ProcessStates.TERMINATE);
+						setError(ioPCB,ErrorMessages.OPERAND_FAULT.getErrCode());
+						ioPCB.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 					}			
 				}
 			}
 		}
 		else if (getInputFullBuffer() != null) {
+			trace.info("assign a input spooling task to channel 3");
 			int track = cpu.getMMU().allocateTrack();
 
 			task.setBuffer(getInputFullBuffer());
@@ -929,16 +1124,38 @@ public class Kernel {
 			trace.info("nothing to do for ch3!");
 		}
 
-
 		//If a task type was set, start the channel
-		if (task.getType() != null) try {
-			ch3.start(task);
-		} catch (HardwareInterruptException e) {
-			trace.severe("Tried to start a task on a channel that was busy");
-			e.printStackTrace();
+		if (task.getType() != null) {
+			try {
+				ch3.start(task);
+			} catch (HardwareInterruptException e) {
+				trace.severe("Tried to start a task on a channel that was busy");
+				e.printStackTrace();
+			}
+		}
+		if (getCurrentProcess() != null)
+			trace.info("+++ PCB:" + getCurrentProcess().getId() + " state = "+getCurrentProcess().getState()+" next = "+getCurrentProcess().getNextState());
+		trace.finest("<--");
+	}
+
+	private void assignChannel2() throws HardwareInterruptException {
+		if (ch2.isBusy()) {
+			trace.info("channel 2 is busy");
+			return;
+		}
+		trace.info("assign output to channel 2");
+		// start another task for channel 2
+		Buffer ofb = getOutputFullBuffer();
+		if (ofb != null) {
+			ChannelTask task = new ChannelTask();
+			task.setBuffer(ofb);
+			task.setType(TaskType.OUTPUT_SPOOLING);
+			ch2.start(task);
+		}
+		else {
+			trace.warning("No Outputfull buffers!");
 		}
 
-		trace.finest("<--");
 	}
 
 	/**
@@ -983,7 +1200,7 @@ public class Kernel {
 
 		//Decrement IOi by 1 to signal channel 1 handled
 		//		trace.finer("Decrementing IOi by 1");
-		//		cpu.setIOi(-1);										//BJD Not needed, already done in each channels start() method.
+		cpu.clearIOi(Interrupt.IO_CHANNEL_1.getValue());
 		trace.finer("<--");
 	}
 
@@ -995,19 +1212,29 @@ public class Kernel {
 		trace.finer("-->");
 
 		// start another task for channel 2
-		if (getOutputFullBuffer() != null) {
+		Buffer ofb = getOutputFullBuffer();
+		if (ofb != null) {
 			ChannelTask task = new ChannelTask();
-			task.setBuffer(getOutputFullBuffer());
+			task.setBuffer(ofb);
 			task.setType(TaskType.OUTPUT_SPOOLING);
 			ch2.start(task);
 		}
 		else {
 			trace.warning("No Outputfull buffers!");
+			PCB terminatedPCB = terminateQueue.peek();
+			if (terminatedPCB.headerLinedPrinted == 2 
+					&& terminatedPCB.outputComplete()) {
+				terminatedPCB = terminateQueue.remove();
+
+				//Terminate the process
+				terminatedPCB.terminate();
+				processCount--;
+			}
 		}
 
 		//		//Decrement IOi by 2 to signal channel 2 handled
 		//		trace.finer("Decrementing IOi by 2");
-		//		cpu.setIOi(-2);										//BJD Not needed, already done in each channels start() method.
+		cpu.clearIOi(Interrupt.IO_CHANNEL_2.getValue());
 		trace.finer("<--");
 	}
 
@@ -1026,8 +1253,9 @@ public class Kernel {
 
 		//Create PCB
 		inputPCB = new PCB(id, maxTime, maxPrints);
-		inputPCB.setState(ProcessStates.SPOOL);
+		inputPCB.setState(ProcessStates.SPOOL,ProcessStates.READY);
 
+		processCount++;
 		//Return buffer to ebq
 		b.setEmpty();
 
@@ -1048,8 +1276,8 @@ public class Kernel {
 		trace.fine("Finished spooling in job "+id);
 		//AMC
 
-		trace.info("***\n"+cpu.getMMU().toString());
-		trace.info("***"+inputPCB.toString());
+		//trace.info("***\n"+cpu.getMMU().toString());
+		//trace.info("***"+inputPCB.toString());
 
 		//Once the EOJ is reached, move the PCB to the ready queue.
 		readyQueue.add(inputPCB);
@@ -1057,6 +1285,25 @@ public class Kernel {
 		//Return buffer to ebq
 		b.setEmpty();
 
+	}
+
+	/**
+	 * Swap in copied from MMU
+	 * @param newPage
+	 * @param frame
+	 */
+	public void assignSwapIn(ChannelTask task,PageTable pt, int newPage, int frame) {
+		// write new page to specified frame if it's on the drum -- this will get queued on the swap queue
+		if (pt.getEntry(newPage).isSwapped()) {
+			task.setType(TaskType.SWAP_IN);
+			task.setFrame(frame);
+			task.setTrack(pt.getEntry(newPage).getBlockNum());
+		}
+		// clear swapped/dirty bits in PTE
+		pt.getEntry(newPage).setDirty(false);
+		pt.getEntry(newPage).setSwap(false);
+		// write frame num to PTE
+		pt.getEntry(newPage).setBlockNum(frame);
 	}
 
 	//	/**
@@ -1157,12 +1404,15 @@ public class Kernel {
 	 * 
 	 * @param err
 	 */
-	public void setError(int err) {
+	public void setError(PCB pcb,int err) {
 		trace.finer("-->");
 		trace.fine("setting err="+err);
 		errMsg = ErrorMessages.set(err);
 		PCB p = getCurrentProcess();
-		System.out.println(p);
+
+		if (pcb != null)
+			p = pcb;
+
 		if (!p.getErrorInProcess()){
 			p.setErrorInProcess();
 			p.setTerminationStatus(errMsg.getMessage());	
@@ -1232,45 +1482,59 @@ public class Kernel {
 
 	private void schedule(PCB pcb) {
 		if(pcb.getNextState().equals(ProcessStates.TERMINATE.getName())) {
-			pcb.setState(ProcessStates.TERMINATE);
+			pcb.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 			terminateQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.MEMORY.getName())) {
-			pcb.setState(ProcessStates.MEMORY);
+			pcb.setState(ProcessStates.MEMORY,ProcessStates.READY);
 			memoryQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.IO_READ.getName())
 				|| pcb.getNextState().equals(ProcessStates.IO_WRITE.getName())) {
 
 			if (pcb.getNextState().equals(ProcessStates.IO_READ.getName()))
-				pcb.setState(ProcessStates.IO_READ);
+				pcb.setState(ProcessStates.IO_READ,ProcessStates.READY);
 			else
-				pcb.setState(ProcessStates.IO_WRITE);
+				pcb.setState(ProcessStates.IO_WRITE,ProcessStates.READY);
 
 			ioQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.SWAP.getName())) {
-			pcb.setState(ProcessStates.SWAP);
+			pcb.setState(ProcessStates.SWAP,ProcessStates.READY);
 			swapQueue.add(pcb);
 		}
+		else if(pcb.getNextState().equals(ProcessStates.SWAP_IN.getName())) {
+			pcb.setState(ProcessStates.SWAP_IN,ProcessStates.READY);
+			swapQueue.add(pcb);
+		}		
 		else if(pcb.getNextState().equals(ProcessStates.READY.getName())) {
-			pcb.setState(ProcessStates.READY);
+			pcb.setState(ProcessStates.READY,ProcessStates.READY);
 			readyQueue.add(pcb);
 		}
 	}
 
-	private void contextSwitch(ProcessQueues targetQ) {
+	private void contextSwitch(ProcessQueues targetQ) throws IOException, HardwareInterruptException, CloneNotSupportedException {
 
 		// Switches currently running process from head of ready queue to tail of the target queue
 		PCB movePCB = readyQueue.remove();
 		// Stores CPU status to the PCB that is being switched
 		try {
-			movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
+			trace.info("+++ pcb > " + movePCB.getId());
+			trace.info("+++ pcb > " + movePCB.getCPUState().toString());
+			trace.info("+++ pcb > " + movePCB.getPageTable().toString());
+
+			if (readyQueue.size() != 0) {
+				trace.info("+++ cpu > " + cpu.getCPUState().toString());
+				movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
+				movePCB.setPageTable(cpu.getMMU().getPageTable());
+			}
+			movePCB.setRunning(false);
 		} catch (CloneNotSupportedException e) {
 			trace.log(Level.WARNING, "Failed to clone current CPU state", e);
 		}
 		switch (targetQ) {
 		case READYQ: 
+			movePCB.resetCurrentQuantum();
 			readyQueue.add(movePCB);
 			trace.fine("Swap to end of ReadyQ. ReadyQ contains "+readyQueue.size()+" processes");
 			break;
@@ -1284,26 +1548,53 @@ public class Kernel {
 			break;
 		case SWAPQ:
 			swapQueue.add(movePCB);
+			trace.info("Swap to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
 			trace.fine("Swap to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
 			break;
 		case TERMINATEQ:
 			terminateQueue.add(movePCB);
+			trace.info("Swap to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
 			trace.fine("Swap to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
 			break;
 		}
 
 
 		// Load CPU status from new head of ready queue to CPU
-		if (readyQueue.size() >= 1)
-			cpu.setState(getCurrentProcess().getCpuState());
-
+		if (readyQueue.size() >= 1) {
+			PCB currentPCB = getCurrentProcess();
+			trace.info("+++ cpu < " + cpu.getCPUState().toString());
+			trace.info("+++ pcb < " + currentPCB.getId());
+			trace.info("+++ pcb < " + currentPCB.getState());
+			if (currentPCB.getState().equals(ProcessStates.SPOOL.getName()))
+				initialProcessLoad();
+			else {
+				trace.info("+++ pcb < " + currentPCB.getCPUState().toString());
+				cpu.setState(currentPCB.getCPUState());
+				cpu.getMMU().storePageTable(currentPCB.getPageTable());
+			}
+			currentPCB.setRunning(true);
+			//trace.info("*** " + getCurrentProcess().getPageTable().toString());
+		}
+		else
+		{
+			dummyPCB.getCPUState().setIc(0);
+			cpu.setState(dummyPCB.getCPUState());
+			cpu.getMMU().storePageTable(dummyPCB.getPageTable());
+			trace.info("+++< " + dummyPCB.getId());
+			trace.info("+++< " + dummyPCB.getCPUState().toString());
+		}
+		//trace.info("***\n" + cpu.getMMU().toString());
 	}
 
-	private void dispatch() throws HardwareInterruptException {
+	private void dispatch() throws HardwareInterruptException, CloneNotSupportedException, IOException {
 		PCB pcb = getCurrentProcess();
 		if (pcb != null) {
+			trace.info("+++ "+pcb.getId()+ ":" +pcb.getState() + ":" + pcb.getNextState());
+			//if (pcb.getCPUState() != null)
+			//trace.info("+++ "+pcb.getCPUState().toString());
 			if(pcb.getState().equals(ProcessStates.TERMINATE.getName())) {
 				contextSwitch(ProcessQueues.TERMINATEQ);
+				//System.exit(-1);
 			}
 			else if(pcb.getState().equals(ProcessStates.MEMORY.getName())) {
 				contextSwitch(ProcessQueues.MEMORYQ);
@@ -1319,33 +1610,34 @@ public class Kernel {
 				contextSwitch(ProcessQueues.READYQ);
 			}
 			else if(pcb.getState().equals(ProcessStates.SPOOL.getName())) {
-				initContext();
+				initialProcessLoad();
 			}
 		}
 	}
 
-	private void initContext() throws HardwareInterruptException {
+	private void initialProcessLoad() throws HardwareInterruptException, CloneNotSupportedException, IOException {
 
 		PCB pcb = getCurrentProcess();
-		pcb.setState(ProcessStates.READY);
-		
+		pcb.setState(ProcessStates.READY,ProcessStates.READY);
+		trace.info(pcb.getId());
 		if (readyQueue.size() == 1) {
-			System.out.println("initialize PCB: " + pcb.getId());
-			//Create a CPU state;
-			CPUState cpuState = new CPUState();
-
-			// load a page of instructions into memory
-			int frame = cpu.allocatePage(0);
-			cpuState.setPtr(CPU.getInstance().getPtr());
-			System.out.println("*** instruction frame = "+frame);
-			int instruction = inputPCB.getNextInstruction(0);
-			System.out.println("*** instruction track = "+instruction);
-			String program = cpu.getMMU().getDrum().read(instruction);
-			System.out.println("*** instructions  = "+program);
-			cpu.getMMU().writeFrame(frame, program);
-
-			pcb.setCpuState(cpuState);
-			cpu.setState(pcb.getCpuState());
+			inputSpoolingComplete = true;
 		}
+		System.out.println("initialize PCB: " + pcb.getId());
+		//trace.info("***\n"+cpu.getCPUState().toString());
+		//Create a CPU state;
+		CPUState pcbCPUState = new CPUState();
+		cpu.setState(pcbCPUState);
+		cpu.initPageTable();
+
+		// load a page of instructions into memory
+		int frame = pcb.allocatePage(0);
+		int instruction = pcb.getNextInstruction(0);
+		String program = cpu.getMMU().getDrum().read(instruction);
+		cpu.getMMU().writeFrame(frame, program);
+		pcb.startExecution();
+
+		//trace.info("***\n"+cpu.getMMU().toString());
+		//trace.info("***\n"+cpu.getCPUState().toString());
 	}
 }
