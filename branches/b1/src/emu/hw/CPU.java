@@ -162,7 +162,7 @@ public class CPU implements Cloneable {
 	 */
 	private CPU() {
 		state = new CPUState();
-		mmu = new MMU();
+		mmu = MMU.getInstance();
 		trace.info(dumpInterrupts());
 	}
 	
@@ -437,7 +437,7 @@ public class CPU implements Cloneable {
 			logicalAddr = getOperand();
 			state.pi = Interrupt.set(logicalAddr);
 			if (state.pi == Interrupt.CLEAR) {
-				state.gr = mmu.load(logicalAddr);
+				state.gr = mmu.load(state.ptr,logicalAddr);
 				trace.info("r<-"+state.gr);
 			}
 		}else if (state.ir.startsWith(STORE)) {
@@ -447,13 +447,13 @@ public class CPU implements Cloneable {
 				logicalAddr = getOperand();
 				state.pi = Interrupt.set(logicalAddr);
 					if (state.pi == Interrupt.CLEAR)
-						mmu.store(logicalAddr,state.gr);
+						mmu.store(state.ptr,logicalAddr,state.gr);
 			}
 		}else if (state.ir.startsWith(COMPARE)) {
 			logicalAddr = getOperand();
 			state.pi = Interrupt.set(logicalAddr);
 				if (state.pi == Interrupt.CLEAR) {
-					state.c = mmu.load(logicalAddr).equals(state.gr);
+					state.c = mmu.load(state.ptr,logicalAddr).equals(state.gr);
 					trace.info("c<-"+state.c);
 				}
 		}else if (state.ir.startsWith(BRANCH)) {
@@ -497,7 +497,7 @@ public class CPU implements Cloneable {
 	 * @throws HardwareInterruptException 
 	 */
 	public void fetch() throws HardwareInterruptException {
-		state.ir = mmu.load(state.ic);
+		state.ir = mmu.load(state.ptr,state.ic);
 		trace.info(state.ir+" from logical address "+state.ic);
 	}
 	
@@ -557,7 +557,7 @@ public class CPU implements Cloneable {
 	 */
 	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 		trace.finer("-->");
-		mmu.writeFrame(frame, data);
+		mmu.writeFrame(state.ptr,frame, data);
 		trace.info(frame+"<-"+data);
 		trace.finer("<--");
 	}
@@ -571,7 +571,7 @@ public class CPU implements Cloneable {
 	public void writePage(int logicalAddr, String data)
 			throws HardwareInterruptException {
 		trace.finer("-->");
-		mmu.write(logicalAddr,data);
+		mmu.write(state.ptr,logicalAddr,data);
 		trace.info(logicalAddr + "<-" + data);
 		trace.finer("<--");
 	}
@@ -593,7 +593,7 @@ public class CPU implements Cloneable {
 		trace.finer("-->");
 		trace.fine("Reading from " + logicalAddr);
 		trace.finer("<--");
-		return mmu.read(logicalAddr);
+		return mmu.read(state.ptr,logicalAddr);
 	}
 
 	/**

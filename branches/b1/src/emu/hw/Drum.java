@@ -122,7 +122,7 @@ public class Drum implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String read(int track) {
+	public String read(int ptr, int track) {
 		String block = memory[track];
 		trace.info("Reading track# " + track+"; data: "+block);
 		return block;
@@ -134,8 +134,8 @@ public class Drum implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String load(int track) {
-		return read(track);
+	public String load(int ptr,int track) {
+		return read(ptr,track);
 	}
 	
 	/**
@@ -143,7 +143,7 @@ public class Drum implements MemoryUnit {
 	 * @param addr
 	 * @throws HardwareInterruptException 
 	 */
-	public void write(int track, String data) {
+	public void write(int ptr, int track, String data) {
 		trace.finer("-->");
 		trace.fine("Track#: "+track+" Data:"+data);
 		
@@ -159,16 +159,16 @@ public class Drum implements MemoryUnit {
 	 * @param addr
 	 * @throws HardwareInterruptException 
 	 */
-	public void store(int track, String data) {
-		write(track,data);
+	public void store(int ptr, int track, String data) {
+		write(ptr,track,data);
 	}
 	
 	/**
 	 * Dumps the memory contents to a single string
 	 */
 	public String toString() {
-
-		String dump = "\n0   |1   |2   |3   |4   |5   |6   |7   |8   |9   |\n";
+		String dump = "\nDRUM";
+		dump += "\n0   |1   |2   |3   |4   |5   |6   |7   |8   |9   |\n";
 		
 		for (int j = 0; j < memory.length; j++) {
 			for (int i=0; i<40; i+=4) {

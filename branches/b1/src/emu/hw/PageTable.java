@@ -1,10 +1,18 @@
 package emu.hw;
 
+import java.util.logging.Logger;
+
 public class PageTable {
 	
+	static Logger trace = Logger.getLogger("emuos");
 
 	private final int entries = 10;
 	private PageTableEntry[] pageTable;
+	
+	/**
+	 * Self Reference 
+	 */
+	static PageTable ref;
 	
 	public PageTable(String pTable) {
 		pageTable = new PageTableEntry[entries];
@@ -18,6 +26,15 @@ public class PageTable {
 		for (int i=0; i<entries; i++) {
 			pageTable[i] = new PageTableEntry();
 		}
+	}
+	
+	private PageTable getInstance() {
+
+		if (ref == null) {
+			ref = new PageTable();
+		}
+
+		return ref;
 	}
 	
 	public String getPageTable() {
@@ -85,5 +102,26 @@ public class PageTable {
 		}
 		return tempString;
 	}
+	
+	public void storePageTable() {
+		storePageTable(-1);
+	}
+	
+	public void storePageTable(int ptr) {
+		int pageTableFrame = ptr;
+		if (pageTableFrame < 0)
+			pageTableFrame = CPU.getInstance().getPtr();
+		
+		    //trace.info("pageTableFrame = " + pageTableFrame);
+			trace.finest("Storing page table: "+toString()+" at frame: "+pageTableFrame);
+			MMU.getInstance().getRam().write(0,pageTableFrame, toString());
+	}
 
+	public void storePageTable(int ptr,PageTable pt) {
+		pt.getInstance().storePageTable(ptr);
+	}
+	
+	public void storePageTable(PageTable pt) {
+		pt.getInstance().storePageTable(-1);
+	}
 }

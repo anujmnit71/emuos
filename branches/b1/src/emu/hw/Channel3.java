@@ -81,7 +81,7 @@ public class Channel3 extends Channel {
 	 * @throws HardwareInterruptException 
 	 */
 	private void getData() throws HardwareInterruptException {
-		memory.write(task.getFrame(), drum.read(task.getTrack()));
+		memory.write(0,task.getFrame(), drum.read(0,task.getTrack()));
 	}
 	
 	/**
@@ -89,14 +89,14 @@ public class Channel3 extends Channel {
 	 * @throws HardwareInterruptException 
 	 */
 	private void putData() throws HardwareInterruptException {
-		drum.write(task.getTrack(), memory.read(task.getFrame()));
+		drum.write(0,task.getTrack(), memory.read(0,task.getFrame()));
 	}
 	
 	/**
 	 * Transfer a block of data from the buffer to the drum.
 	 */
 	private void inputSpool() {
-		drum.write(task.getTrack(), task.getBuffer().getData());
+		drum.write(0,task.getTrack(), task.getBuffer().getData());
 		//Update Buffer Status
 		task.getBuffer().setEmpty();
 	}
@@ -106,7 +106,7 @@ public class Channel3 extends Channel {
 	 * @throws HardwareInterruptException 
 	 */
 	private void outputSpool() throws HardwareInterruptException {
-		task.getBuffer().setData(drum.read(task.getTrack()));
+		task.getBuffer().setData(drum.read(0,task.getTrack()));
 		//Update Buffer Status
 		task.getBuffer().setOutputFull();
 	}
@@ -116,7 +116,7 @@ public class Channel3 extends Channel {
 	 * @throws HardwareInterruptException
 	 */
 	private void swapIn() throws HardwareInterruptException {
-		memory.write(task.getFrame(), drum.read(task.getTrack()));
+		memory.write(0,task.getFrame(), drum.read(0,task.getTrack()));
 	}
 	
 	/**
@@ -124,7 +124,7 @@ public class Channel3 extends Channel {
 	 * @throws HardwareInterruptException
 	 */
 	private void swapOut() throws HardwareInterruptException {
-		drum.write(task.getTrack(), memory.read(task.getFrame()));
+		drum.write(0,task.getTrack(), memory.read(0,task.getFrame()));
 	}
 
 	@Override

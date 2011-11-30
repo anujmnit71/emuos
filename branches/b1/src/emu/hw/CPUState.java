@@ -386,7 +386,7 @@ public class CPUState implements Cloneable {
 	 * String representation of the the current state.
 	 */
 	public String toString() {
-		return "ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
+		return "ptr="+ptr+" ptl="+ptl+" ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
 		
 	}
 	
