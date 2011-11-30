@@ -38,6 +38,11 @@ public class ChannelTask {
 	 * The drum track to read/write from/to
 	 */
 	int track;
+	/**
+	 * Miscellaneous value
+	 * @return
+	 */
+	Object misc;
 	
 	public TaskType getType() {
 		return type;
@@ -62,6 +67,12 @@ public class ChannelTask {
 	}
 	public void setTrack(int track) {
 		this.track = track;
+	}
+	public Object getMisc() {
+		return misc;
+	}
+	public void setMisc(Object obj) {
+		misc = obj;
 	}
 	public String toString() {
 		return "[ ChannelTask :: task="+type+", buffer="+buffer+", frame="+frame+", track="+track+" ]";
