@@ -65,7 +65,12 @@ public class Channel2 extends Channel {
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
 		trace.info("starting channel 2");
-		cpu.clearIOi(cpu.getIOi().getValue() - Interrupt.IO_CHANNEL_2.getValue());
+		//cpu.clearIOi(Interrupt.IO_CHANNEL_2.getValue());
+	}
+
+	@Override
+	public void close() throws IOException {
+		printer.close();		
 	}
 	
 }

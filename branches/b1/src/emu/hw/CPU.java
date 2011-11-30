@@ -481,13 +481,13 @@ public class CPU implements Cloneable {
 		 * wait until all instructions have been handled before throwing
 		 * exception
 		 */
-		//TODO commented out for testing, have we decidced if we're keeping interrupts?
-//		if (state.ti != Interrupt.CLEAR
-//				|| state.si != Interrupt.CLEAR
-//				|| state.pi != Interrupt.CLEAR){
-//			trace.finer("<--");
-//			throw new HardwareInterruptException();
-//		}
+
+		trace.info(toString());
+		if (state.si != Interrupt.CLEAR
+				|| state.pi != Interrupt.CLEAR){
+			trace.finer("<--");
+			throw new HardwareInterruptException();
+		}
 		trace.finer("<--");
 	}
 	

@@ -20,8 +20,8 @@ public class MMU implements MemoryUnit {
 	protected final int numPages = 10;
 	protected final int pagesAllowedInMemory = 3; /* 4 are allowed but one will always be the page table */
 
-	private RAM ram;
-	private Drum drum;
+	private static RAM ram;
+	private static Drum drum;
 	private PageTable PT;
 	
 	public MMU() {
@@ -130,8 +130,11 @@ public class MMU implements MemoryUnit {
 				+ logicalPageNum + "; Displacement: " + displacement);
 		// Determine page fault
 		// If the page is swapped
-		if (PT.getEntry(logicalPageNum).isSwapped())
+		
+		if (PT.getEntry(logicalPageNum).isSwapped()) {
+			CPU.getInstance().setPi(Interrupt.PAGE_FAULT);
 			throw new HardwareInterruptException();
+		}
 		//or if it has never been loaded
 		try {
 			frameNum = PT.getEntry(logicalPageNum).getBlockNum();
@@ -203,7 +206,7 @@ public class MMU implements MemoryUnit {
 	 * Find a new frame in memory to use, return the frame
 	 * @return The frame number.
 	 */
-	public int allocateFrame() {
+	public static int allocateFrame() {
 		Random generator = new Random();
 		//We keep track of which frames are free in the ArrayList freeFrames
 		//So to randomly select one of them, use the generator to grab a random int <= the size of the List
@@ -255,6 +258,7 @@ public class MMU implements MemoryUnit {
 	 * @return The frame number
 	 */
 	public int allocatePage(int pageNumber) {
+		
 		//If we haven't already allocated 4 frames in memory (page table plus 3 frames
 		if (CPU.getInstance().getPtl() < pagesAllowedInMemory) { 
 			System.out.println("Allocating a page");
@@ -275,7 +279,7 @@ public class MMU implements MemoryUnit {
 		// else we have used up all 4 and we need to swap out the LRU one
 		else {
 			System.out.println("Swapping");
-			Swap(pageNumber);
+			//Swap(pageNumber);
 		}
 		return 99;
 	}
@@ -330,8 +334,9 @@ public class MMU implements MemoryUnit {
 	 * Get the current page table in use by the CPU
 	 * @return
 	 */
-	private PageTable getPageTable() {
+	public PageTable getPageTable() {
 		int pageTableFrame = CPU.getInstance().getPtr();
+		//trace.info("pageTableFrame = " + pageTableFrame);
 		//Read the current page table
 		return getPageTable(pageTableFrame);
 	}
@@ -340,17 +345,25 @@ public class MMU implements MemoryUnit {
 	 * @param frame
 	 * @return
 	 */
-	private PageTable getPageTable(int frame) { 
+	public static PageTable getPageTable(int frame) { 
 		return new PageTable(ram.read(frame));
 
 	}
+	
 	private PageTable getNewPageTable() {
 		return new PageTable();
 	}
-	private void storePageTable() {
+	
+	public void storePageTable() {
 		int pageTableFrame = CPU.getInstance().getPtr();
+		//trace.info("pageTableFrame = " + pageTableFrame);
 			trace.finest("Storing page table: "+PT.toString()+" at frame: "+pageTableFrame);
 			ram.write(pageTableFrame, PT.toString());
+	}
+	
+	public void storePageTable(PageTable pt) {
+		PT = pt;
+		storePageTable();
 	}
 	
 	public void Swap(int newPage) {
@@ -370,7 +383,7 @@ public class MMU implements MemoryUnit {
 	public void SwapIn(int newPage, int frame) {
 		// write new page to specified frame if it's on the drum -- this will get queued on the swap queue
 		if (PT.getEntry(newPage).isSwapped())
-		ram.write(frame, drum.read(PT.getEntry(newPage).getBlockNum()));
+			ram.write(frame, drum.read(PT.getEntry(newPage).getBlockNum()));
 		// clear swapped/dirty bits in PTE
 		PT.getEntry(newPage).setDirty(false);
 		PT.getEntry(newPage).setSwap(false);
