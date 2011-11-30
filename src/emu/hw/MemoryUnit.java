@@ -7,13 +7,13 @@ package emu.hw;
  *
  */
 public interface MemoryUnit {
-	String load(int addr) throws HardwareInterruptException;
+	String load(int ptr,int addr) throws HardwareInterruptException;
 	
-	void store(int addr, String data) throws HardwareInterruptException;
+	void store(int ptr, int addr, String data) throws HardwareInterruptException;
 	
-	String read(int addr) throws HardwareInterruptException;
+	String read(int ptr, int addr) throws HardwareInterruptException;
 	
-	void write(int addr, String data) throws HardwareInterruptException;
+	void write(int ptr, int addr, String data) throws HardwareInterruptException;
 
 	void clear();
 	

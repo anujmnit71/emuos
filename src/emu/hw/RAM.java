@@ -142,7 +142,7 @@ public class RAM implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String read(int frame) {
+	public String read(int ptr, int frame) {
 		
 		String block = "";
 		int blockAddr = frame * 10;
@@ -159,7 +159,7 @@ public class RAM implements MemoryUnit {
 	 * @param addr
 	 * @throws HardwareInterruptException 
 	 */
-	public void write(int frame, String data) {
+	public void write(int ptr, int frame, String data) {
 		trace.finer("-->");
 		trace.fine("Frame#: "+frame+" Data:"+data);
 		
@@ -168,10 +168,10 @@ public class RAM implements MemoryUnit {
 		
 		int blockAddr = frame*10;
 //		int blockAddr = frame;
-		
+
 		for (int i = 0 ; i < 10 ; i++) {
 			String word = data.substring(0,wordLength);
-			store(blockAddr+i, word);
+			store(ptr,blockAddr+i, word);
 			data = data.substring(wordLength);
 		}
 
@@ -185,7 +185,7 @@ public class RAM implements MemoryUnit {
 	 * @return
 	 * @throws HardwareInterruptException 
 	 */
-	public String load(int addr) {
+	public String load(int ptr,int addr) {
 //		trace.info("read data at addr"+addr);
 		return new String(memory[addr]);
 	}
@@ -194,7 +194,7 @@ public class RAM implements MemoryUnit {
 	 * Store a word into memory
 	 * @param addr
 	 */
-	public void store(int addr, String data) {
+	public void store(int ptr,int addr, String data) {
 //		trace.info("store <"+data+"> at "+addr);
 		memory[addr] = data.toCharArray();
 	}
@@ -204,7 +204,8 @@ public class RAM implements MemoryUnit {
 	 */
 	public String toString() {
 		int i;
-		String dump = "\n0   |1   |2   |3   |4   |5   |6   |7   |8   |9   |\n";
+		String dump = "RAM";
+		dump += "\n0   |1   |2   |3   |4   |5   |6   |7   |8   |9   |\n";
 		for ( i = 0; i < memory.length; i=i+10) {
 			dump += new String(memory[i])+" ";
 			dump += new String(memory[i+1])+" ";
