@@ -76,6 +76,10 @@ public class PCB {
 	 */
 	private Queue<Integer> outputTracks;
 	/**
+	 * The track currently being output spooled.
+	 */
+	int currOutputTrack;
+	/**
 	 * Tracks containing programs instructions
 	 */
 	private List<Integer> instructionTracks;
@@ -186,6 +190,7 @@ public class PCB {
 		return outputTracks.size();
 	}
 	public int bufferOutputLine(int track) {
+		trace.finer("buffering output track:"+track+" fopr pid "+id);
 		outputTracks.add(track);
 		return outputTracks.size();
 	}
@@ -450,6 +455,7 @@ public class PCB {
 		int retval = -1;
 		if (outputTracks.size() > 0)
 			retval = outputTracks.remove();
+		currOutputTrack = retval;
 		return retval;
 	}
 	/**
@@ -516,5 +522,13 @@ public class PCB {
 			//Swap(pageNumber);
 		}
 		return 99;
+	}
+
+	/**
+	 * 
+	 * @return
+	 */
+	public int getCurrOutputTrack() {
+		return currOutputTrack;
 	}
 }

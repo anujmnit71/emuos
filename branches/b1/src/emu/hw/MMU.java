@@ -344,7 +344,7 @@ public class MMU implements MemoryUnit {
 				return true;
 			}
 			else {
-				trace.info("invalid page fault on IR="+ir);
+				trace.info("invalid page fault on IR="+ir+", page "+PT.getEntry(targetPage)+" not swapped!");
 			}
 		}
 		else {
@@ -380,6 +380,7 @@ public class MMU implements MemoryUnit {
 		int victimPage = PT.getVictim();
 		// Find victim frame to swap out
 		int victimFrame = PT.getEntry(victimPage).getBlockNum();
+		trace.info("swapping page "+newPage+", victimPage="+victimPage+", victimFrame="+victimFrame);
 		// if dirty bit for victim page is on, call proc SwapOut to swap out victim
 		if (PT.getEntry(victimPage).isDirty())
 			SwapOut(ptr, victimPage,victimFrame);

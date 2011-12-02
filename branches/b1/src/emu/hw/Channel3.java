@@ -66,6 +66,8 @@ public class Channel3 extends Channel {
 		busy = false;
 		
 		trace.info("ran channel 3, task:"+task);
+		trace.finer(drum.toString());
+		trace.finer(memory.toString());
 
 	}
 	
