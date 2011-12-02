@@ -33,11 +33,11 @@ public class ChannelTask {
 	/**
 	 * The memory frame to read/write from/to
 	 */
-	int frame;
+	int frame = -1;
 	/**
 	 * The drum track to read/write from/to
 	 */
-	int track;
+	int track = -1;
 	/**
 	 * Miscellaneous value
 	 * @return

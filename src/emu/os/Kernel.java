@@ -135,7 +135,7 @@ public class Kernel {
 	/**
 	 * Maximum number of buffers
 	 */
-	private int maxBuffers = 4;
+	private int maxBuffers = 10;
 
 	/** 
 	 * Raised interrupts
@@ -921,12 +921,13 @@ public class Kernel {
 			Buffer b = getEmptyBuffer();
 			if (b != null) {
 				//Prepare blank lines for print in between program output
-				b.setData("\n\n");					
+				b.setData("-\n-");					
 				b.setOutputFull();
 
 			}
 			else {
-				//TODO what now?
+				trace.warning("no empty buffers!");
+				//TODO Need to handle this somehow. Otherwise these lines done get outputted.
 			}
 		}		
 	}
@@ -1017,7 +1018,7 @@ public class Kernel {
 				}
 				else if (termPCB.getHeaderLinedPrinted() == 1) {
 					trace.info(termPCB.getId()+": assign header line 2 to channel 3");
-					eb.setData(cpu.getState()+"    "+termPCB.getCurrentTime()+"    "+termPCB.getLines()+"\n\n");
+					eb.setData(termPCB.getCPUState().getState()+"    "+termPCB.getCurrentTime()+"    "+termPCB.getLines()+"\n-");
 					termPCB.incrementHeaderLinedPrinted();
 					eb.setOutputFull();
 				}
@@ -1115,6 +1116,7 @@ public class Kernel {
 						
 						ioPCB.bufferOutputLine(track);
 						task.setFrame(frame);
+						task.setTrack(track);
 						task.setType(ChannelTask.TaskType.PD);
 					} else {
 						setError(ioPCB,ErrorMessages.OPERAND_FAULT.getErrCode());
@@ -1162,6 +1164,7 @@ public class Kernel {
 			ChannelTask task = new ChannelTask();
 			task.setBuffer(ofb);
 			task.setType(TaskType.OUTPUT_SPOOLING);
+			task.setFrame(terminateQueue.peek().getCurrOutputTrack());
 			ch2.start(task);
 		}
 		else {
@@ -1229,6 +1232,7 @@ public class Kernel {
 			ChannelTask task = new ChannelTask();
 			task.setBuffer(ofb);
 			task.setType(TaskType.OUTPUT_SPOOLING);
+			task.setFrame(terminateQueue.peek().getCurrOutputTrack());
 			ch2.start(task);
 		}
 		else {
@@ -1564,8 +1568,10 @@ public class Kernel {
 			break;
 		case TERMINATEQ:
 			terminateQueue.add(movePCB);
+			trace.finer("To TerminateQ: "+movePCB.toString());
 			trace.info("Swap to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
 			trace.fine("Swap to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
+
 			break;
 		}
 
