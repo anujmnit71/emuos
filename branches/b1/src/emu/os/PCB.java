@@ -146,7 +146,7 @@ public class PCB {
 	 * @param maxPrints
 	 */
 	public PCB(String id, int maxTime, int maxPrints) {
-		trace.info("id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints);
+		trace.info("init PCB, id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints);
 		this.id = id;
 		this.maxTime = maxTime;
 		this.maxPrints = maxPrints;

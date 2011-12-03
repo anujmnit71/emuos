@@ -381,7 +381,7 @@ public class Kernel {
 //		trace.finer("-->");
 		boolean done = false;
 		while (!done) {
-			trace.info( "****************************************************************\nCycle: " + cycleCount);
+			trace.info( "**************************************************************** Cycle: " + cycleCount);
 			simulateHardware();
 			trace.info("Start master mode");
 			if (raisedInterrupts > 0)
@@ -1175,6 +1175,7 @@ public class Kernel {
 		Buffer ofb = getOutputFullBuffer();
 		if (ofb != null) {
 			trace.info("  Assign output to channel 2");
+			trace.fine(ofb.toString());
 			ChannelTask task = new ChannelTask();
 			task.setBuffer(ofb);
 			task.setType(TaskType.OUTPUT_SPOOLING);
@@ -1504,7 +1505,7 @@ public class Kernel {
 		Buffer returnBuffer = null;
 		for (int i = 0; i< buffers.size(); i++) {
 			Buffer b = buffers.get(i);
-			if (b.getState().getCurrent().equals(state.getStateName())) {
+			if (b.getState().getCurrent().equals(state.getStateName()) && !b.isLocked()) {
 				returnBuffer = b;
 			}
 		}
