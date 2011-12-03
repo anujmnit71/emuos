@@ -2,6 +2,7 @@ package emu.test;
 
 import emu.hw.CPU;
 import emu.hw.CPUState;
+import emu.os.PCB;
 
 public class CPUTest {
 	static CPU cpu = CPU.getInstance();
@@ -11,8 +12,25 @@ public class CPUTest {
 	public static void main(String[] args) {
 		//cpu.toString();
 		//cloneTest();
-		CPUState cpus = new CPUState();
+		try {
+			contextSwitchTest();
+		} catch (CloneNotSupportedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//System.out.println(cpu.toString());
 		
+	}
+	private static void contextSwitchTest() throws CloneNotSupportedException {
+		
+		PCB currentPcb = new PCB("C", 10, 10);
+		PCB nextPcb = new PCB("N", 10, 10);
+		nextPcb.setCpuState(new CPUState());
+
+		cpu.setIr("CURR");
+		currentPcb.setCpuState((CPUState) cpu.getCPUState().clone());
+		System.out.println(cpu.toString());
+		//cpu.setState(nextPcb.getCpuState());
 		System.out.println(cpu.toString());
 		
 	}

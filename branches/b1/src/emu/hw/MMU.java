@@ -161,6 +161,7 @@ public class MMU implements MemoryUnit {
 		try {
 			frameNum = PT.getEntry(logicalPageNum).getBlockNum();
 		} catch (NumberFormatException e) {
+			trace.finer("NumberFormatException:"+e.getMessage());
 			// Does page being referenced have a frame allocated for it?
 			trace.warning("page fault on addr " + logicalAddr);
 			CPU.getInstance().setPi(Interrupt.PAGE_FAULT);

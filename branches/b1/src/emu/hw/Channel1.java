@@ -57,7 +57,7 @@ public class Channel1 extends Channel {
 			//What TODO here?
 			trace.log(Level.WARNING, "Failed to read from card reader.", e);
 		} catch (NullPointerException e) {
-			trace.info("End of input");
+			trace.info("End of input file");
 		}
 		
 		busy = false;

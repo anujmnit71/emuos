@@ -6,6 +6,7 @@
  */
 package emu.hw;
 
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -65,6 +66,7 @@ public class CPUState implements Cloneable {
 	 * input and output interrupt
 	 */
 	Interrupt ioi;
+	private int id;
 	/**
 	 * All interrupts are grouped together. Their types are verified upon setting when set.
 	 * value represents what is specified in the phase 2 doc
@@ -136,6 +138,8 @@ public class CPUState implements Cloneable {
 	 * Initialize CPUState
 	 */
 	public CPUState() {
+		Random generator = new Random();
+		id = generator.nextInt();
 		clearInterrupts();
 		trace.info(dumpInterrupts());
 	}
@@ -386,7 +390,7 @@ public class CPUState implements Cloneable {
 	 * String representation of the the current state.
 	 */
 	public String toString() {
-		return "ptr="+ptr+" ptl="+ptl+" ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
+		return "id="+id+", ptr="+ptr+" ptl="+ptl+" ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
 		
 	}
 	
@@ -441,6 +445,7 @@ public class CPUState implements Cloneable {
 	 * @param cpu
 	 */
 	public void restore(CPUState cpu) {
+		//trace.fine(msg)
 		this.c = cpu.c;
 		this.ir = cpu.ir;
 		this.gr = cpu.gr;

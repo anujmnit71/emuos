@@ -309,9 +309,9 @@ public class Kernel {
 		memoryQueue = new LinkedList<PCB>();
 
 		//Init Buffers
-		buffers = new LinkedList<Buffer>();
+		buffers = new ArrayList<Buffer>();
 		for (int i=0; i<maxBuffers;i++) {
-			buffers.add(new Buffer());
+			buffers.add(i,new Buffer());
 		}
 
 
@@ -352,7 +352,7 @@ public class Kernel {
 			cpu.setIOi(Interrupt.IO_CHANNEL_1.getValue());
 			mainLoop();
 		} catch (Exception e) {
-			e.printStackTrace();
+			trace.log(Level.SEVERE, "Uncaught execption in mainLoop", e);
 		} finally {
 			ch1.close();
 			ch2.close();
@@ -400,14 +400,13 @@ public class Kernel {
 					"\n                     io queue size = " + ioQueue.size() +
 					"\n                 memory queue size = " + memoryQueue.size());
 			if (inputSpoolingComplete && processCount == 0) {
-				done = queuesEmpty();
-				trace.info("Are all queues empty ? " + done);
+				done = queuesEmpty() && inputPCB == null;
+				trace.info("Are all queues empty and input spooling complete ? " + done);
 			}
 
 			incrementCycleCount();
 			//if (cycleCount > 450)
 			//	done = true;
-
 		}
 
 //		trace.finer("<--");
@@ -1140,9 +1139,11 @@ public class Kernel {
 		}
 		else if (getInputFullBuffer() != null) {
 			trace.info("  Assign a input spooling task to channel 3");
+			Buffer b = getInputFullBuffer();
+			trace.fine(""+b.toString());
 			int track = cpu.getMMU().allocateTrack();
 
-			task.setBuffer(getInputFullBuffer());
+			task.setBuffer(b);
 			task.setType(ChannelTask.TaskType.INPUT_SPOOLING);
 			task.setTrack(track);
 			trace.info("ch3:" + task.getType().toString());
@@ -1193,20 +1194,25 @@ public class Kernel {
 	private void processCh1() throws HardwareInterruptException {
 //		trace.finer("-->");
 		trace.info("  Processing channel 1");
+		trace.info("Processing channel 1 interrupt");
 		//Get the ifb from the current task
-		Buffer ifb = getInputFullBuffer();
+		ChannelTask lastTask = ch1.getTask();		//BJD We need to ensure we get the buffer that was associated to the latest task
 
-		if (ifb != null) {
-			String data = ifb.getData();
+		if (lastTask != null) {
+			String data = lastTask.getBuffer().getData();
 			//If its a control card, process accordingly
 			if (data.startsWith(PCB.JOB_START)) {
-				processAMJ(ifb);
+				processAMJ(lastTask.getBuffer());
 			}
 			else if (data.startsWith(PCB.DATA_START)) {
-				processDTA(ifb);
+				processDTA(lastTask.getBuffer());
 			}
 			else if (data.startsWith(PCB.JOB_END)) {
-				processEOJ(ifb);
+				processEOJ(lastTask.getBuffer());
+			}
+			else {
+				trace.finer(data+" is not a control card");
+				
 			}
 			//System.exit(-1);
 		}
@@ -1240,7 +1246,7 @@ public class Kernel {
 //		trace.finer("-->");
 		trace.info("  Processing channel 2");
 
-		// start another task for channel 2
+		//start another task for channel 2
 		Buffer ofb = getOutputFullBuffer();
 		if (ofb != null) {
 			ChannelTask task = new ChannelTask();
@@ -1302,14 +1308,17 @@ public class Kernel {
 
 		String eojCard = b.getData();
 		String id = eojCard.substring(4, 8);
-		trace.fine("Finished spooling in job "+id);
+		//trace.info("Finished spooling in job "+eojCard);
 		//AMC
 
 		//trace.info("***\n"+cpu.getMMU().toString());
 		//trace.info("***"+inputPCB.toString());
 
 		//Once the EOJ is reached, move the PCB to the ready queue.
+		trace.info(eojCard+" encountered, placing process "+id+" on readyQueue");
+		trace.fine("Placing process readyQueue:"+inputPCB.toString());
 		readyQueue.add(inputPCB);
+		inputPCB = null;
 		processCount++;
 		//Return buffer to ebq
 		b.setEmpty();
@@ -1489,10 +1498,12 @@ public class Kernel {
 	 */
 	private Buffer getBufferOfState(BufferState state) {
 //		trace.finest("-->");
-//		trace.finer(""+buffers);
-//		trace.fine(buffers.size()+" buffers");
+		dumpBuffers();
+		//trace.finer(""+buffers);
+		//trace.fine(buffers.size()+" buffers");
 		Buffer returnBuffer = null;
-		for (Buffer b : buffers) {
+		for (int i = 0; i< buffers.size(); i++) {
+			Buffer b = buffers.get(i);
 			if (b.getState().getCurrent().equals(state.getStateName())) {
 				returnBuffer = b;
 			}
@@ -1501,6 +1512,13 @@ public class Kernel {
 		  trace.fine("returning "+state.getStateName()+" buffer:"+returnBuffer);
 //		trace.finest("<--");
 		return returnBuffer;
+	}
+	
+	private void dumpBuffers() {
+		for (int i = 0; i< buffers.size(); i++) {
+			Buffer b = buffers.get(i);
+			trace.fine(b.toString());
+		}
 	}
 	/**
 	 * Returns the PCB at the head of the ready queue
@@ -1599,7 +1617,7 @@ public class Kernel {
 			if (currentPCB.getState().equals(ProcessStates.SPOOL.getName()))
 				initialProcessLoad();
 			else {
-				
+				trace.fine(cpu.getState().toString());
 				cpu.setState(currentPCB.getCPUState());
 				currentPCB.getPageTable().storePageTable();
 				trace.info("+++ in < " + currentPCB.getPageTable().toString());
