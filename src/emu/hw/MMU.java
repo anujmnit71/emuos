@@ -49,7 +49,7 @@ public class MMU implements MemoryUnit {
 	 * @param data
 	 */
 	public void write(int ptr, int logicalAddr,String data) throws HardwareInterruptException {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.finest("Logical addr to write page:"+logicalAddr);
 		int realAddr=translateAddr(ptr,logicalAddr);
 		trace.finest("Real frame to write to:"+realAddr/10);
@@ -60,13 +60,13 @@ public class MMU implements MemoryUnit {
 		PT.setLRU(PT.getEntry(logicalAddr/10));
 		// write the changes to the page table to memory
 		PT.storePageTable(ptr);
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 
 	public void writeFrame(int ptr,int frame,String data) throws HardwareInterruptException {
-		trace.finer("-->");
+//		trace.finer("-->");
 		ram.write(ptr,frame, data);
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 
 	/*
@@ -75,7 +75,7 @@ public class MMU implements MemoryUnit {
 	 * @returns String
 	 */
 	public String read(int ptr, int logicalAddr) throws HardwareInterruptException {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.finest("Logical page to read: "+logicalAddr);
 		int realAddr=translateAddr(ptr,logicalAddr);
 		trace.finest("Real frame to read from: "+realAddr/10);

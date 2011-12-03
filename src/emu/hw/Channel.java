@@ -42,7 +42,7 @@ public abstract class Channel {
 	 * @param cpu 
 	 */
 	public Channel(int cycleTime, CPU cpu) {
-		trace.info("init channel, cycleTime:"+cycleTime);
+		trace.info("  Init channel, cycleTime:"+cycleTime);
 		this.cycleTime = cycleTime;
 		this.cpu = cpu;
 	}
@@ -94,12 +94,12 @@ public abstract class Channel {
 	public void increment() throws HardwareInterruptException {
 		
 		if (!busy) {
-			trace.info(this.getClass().getName()+":no work");
+			trace.info("  "+this.getClass().getSimpleName()+": No work");
 			return;
 		}
 		
 		currCycleTime++;
-		trace.info(this.getClass().getName()+":count="+currCycleTime);
+		trace.info("  "+this.getClass().getSimpleName()+": Count="+currCycleTime);
 		
 		if (currCycleTime == cycleTime) {
 			trace.fine("running "+task.getType());

@@ -37,7 +37,7 @@ public class Channel1 extends Channel {
 	}
 	@Override
 	void run() {
-		trace.info("running channel 1, task:"+task.getType());
+		trace.info("    Running channel 1, task:"+task.getType());
 		
 		try {
 			//Read block from input file (card reader)
@@ -66,7 +66,7 @@ public class Channel1 extends Channel {
 	@Override
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
-		trace.info("starting channel 1");
+		trace.info("    Starting channel 1");
 		//cpu.clearIOi(Interrupt.IO_CHANNEL_1.getValue());
 	}
 
