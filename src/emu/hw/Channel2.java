@@ -48,8 +48,6 @@ public class Channel2 extends Channel {
 			printer.flush();
 			//Update buffer status
 			task.getBuffer().setEmpty();
-			//Unlock the buffer
-			task.getBuffer().unlock();
 			//Set CPU interrupt
 			cpu.setIOi(Interrupt.IO_CHANNEL_2.getValue());
 
@@ -67,8 +65,7 @@ public class Channel2 extends Channel {
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
 		trace.info("starting channel 2");
-		task.getBuffer().lock();
-		//cpu.clearIOi(Interrupt.IO_CHANNEL_2.getValue());
+		trace.fine(task.toString());
 	}
 
 	@Override

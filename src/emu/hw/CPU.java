@@ -427,7 +427,7 @@ public class CPU implements Cloneable {
 	 */
 	public void execute() throws HardwareInterruptException {
 //		trace.finer("-->");
-		trace.info(toString());
+		trace.info("CPU execution: "+toString());
 		state.clock++;
 		int logicalAddr = 0;
 		if (state.ir == null) {
