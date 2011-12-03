@@ -1018,7 +1018,10 @@ public class Kernel {
 				}
 			}
 		}
-		else if (terminateQueue.size() > 0) {
+		else if (terminateQueue.size() > 0 &&							//if there's a process that needs to be terminated AND						
+				(terminateQueue.peek().getHeaderLinedPrinted() != 2 ||	//both header lines have not been printed OR 
+				terminateQueue.peek().outputComplete() == false)) {		//there's still some output for the terminate process that can be spooled
+																		//then assign the header or output line to channel 
 			Buffer eb = getEmptyBuffer();
 			if (eb != null) {
 				PCB termPCB = terminateQueue.peek();
@@ -1036,9 +1039,9 @@ public class Kernel {
 				}
 				else {
 					int track = termPCB.getNextOutputTrack();
-					trace.info(termPCB.getId()+": assign output " + track + " to channel 3");
 					//Set the track to read from
 					if (track >= 0) {
+						trace.info(termPCB.getId()+": assign output " + track + " to channel 3");
 						task.setType(ChannelTask.TaskType.OUTPUT_SPOOLING);
 						task.setTrack(track);
 						task.setBuffer(eb);
