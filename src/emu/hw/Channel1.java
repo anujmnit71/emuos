@@ -49,6 +49,8 @@ public class Channel1 extends Channel {
 			task.getBuffer().setData(data);
 			//Update buffer status
 			task.getBuffer().setInputFull();
+			//Unlock the buffer
+			task.getBuffer().unlock();
 			//TODO CPU needs support for the
 			cpu.setIOi(Interrupt.IO_CHANNEL_1.getValue());
 
@@ -67,6 +69,7 @@ public class Channel1 extends Channel {
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
 		trace.info("    Starting channel 1");
+		task.getBuffer().lock();
 		//cpu.clearIOi(Interrupt.IO_CHANNEL_1.getValue());
 	}
 

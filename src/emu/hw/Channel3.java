@@ -75,6 +75,9 @@ public class Channel3 extends Channel {
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
 		trace.info("starting channel 3");
+		if (task.getBuffer() != null) {
+			task.getBuffer().lock();
+		}
 		//cpu.clearIOi(Interrupt.IO_CHANNEL_3.getValue());
 	}
 	
@@ -101,6 +104,9 @@ public class Channel3 extends Channel {
 		drum.write(0,task.getTrack(), task.getBuffer().getData());
 		//Update Buffer Status
 		task.getBuffer().setEmpty();
+		//Unlock the buffer
+		task.getBuffer().unlock();
+
 	}
 
 	/**
@@ -111,6 +117,9 @@ public class Channel3 extends Channel {
 		task.getBuffer().setData(drum.read(0,task.getTrack()));
 		//Update Buffer Status
 		task.getBuffer().setOutputFull();
+		//Unlock the buffer
+		task.getBuffer().unlock();
+
 	}
 	
 	/**
