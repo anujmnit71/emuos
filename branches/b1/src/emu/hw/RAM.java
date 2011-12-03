@@ -70,11 +70,11 @@ public class RAM implements MemoryUnit {
 	 * @throws HardwareInterruptException
 	 */
 	public void freeBlock(int addr) {
-		trace.finer("-->");
+//		trace.finer("-->");
 		int blockAddr = getBlockAddr(addr);
 		trace.fine("Freeing frame:"+addr+"->free");
 		markFree(blockAddr);
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/** 
@@ -82,7 +82,7 @@ public class RAM implements MemoryUnit {
 	 * @param frame
 	 */
 	public void markAllocated(Integer frame) {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.fine("Allocating frame:"+frame);
 		if (!isAllocated(frame))
 			freeFrames.remove(frame);
@@ -93,7 +93,7 @@ public class RAM implements MemoryUnit {
 				allocatedFrames = new String(allocatedFrames)+i+' ';
 		}
 		trace.fine("Allocated frames: [ "+allocatedFrames+']');
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/** 
@@ -101,10 +101,10 @@ public class RAM implements MemoryUnit {
 	 * @param frame
 	 */
 	public void markFree(int frame) {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.info("Freed frame "+frame);
 		freeFrames.add(frame);
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/** 
@@ -160,7 +160,7 @@ public class RAM implements MemoryUnit {
 	 * @throws HardwareInterruptException 
 	 */
 	public void write(int ptr, int frame, String data) {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.fine("Frame#: "+frame+" Data:"+data);
 		
 		//Ensure the string in 40 chars in length
@@ -176,7 +176,7 @@ public class RAM implements MemoryUnit {
 		}
 
 		//trace.finer("Reading frame " + frame + ": "+readFrame(frame));
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/**

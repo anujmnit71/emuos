@@ -71,10 +71,10 @@ public class Drum implements MemoryUnit {
 	 * @throws HardwareInterruptException
 	 */
 	public void freeTrack(int track) {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.fine("Freeing track:"+track+"->free");
 		markFree(track);
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/** 
@@ -82,18 +82,17 @@ public class Drum implements MemoryUnit {
 	 * @param frame
 	 */
 	public void markAllocated(Integer track) {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.fine("Allocating track:"+track);
 		if (!isAllocated(track))
 			freeTracks.remove(track);
 		String allocatedTracks = new String();
-		trace.finest("Allocated tracks:");
 		for (int i=0; i<numTracks; i++) {
 			if (isAllocated(i))
 				allocatedTracks = new String(allocatedTracks)+i+' ';
 		}
 		trace.fine("Allocated tracks: [ "+allocatedTracks+']');
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/** 
@@ -101,10 +100,10 @@ public class Drum implements MemoryUnit {
 	 * @param frame
 	 */
 	public void markFree(int frame) {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.info("Freed frame "+frame);
 		freeTracks.add(frame);
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/** 
@@ -144,14 +143,14 @@ public class Drum implements MemoryUnit {
 	 * @throws HardwareInterruptException 
 	 */
 	public void write(int ptr, int track, String data) {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.fine("Track#: "+track+" Data:"+data);
 		
 		//Ensure the string is 40 chars in length
 		data = Utilities.padStringToLength(data, " ", trackSize, false);
 		
 		memory[track] = data;
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/**

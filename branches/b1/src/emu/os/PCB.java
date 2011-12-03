@@ -237,13 +237,13 @@ public class PCB {
 	 * @throws IOException 
 	 */
 	public void startExecution() throws IOException {
-		trace.fine("-->");
+//		trace.fine("-->");
 		trace.info("starting process "+id);
 		running = true;
 		Kernel.getInstance().getCpu().setIc(0);
 		Kernel.getInstance().getCpu().setSi(Interrupt.CLEAR);
 		setTerminationStatus("Normal Execution");
-		trace.fine("<--");
+//		trace.fine("<--");
 	}
 
 	/**
@@ -349,7 +349,7 @@ public class PCB {
 	 */
 	public void setErrorInProcess(){
 		errorInProcess = true;
-		trace.finer("<-->");
+//		trace.finer("<-->");
 	}
 
 	/**

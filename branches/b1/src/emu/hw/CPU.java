@@ -163,7 +163,7 @@ public class CPU implements Cloneable {
 	private CPU() {
 		state = new CPUState();
 		mmu = MMU.getInstance();
-		trace.info(dumpInterrupts());
+//		trace.info("  "+dumpInterrupts());
 	}
 	
 	/**
@@ -383,7 +383,7 @@ public class CPU implements Cloneable {
 	 * @param value
 	 */
 	public void setIOi(int value) {
-		trace.info("setting ioi="+value);
+		trace.info("    Setting ioi="+value);
 		int newVal = state.ioi.getValue() | value;
 		setIOi(Interrupt.getIOi(newVal));
 	}
@@ -393,7 +393,7 @@ public class CPU implements Cloneable {
 	 * @param value
 	 */
 	public void clearIOi(int value) {
-		trace.info("clearing ioi="+value);
+		trace.info("    Clearing ioi="+value);
 		int newVal = (Interrupt.IO_CHANNEL_123.getValue() - value) & state.ioi.getValue();
 		setIOi(Interrupt.getIOi(newVal));
 	}
@@ -426,19 +426,19 @@ public class CPU implements Cloneable {
 	 * @throws SoftwareInterruptException
 	 */
 	public void execute() throws HardwareInterruptException {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.info(toString());
 		state.clock++;
 		int logicalAddr = 0;
 		if (state.ir == null) {
-			trace.info("noop");
+			trace.info("NoOp");
 		}
 		else if (state.ir.startsWith(LOAD)) {
 			logicalAddr = getOperand();
 			state.pi = Interrupt.set(logicalAddr);
 			if (state.pi == Interrupt.CLEAR) {
 				state.gr = mmu.load(state.ptr,logicalAddr);
-				trace.info("r<-"+state.gr);
+				trace.info("  r<-"+state.gr);
 			}
 		}else if (state.ir.startsWith(STORE)) {
 			if (state.gr == null)
@@ -454,7 +454,7 @@ public class CPU implements Cloneable {
 			state.pi = Interrupt.set(logicalAddr);
 				if (state.pi == Interrupt.CLEAR) {
 					state.c = mmu.load(state.ptr,logicalAddr).equals(state.gr);
-					trace.info("c<-"+state.c);
+					trace.info("  c<-"+state.c);
 				}
 		}else if (state.ir.startsWith(BRANCH)) {
 			if (state.c) {
@@ -488,7 +488,7 @@ public class CPU implements Cloneable {
 			trace.finer("<--");
 			throw new HardwareInterruptException();
 		}
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/**
@@ -498,7 +498,7 @@ public class CPU implements Cloneable {
 	 */
 	public void fetch() throws HardwareInterruptException {
 		state.ir = mmu.load(state.ptr,state.ic);
-		trace.info(state.ir+" from logical address "+state.ic);
+		trace.info("  "+state.ir+" from logical address "+state.ic);
 	}
 	
 	/**
@@ -506,7 +506,7 @@ public class CPU implements Cloneable {
 	 */
 	public void increment() {
 		state.ic++;
-		trace.info("ic<-"+state.ic);
+		trace.info("  ic<-"+state.ic);
 	}
 
 	/**
@@ -514,7 +514,7 @@ public class CPU implements Cloneable {
 	 */
 	public void decrement() {
 		 state.ic--;
-		 trace.info("ic<-"+state.ic);
+		 trace.info("  ic<-"+state.ic);
 	}
 	
 	/**
@@ -556,10 +556,10 @@ public class CPU implements Cloneable {
 	 * @throws HardwareInterruptException
 	 */
 	public void writeFrame(int frame, String data) throws HardwareInterruptException {
-		trace.finer("-->");
+//		trace.finer("-->");
 		mmu.writeFrame(state.ptr,frame, data);
 		trace.info(frame+"<-"+data);
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 	
 	/**
@@ -570,10 +570,10 @@ public class CPU implements Cloneable {
 	 */
 	public void writePage(int logicalAddr, String data)
 			throws HardwareInterruptException {
-		trace.finer("-->");
+//		trace.finer("-->");
 		mmu.write(state.ptr,logicalAddr,data);
 		trace.info(logicalAddr + "<-" + data);
-		trace.finer("<--");
+//		trace.finer("<--");
 	}
 
 	/**
@@ -590,9 +590,9 @@ public class CPU implements Cloneable {
 	 * @throws HardwareInterruptException
 	 */
 	public String readBlock(int logicalAddr) throws HardwareInterruptException {
-		trace.finer("-->");
+//		trace.finer("-->");
 		trace.fine("Reading from " + logicalAddr);
-		trace.finer("<--");
+//		trace.finer("<--");
 		return mmu.read(state.ptr,logicalAddr);
 	}
 
@@ -656,11 +656,11 @@ public class CPU implements Cloneable {
 		if (state.ir == null 
 				|| state.ir.startsWith(CPU.GET)
 				|| state.ir.startsWith(CPU.STORE)) {
-			trace.info("valid page fault on IR="+state.ir);
+			trace.info("  Valid page fault on IR="+state.ir);
 			return true;
 		}
 		else {
-			trace.severe("invalid page fault on IR="+state.ir);
+			trace.severe("  Invalid page fault on IR="+state.ir);
 			return false;
 		}
 	}
