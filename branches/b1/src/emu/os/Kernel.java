@@ -129,9 +129,17 @@ public class Kernel {
 	 */
 	Queue<PCB> memoryQueue;
 	/**
-	 * Buffers used for I/O spooling
+	 * Empty Buffer Q
 	 */
-	List<Buffer> buffers;
+	Queue<Buffer> ebq;
+	/**
+	 * Input full buffer queue
+	 */
+	Queue<Buffer> ifbq;
+	/**
+	 * Output full buffer queue
+	 */
+	Queue<Buffer> ofbq;
 	/**
 	 * Maximum number of buffers
 	 */
@@ -309,12 +317,16 @@ public class Kernel {
 		memoryQueue = new LinkedList<PCB>();
 
 		//Init Buffers
-		buffers = new ArrayList<Buffer>();
+		ebq = new LinkedList<Buffer>();
+		ifbq = new LinkedList<Buffer>();
+		ofbq = new LinkedList<Buffer>();
+		
+		//buffers = new ArrayList<Buffer>();
 		for (int i=0; i<maxBuffers;i++) {
-			buffers.add(i,new Buffer());
+			//buffers.add(i,new Buffer());
+			ebq.add(new Buffer());
 		}
-
-
+		dumpBuffers();
 	}
 
 	/**
@@ -359,7 +371,8 @@ public class Kernel {
 			ch3.close();
 			//Dump memory
 			trace.fine("\n"+cpu.dumpMemory());
-
+			//Dump Buffers
+			dumpBuffers();
 			trace.fine("Memory contents: " + cpu.dumpMemory());
 			//Dump Kernel stats
 			trace.fine("\n"+toString());
@@ -382,16 +395,23 @@ public class Kernel {
 		boolean done = false;
 		while (!done) {
 			trace.info( "**************************************************************** Cycle: " + cycleCount);
-			simulateHardware();
+
 			trace.info("Start master mode");
+			
 			if (raisedInterrupts > 0)
 			{
 //				trace.info("cycle :" + incrementCycleCount() + " ---------------------------------------------------------------");
 				masterMode();
 			}
-			else
+			else {
 				trace.info("  No interrupts for master mode to process");
+				assignChannel3();
+				assignChannel2();
+			}
+			
 			slaveMode();
+			
+			simulateHardware();
 
 			trace.info("loaded processes = " + processCount +
 					"\n                  ready queue size = " + readyQueue.size() +
@@ -400,15 +420,15 @@ public class Kernel {
 					"\n                     io queue size = " + ioQueue.size() +
 					"\n                 memory queue size = " + memoryQueue.size());
 			if (inputSpoolingComplete && processCount == 0) {
-				done = queuesEmpty() && inputPCB == null;
+				done = queuesEmpty();
 				trace.info("Are all queues empty and input spooling complete ? " + done);
 			}
 
 			incrementCycleCount();
 			//if (cycleCount > 450)
 			//	done = true;
+			dumpBuffers();
 		}
-
 //		trace.finer("<--");
 	}
 
@@ -417,32 +437,33 @@ public class Kernel {
 				&& ioQueue.size() == 0
 				&& terminateQueue.size() == 0
 				&& swapQueue.size() == 0
-				&& memoryQueue.size() == 0)
+				&& memoryQueue.size() == 0 && inputPCB == null)
 			return true;
 		return false;
 	}
 
 	public void slaveMode() throws HardwareInterruptException {
-		trace.info("Start slave mode [raised interrupts = " + raisedInterrupts + "]");
+		trace.info("Start slave mode");
+		trace.fine("raised interrupts = " + raisedInterrupts + "");
 		if (readyQueue.size() >= 1) // if there's a process to run this cycle
 		{
-		//trace.info(cpu.toString());
-		try {
-			cpu.fetch();
-		}
-		catch (HardwareInterruptException hie) {
-			raisedInterrupts++;
-			trace.info("  ++Cpu fetch raised interrupt = " + raisedInterrupts + "]");
-			return;
-		}
-		cpu.increment();
-		try {
-			cpu.execute();
-		}
-		catch (HardwareInterruptException hie) {
-			raisedInterrupts++;
-			trace.info("  ++Cpu execute raised interrupt = " + raisedInterrupts + "]");
-		}
+			trace.info("CPU State:"+cpu.toString());
+			try {
+				cpu.fetch();
+			}
+			catch (HardwareInterruptException hie) {
+				raisedInterrupts++;
+				trace.info("  ++Cpu fetch raised interrupt = " + raisedInterrupts + "]");
+				return;
+			}
+			cpu.increment();
+			try {
+				cpu.execute();
+			}
+			catch (HardwareInterruptException hie) {
+				raisedInterrupts++;
+				trace.info("  ++Cpu execute raised interrupt = " + raisedInterrupts + "]");
+			}
 		}
 		else
 			trace.info("  No process to run this cycle");
@@ -511,7 +532,7 @@ public class Kernel {
 	 * @throws CloneNotSupportedException 
 	 */
 	public void masterMode() throws IOException, HardwareInterruptException, CloneNotSupportedException {
-
+		trace.finer("-->");
 		/*
 		 * This is handles a programming error i.e. bugs in setting Interrupts
 		 */
@@ -525,7 +546,7 @@ public class Kernel {
 		}		
 
 //		trace.finer("-->");
-		//trace.info(""+cpu.toString());
+		trace.info("master mode: "+cpu.toString());
 
 		if (!(cpu.getTi().equals(Interrupt.CLEAR)))
 		{
@@ -553,8 +574,7 @@ public class Kernel {
 		trace.fine("End of Interrupt Handling");
 
 		dispatch();
-
-//		trace.fine("<--");
+		trace.finer("<--");
 	}
 
 	private void handleIOInterrupt() throws HardwareInterruptException, IOException {
@@ -641,10 +661,11 @@ public class Kernel {
 			cpu.setPi(Interrupt.CLEAR);
 
 		if (p != null)
-			trace.info("  +++ PCB:" + p.getId() + " state = "+p.getState()+" next = "+p.getNextState());
+			trace.fine("  +++ PCB:" + p.getId() + " state = "+p.getState()+" next = "+p.getNextState());
 	}
 
 	private void handlePageFault(PCB p, boolean hasCPU) {
+		trace.finer("-->");
 		boolean valid = false;
 		int pageNumber,frame,ptr;
 		pageNumber = frame = ptr = 0;
@@ -663,8 +684,11 @@ public class Kernel {
 			ptr = pcb.getCPUState().getPtr();
 		}
 
-		if (ir == null) 
-			return;
+//		if (ir == null) {
+//			trace.warning("ir=null");
+//			return;
+//		}
+			
 
 		valid = cpu.getMMU().validatePageFault(ptr,ir);
 
@@ -695,6 +719,7 @@ public class Kernel {
 				pcb.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 			}
 		}
+		trace.finer("<--");
 	}
 
 	private void handleServiceInterrupt(boolean timeError)
@@ -771,6 +796,7 @@ public class Kernel {
 		switch (cpu.getTi()) {
 
 		case TIME_QUANTUM:
+			trace.info("time quantum reached for "+p.getId());
 			p.setState(ProcessStates.READY,ProcessStates.READY);
 			break;
 		case TIME_ERROR:
@@ -803,8 +829,8 @@ public class Kernel {
 //		trace.finest("-->");
 		//process the current task
 		//Switch over the possible tasks
-		trace.info("  Processing Channel 3");
 		ChannelTask task = ch3.getTask();
+		trace.info("  Processing Channel 3, "+task);
 		switch (task.getType()) {
 		case GD:
 			getDataTask();
@@ -828,6 +854,7 @@ public class Kernel {
 			trace.severe("Unknown task");
 		}
 
+		dumpBuffers();
 		//		//Decrement IOi by 4 to signal channel handled
 		//		trace.finer("Decrementing IOi by 4");
 		cpu.clearIOi(Interrupt.IO_CHANNEL_3.getValue());
@@ -924,24 +951,34 @@ public class Kernel {
 		//Get the PCB being output spooled.
 		PCB p = terminateQueue.peek();
 		trace.info("  Output spooling " + p.getId());
-		//this is checked when the task is assigned to channel 3
-		//p.incrementPrintCount();
+		trace.fine(ch3.getTask().getBuffer().toString());
 
+		trace.fine(ch3.getTask().toString());
+
+		trace.fine(p.getNextDataTrack()+"");
+		
+		p.removeOutputTrack();
+		putOutputFullBuffer(ch3.getTask().getBuffer());
+		
 		//Check if output spooling is complete.
-		if (p.outputComplete()) {
-			trace.fine("Output Spooling complete for pid:"+p.getId());
-			Buffer b = getEmptyBuffer();
-			if (b != null) {
-				//Prepare blank lines for print in between program output
-				b.setData("-\n-");					
-				b.setOutputFull();
-
-			}
-			else {
-				trace.warning("no empty buffers!");
-				//TODO Need to handle this somehow. Otherwise these lines done get outputted.
-			}
-		}		
+//		if (p.outputComplete()) {
+//			trace.fine("Output Spooling complete for pid:"+p.getId());
+//			Buffer b = getEmptyBuffer();
+//			if (b != null) {
+//				//Prepare blank lines for print in between program output
+//				b.setData("-\n-");					
+//				b.setOutputFull();
+//				putOutputFullBuffer(b);
+//				dumpBuffers();
+//			}
+//			else {
+//				trace.warning("no empty buffers!");
+//				//TODO Need to handle this somehow. Otherwise these lines done get outputted.
+//			}
+//		}	
+//		else {
+//			putOutputFullBuffer(ch3.getTask().getBuffer());
+//		}
 	}
 
 	private void inputSpoolingTask() {
@@ -954,7 +991,8 @@ public class Kernel {
 			trace.info("    +++adding data track");
 			inputPCB.addDataTrack(ch3.getTask().getTrack());
 		}
-		ch3.getTask().getBuffer().setEmpty();		
+		ch3.getTask().getBuffer().setEmpty();	
+		putEmptyBuffer(ch3.getTask().getBuffer());
 	}
 
 	/**
@@ -971,7 +1009,19 @@ public class Kernel {
 		}
 		ChannelTask task = new ChannelTask();
 
-		if (swapQueue.size() > 0) {
+		if (!ifbq.isEmpty()) {
+			trace.info("  Assign a input spooling task to channel 3");
+			Buffer b = getInputFullBuffer();
+			trace.fine(""+b.toString());
+			int track = cpu.getMMU().allocateTrack();
+
+			task.setBuffer(b);
+			task.setType(ChannelTask.TaskType.INPUT_SPOOLING);
+			task.setTrack(track);
+			trace.info("ch3:" + task.getType().toString());
+		}
+
+		else if (swapQueue.size() > 0) {
 			PCB swapPCB = swapQueue.peek();
 			trace.info("  "+swapPCB.getId() + ": assign a swap task to channel 3");
 			PageTable pt = swapPCB.getPageTable();
@@ -1027,15 +1077,17 @@ public class Kernel {
 				PCB termPCB = terminateQueue.peek();
 				if (termPCB.getHeaderLinedPrinted() == 0) {
 					trace.info("  "+termPCB.getId()+": assign header line 1 to channel 3");
-					eb.setData("  "+termPCB.getId()+" "+termPCB.getTerminationStatus());
+					eb.setData("-\n-\n"+termPCB.getId()+" "+termPCB.getTerminationStatus());
 					termPCB.incrementHeaderLinedPrinted();
 					eb.setOutputFull();
+					putOutputFullBuffer(eb);
 				}
 				else if (termPCB.getHeaderLinedPrinted() == 1) {
 					trace.info(termPCB.getId()+": assign header line 2 to channel 3");
 					eb.setData(termPCB.getCPUState().getState()+"    "+termPCB.getCurrentTime()+"    "+termPCB.getLines()+"\n-");
 					termPCB.incrementHeaderLinedPrinted();
 					eb.setOutputFull();
+					putOutputFullBuffer(eb);
 				}
 				else {
 					int track = termPCB.getNextOutputTrack();
@@ -1062,6 +1114,8 @@ public class Kernel {
 				cpu.setPi(irValue);
 				track = ioPCB.getNextDataTrack();
 
+				trace.fine("next data track:"+track);
+				
 				try {
 					frame = cpu.getMMU().getFrame(ioPCB.getCPUState().getPtr(),irValue);
 				}
@@ -1073,7 +1127,7 @@ public class Kernel {
 						cpu.setPi(Interrupt.CLEAR);
 					}
 					else {
-						trace.info("We are not supposed to be here");
+						trace.warning("We are not supposed to be here");
 					}
 				}
 				finally {
@@ -1082,8 +1136,10 @@ public class Kernel {
 				}
 
 				if (track <= 0) {
-					setError(ioPCB,ErrorMessages.TIME_LIMIT_EXCEEDED.getErrCode());
+					trace.info("No data tracks remaining for pid "+ioPCB.getId());
+					setError(ioPCB,ErrorMessages.OUT_OF_DATA.getErrCode());
 					ioPCB.setState(null,ProcessStates.TERMINATE);
+					//throw new RuntimeException("BREAK");
 				}
 				else
 				{
@@ -1140,17 +1196,6 @@ public class Kernel {
 				}
 			}
 		}
-		else if (getInputFullBuffer() != null) {
-			trace.info("  Assign a input spooling task to channel 3");
-			Buffer b = getInputFullBuffer();
-			trace.fine(""+b.toString());
-			int track = cpu.getMMU().allocateTrack();
-
-			task.setBuffer(b);
-			task.setType(ChannelTask.TaskType.INPUT_SPOOLING);
-			task.setTrack(track);
-			trace.info("ch3:" + task.getType().toString());
-		}
 		else {
 			trace.info("  Nothing to do for channel 3");
 		}
@@ -1203,7 +1248,8 @@ public class Kernel {
 		ChannelTask lastTask = ch1.getTask();		//BJD We need to ensure we get the buffer that was associated to the latest task
 
 		if (lastTask != null) {
-			String data = lastTask.getBuffer().getData();
+			Buffer b = lastTask.getBuffer();
+			String data = b.getData();
 			//If its a control card, process accordingly
 			if (data.startsWith(PCB.JOB_START)) {
 				processAMJ(lastTask.getBuffer());
@@ -1215,7 +1261,16 @@ public class Kernel {
 				processEOJ(lastTask.getBuffer());
 			}
 			else {
-				trace.finer(data+" is not a control card");
+				trace.finer(data+" is not a control card, adding to ifbq:"+b);
+				putInputFullBuffer(b);
+				trace.fine(ifbq.toString());
+				
+//				if (inputPCB.isProgramCardsToFollow()) {
+//					inputPCB.incrementExpectedInstructionTracks();
+//				}
+//				else {
+//					inputPCB.incrementExpectedDataTracks();
+//				}
 				
 			}
 			//System.exit(-1);
@@ -1250,6 +1305,8 @@ public class Kernel {
 //		trace.finer("-->");
 		trace.info("  Processing channel 2");
 
+		putEmptyBuffer(ch2.getTask().getBuffer());
+		
 		//start another task for channel 2
 		Buffer ofb = getOutputFullBuffer();
 		if (ofb != null) {
@@ -1297,6 +1354,7 @@ public class Kernel {
 
 		//Return buffer to ebq
 		b.setEmpty();
+		putEmptyBuffer(b);
 
 	}
 
@@ -1305,6 +1363,7 @@ public class Kernel {
 		trace.info("$DTA for "+inputPCB.getId());
 		inputPCB.setProgramCardsToFollow(false);
 		b.setEmpty();
+		putEmptyBuffer(b);
 
 	}
 
@@ -1319,13 +1378,22 @@ public class Kernel {
 		//trace.info("***"+inputPCB.toString());
 
 		//Once the EOJ is reached, move the PCB to the ready queue.
-		trace.info(eojCard+" encountered, placing process "+id+" on readyQueue");
-		trace.fine("Placing process readyQueue:"+inputPCB.toString());
-		readyQueue.add(inputPCB);
-		inputPCB = null;
-		processCount++;
+		trace.info(eojCard+" encountered");
+		
+		//if (inputPCB.isReady()) {
+			trace.info("Placing process "+id+" on readyQueue");
+			trace.fine("Placing process readyQueue:"+inputPCB.toString());
+			readyQueue.add(inputPCB);
+			inputPCB = null;
+			processCount++;
+//		}
+//		else {
+//			trace.info("spooling still in process, cannot");
+//			spoolQueue.add(inputPCB);
+//		}
 		//Return buffer to ebq
 		b.setEmpty();
+		putEmptyBuffer(b);
 
 	}
 
@@ -1477,7 +1545,15 @@ public class Kernel {
 	 * @return An empty buffer, null if no empty buffers exist
 	 */
 	private Buffer getEmptyBuffer() {
-		return getBufferOfState(BufferState.EMPTY);
+		if (ebq.isEmpty()) {
+			return null;
+		}
+		else {
+			Buffer eb = ebq.remove();
+			trace.fine(eb.toString());
+			return eb; 
+		}
+		//return getBufferOfState(BufferState.EMPTY);
 	}	
 
 	/**
@@ -1485,7 +1561,16 @@ public class Kernel {
 	 * @return An input-full buffer, null if no input-full buffers exist
 	 */
 	private Buffer getInputFullBuffer() {
-		return getBufferOfState(BufferState.INPUT_FULL);
+		if (ifbq.isEmpty()) {
+			return null;
+		}
+		else {
+			Buffer ifb = ifbq.remove();
+			trace.fine(ifb.toString());
+			return ifb; 
+
+		}
+		//return getBufferOfState(BufferState.INPUT_FULL);
 	}
 
 	/**
@@ -1493,36 +1578,70 @@ public class Kernel {
 	 * @return An output-full buffer, null if no output-full buffers exist
 	 */
 	private Buffer getOutputFullBuffer() {
-		return getBufferOfState(BufferState.OUTPUT_FULL);
+		if (ofbq.isEmpty()) {
+			return null;
+		}
+		else {
+			Buffer ofb = ofbq.remove();
+			trace.fine(ofb.toString());
+			return ofb; 
+		}
+		//return getBufferOfState(BufferState.OUTPUT_FULL);
+	}
+
+	private void putEmptyBuffer(Buffer b) {
+		trace.fine("adding eb"+b);
+		ebq.add(b);
+	}
+	private void putInputFullBuffer(Buffer b) {
+		trace.fine("adding ifb"+b);
+		ifbq.add(b);
+	}
+
+	private void putOutputFullBuffer(Buffer b) {
+		trace.fine("adding ofb"+b);
+		ofbq.add(b);
 	}
 
 	/**
 	 * Gets the next of the given state
 	 * @return The next buffer of the given state, null if none exist
 	 */
-	private Buffer getBufferOfState(BufferState state) {
-//		trace.finest("-->");
-		dumpBuffers();
-		//trace.finer(""+buffers);
-		//trace.fine(buffers.size()+" buffers");
-		Buffer returnBuffer = null;
-		for (int i = 0; i< buffers.size(); i++) {
-			Buffer b = buffers.get(i);
-			if (b.getState().getCurrent().equals(state.getStateName()) && !b.isLocked()) {
-				returnBuffer = b;
-			}
-		}
-		if (returnBuffer != null)
-		  trace.fine("returning "+state.getStateName()+" buffer:"+returnBuffer);
-//		trace.finest("<--");
-		return returnBuffer;
-	}
+//	private Buffer getBufferOfState(BufferState state) {
+////		trace.finest("-->");
+//		dumpBuffers();
+//		//trace.finer(""+buffers);
+//		//trace.fine(buffers.size()+" buffers");
+//		Buffer returnBuffer = null;
+//		for (int i = 0; i< buffers.size(); i++) {
+//			Buffer b = buffers.get(i);
+//			if (b.getState().getCurrent().equals(state.getStateName()) && !b.isLocked()) {
+//				returnBuffer = b;
+//			}
+//		}
+//		if (returnBuffer != null)
+//		  trace.fine("returning "+state.getStateName()+" buffer:"+returnBuffer);
+////		trace.finest("<--");
+//		return returnBuffer;
+//	}
 	
 	private void dumpBuffers() {
-		for (int i = 0; i< buffers.size(); i++) {
-			Buffer b = buffers.get(i);
+		trace.fine("ebq:"+ebq.size());
+		for (Buffer b : ebq) {
 			trace.fine(b.toString());
 		}
+		trace.fine("ifbq:"+ifbq.size());
+		for (Buffer b : ifbq) {
+			trace.fine(b.toString());
+		}
+		trace.fine("ofbq:"+ofbq.size());
+		for (Buffer b : ofbq) {
+			trace.fine(b.toString());
+		}
+//		for (int i = 0; i< buffers.size(); i++) {
+//			Buffer b = buffers.get(i);
+//			trace.fine(b.toString());
+//		}
 	}
 	/**
 	 * Returns the PCB at the head of the ready queue
@@ -1567,6 +1686,7 @@ public class Kernel {
 
 	private void contextSwitch(ProcessQueues targetQ) throws IOException, HardwareInterruptException, CloneNotSupportedException {
 
+		
 		// Switches currently running process from head of ready queue to tail of the target queue
 		PCB movePCB = readyQueue.remove();
 		// Stores CPU status to the PCB that is being switched
@@ -1641,8 +1761,9 @@ public class Kernel {
 
 	private void dispatch() throws HardwareInterruptException, CloneNotSupportedException, IOException {
 		PCB pcb = getCurrentProcess();
+		
 		if (pcb != null) {
-			trace.info("+++ "+pcb.getId()+ ":" +pcb.getState() + ":" + pcb.getNextState());
+			trace.info("dispatch:"+pcb.getId()+ ":" +pcb.getState() + ":" + pcb.getNextState());
 			//if (pcb.getCPUState() != null)
 			//trace.info("+++ "+pcb.getCPUState().toString());
 			if(pcb.getState().equals(ProcessStates.TERMINATE.getName())) {
@@ -1669,15 +1790,15 @@ public class Kernel {
 	}
 
 	private void initialProcessLoad() throws HardwareInterruptException, CloneNotSupportedException, IOException {
-
+		trace.finer("-->");
 		PCB pcb = getCurrentProcess();
 		pcb.setState(ProcessStates.READY,ProcessStates.READY);
 		trace.info(pcb.getId());
 		if (readyQueue.size() == 1) {
 			inputSpoolingComplete = true;
 		}
-		System.out.println("initialize PCB: " + pcb.getId());
-		//trace.info("***\n"+cpu.getCPUState().toString());
+		//trace.info("initialize PCB: " + pcb.getId());
+		trace.fine("***\n"+pcb.toString());
 		//Create a CPU state;
 		CPUState pcbCPUState = new CPUState();
 		cpu.setState(pcbCPUState);
@@ -1692,5 +1813,6 @@ public class Kernel {
 
 		//trace.info(cpu.getMMU().getRam().toString());
 		//trace.info("***\n"+cpu.getCPUState().toString());
+		trace.finer("<--");
 	}
 }

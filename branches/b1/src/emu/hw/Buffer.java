@@ -36,12 +36,6 @@ public class Buffer {
 	 * The block of data. 
 	 */
 	String data;
-	
-	/**
-	 * Once a buffer is assigned to a task, it should be locked.
-	 */
-	boolean locked;
-	
 	/**
 	 * Default Constructor, defaults to an empty buffer.
 	 */
@@ -92,15 +86,4 @@ public class Buffer {
 		if (data != null) { dataNoEnline = data.replace("\n", "");}
 		return "[ Buffer :: id="+id+", data="+dataNoEnline+", state="+state+" ]";
 	}
-	public boolean isLocked() {
-		return locked;
-	}
-	public void lock() {
-		this.locked = true;
-	}
-	public void unlock() {
-		this.locked = false;
-	}
-
-
 }

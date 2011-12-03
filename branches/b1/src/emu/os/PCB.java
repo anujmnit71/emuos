@@ -84,9 +84,17 @@ public class PCB {
 	 */
 	private List<Integer> instructionTracks;
 	/**
+	 * Number of data tracks that have been read from the input file
+	 */
+	int expectedInstructionTracks;
+	/**
 	 * Tracks containing program data
 	 */
 	private Queue<Integer> dataTracks;
+	/**
+	 * Number of data tracks that have been read from the input file
+	 */
+	int expectedDataTracks;
 	/**
 	 * The process state
 	 */
@@ -108,6 +116,8 @@ public class PCB {
 	 * The number of header lines that have output spooled. These are the lines that precede the programs outout.
 	 */
 	int headerLinedPrinted = 0;
+	
+	boolean eojReached = true;
 
 	/**
 	 * Control Flags for processing PCBs
@@ -454,6 +464,17 @@ public class PCB {
 	public int getNextOutputTrack() {
 		int retval = -1;
 		if (outputTracks.size() > 0)
+			retval = outputTracks.peek();
+		currOutputTrack = retval;
+		return retval;
+	}
+	/**
+	 * 
+	 * @return
+	 */
+	public int removeOutputTrack() {
+		int retval = -1;
+		if (outputTracks.size() > 0)
 			retval = outputTracks.remove();
 		currOutputTrack = retval;
 		return retval;
@@ -531,4 +552,29 @@ public class PCB {
 	public int getCurrOutputTrack() {
 		return currOutputTrack;
 	}
+
+//	public int getExpectedInstructionTracks() {
+//		return expectedInstructionTracks;
+//	}
+//
+//	public void incrementExpectedInstructionTracks() {
+//		this.expectedInstructionTracks++;
+//	}
+//
+//	public int getExpectedDataTracks() {
+//		return expectedDataTracks;
+//	}
+//
+//	public void incrementExpectedDataTracks() {
+//		this.expectedDataTracks++;
+//	}
+//
+//	/**
+//	 * Verify that spooling has completed.
+//	 * @return
+//	 */
+//	public boolean isReady() {
+//		return expectedInstructionTracks == instructionTracks.size()
+//				&& expectedDataTracks == dataTracks.size();
+//	}
 }
