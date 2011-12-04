@@ -100,10 +100,11 @@ public class MMU implements MemoryUnit {
 		trace.finest("Real address to load from: "+realAddr);
 		trace.finer("<--");
 		//Read the current page table	
-		PT = getPageTable();
+		PT = getPageTable(ptr);
 		// save page in LRU
 		PT.setLRU(PT.getEntry(logicalAddr/10));
 		// write the changes to the page table to memory
+//		ram.write(0, ptr, PT.toString());
 		PT.storePageTable(ptr);
 		return ram.load(ptr,realAddr);
 	}
@@ -292,8 +293,10 @@ public class MMU implements MemoryUnit {
 			PT = getPageTable();
 			//stick the new frame number in the correct PTE
 			PT.getEntry(pageNumber).setBlockNum(frame);
+			//indicate that it's been recently used
+			PT.setLRU(PT.getEntry(pageNumber));
 			// store the updated page table
-			PT.storePageTable();
+			PT.storePageTable(CPU.getInstance().getPtr());
 			// update the PTL to the total number of pages in memory
 			CPU.getInstance().setPtl(Math.min(CPU.getInstance().getPtl() + 1, pagesAllowedInMemory));
 			trace.info("page->frame : " + pageNumber + "->" + frame);

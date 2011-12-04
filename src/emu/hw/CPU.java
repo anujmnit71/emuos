@@ -157,6 +157,20 @@ public class CPU implements Cloneable {
 //		
 //	}
 //	
+	public enum CPUStep {
+		FETCH,INCREMENT,EXECUTE
+	}
+	
+	private CPUStep step;
+	
+	public CPUStep getStep() {
+		return step;
+	}
+	
+	public void setStep(CPUStep newStep) {
+		step = newStep;
+	}
+	
 	/**
 	 * Initialize CPU
 	 */
@@ -426,6 +440,7 @@ public class CPU implements Cloneable {
 	 * @throws SoftwareInterruptException
 	 */
 	public void execute() throws HardwareInterruptException {
+		step = CPUStep.EXECUTE;
 //		trace.finer("-->");
 		trace.info("CPU execution: "+toString());
 		state.clock++;
@@ -497,6 +512,7 @@ public class CPU implements Cloneable {
 	 * @throws HardwareInterruptException 
 	 */
 	public void fetch() throws HardwareInterruptException {
+		step = CPUStep.FETCH;
 		state.ir = mmu.load(state.ptr,state.ic);
 		trace.info("  "+state.ir+" from logical address "+state.ic);
 	}
@@ -505,6 +521,7 @@ public class CPU implements Cloneable {
 	 * Increment the instruction counter.
 	 */
 	public void increment() {
+		step = CPUStep.INCREMENT;
 		state.ic++;
 		trace.info("  ic<-"+state.ic);
 	}
