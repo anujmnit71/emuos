@@ -27,6 +27,7 @@ public class PageTableEntry {
 	public boolean isInMemory() {
 		try {
 			getBlockNum();
+			if (isSwapped()) return false;
 		}
 		catch (NumberFormatException e) {
 			return false;

@@ -11,6 +11,7 @@ import emu.hw.CPU;
 import emu.hw.CPUState;
 import emu.hw.MMU;
 import emu.hw.PageTable;
+import emu.hw.PageTableEntry;
 import emu.hw.CPUState.Interrupt;
 import emu.hw.HardwareInterruptException;
 
@@ -95,6 +96,10 @@ public class PCB {
 	 * Number of data tracks that have been read from the input file
 	 */
 	int expectedDataTracks;
+	/*
+	 * Tracks corresponding to pages. If a page has been swapped out OR if it's a data card that's spooled in to memory
+	 */
+	private int[] swapTracks;
 	/**
 	 * The process state
 	 */
@@ -118,6 +123,11 @@ public class PCB {
 	int headerLinedPrinted = 0;
 	
 	boolean eojReached = true;
+	/*
+	 * flag indicating whether this PCB is on the swapq for swap out or swap in
+	 */
+	boolean swapOut;
+
 
 	/**
 	 * Control Flags for processing PCBs
@@ -126,7 +136,8 @@ public class PCB {
 	 * IO  Process is waiting for IO
 	 * MEMORY Process is waiting for memory
 	 * TERMINATE Process is terminating
-	 * SWAP Process is swapping memory
+	 * SWAP-OUT Process is swapping memory from RAM to Drum
+	 * SWAP-IN Process is swapping memory from Drum to RAM
 	 * SPOOL Process is being spooled 
 	 */
 	public enum ProcessStates {
@@ -137,7 +148,7 @@ public class PCB {
 		IO_LOADINST ("io-loadinst"),
 		MEMORY    ("memory"),
 		TERMINATE ("terminate"),
-		SWAP      ("swap"),
+		SWAP_OUT      ("swap-out"),
 		SWAP_IN   ("swap-in"),
 		SPOOL     ("spool");
 
@@ -166,6 +177,10 @@ public class PCB {
 		this.dataTracks = new LinkedList<Integer>();
 		this.state = new State();
 		state.setCurrent(ProcessStates.SPOOL.getName());
+		this.swapTracks = new int[10];
+		for (int i=0; i<swapTracks.length; i++) {
+			swapTracks[i] = -1;
+		}
 	}
 
 	public String getId() {
@@ -174,6 +189,12 @@ public class PCB {
 
 	public void setId(String id) {
 		this.id = id;
+	}
+	public boolean getSwapOut() {
+		return swapOut;
+	}
+	public void setSwapOut(boolean newSO) {
+		swapOut = newSO;
 	}
 
 	public int getMaxTime() {
@@ -445,7 +466,24 @@ public class PCB {
 				"\n  outputTracks: "+outputTracks.toString()+
 				"\n  instructionTracks:"+instructionTracks.toString()+
 				"\n  dataTracks:"+dataTracks.toString()+
+				"\n  swapTracks:"+printSwapTracks()+
 				"\n";
+	}
+	
+	public String printSwapTracks() {
+		String st = "[ ";
+		for (int i=0; i<swapTracks.length; i++)
+			st += swapTracks[i]+" ";
+		st += "]";
+		return st;
+	}
+	
+	public void setSwapTrack(int page,int track) {
+		swapTracks[page] = track;
+	}
+	
+	public int getSwapTrack(int page) {
+		return swapTracks[page];
 	}
 
 	public int getHeaderLinedPrinted() {
