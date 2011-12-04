@@ -686,14 +686,26 @@ public class Kernel {
 			frame = cpu.allocatePage(pageNumber);
 			if (frame == 99) {
 				trace.info("  Need to do some swapping");
-				p.setState(ProcessStates.SWAP,ProcessStates.READY);
+				//**AMC**
+//				  -Look at the page table at LRU[3] and see if it's dirty
+//				  - Look at swaptracks in the PCB for the target page and see if it has a track associated with it				
+// 				  -If the LRU page is not dirty and the page has a track associated with it in memory then it doesn't need to be swapped out				
+//				    -store the track (rather than the frame) in page table entry for the victim
+//				    -set swapped flag for the victim page
+//				    -set process state to IO_LOADINST
+//				  If the LRU page does need to be written to the drum:, set state = swap_out, next = loadinst
+				
+					
+				
+				p.setState(ProcessStates.SWAP_OUT,ProcessStates.IO_LOADINST);
+				p.setSwapOut(true);		// so the Kernel knows this process is on the swapq for swap out
 			}
 			else
 			{
 				trace.fine("frame "+frame+" allocated for page "+pageNumber);
+				p.setState(ProcessStates.IO_LOADINST,ProcessStates.READY);
 				//cpu.decrement();
 			}
-			p.setState(ProcessStates.IO_LOADINST,ProcessStates.READY);
 			return;
 		}
 
@@ -731,9 +743,29 @@ public class Kernel {
 //				trace.info("Allocated a page to handle page fault"+cpu.getMMU().getRam().toString());
 				if (frame == 99) {
 					trace.info("  Need to do some swapping");
-					if (hasCPU) 
-						pcb.setPageTable(cpu.getMMU().getPageTable());
-					pcb.setState(ProcessStates.SWAP,ProcessStates.READY);
+					//**AMC**
+//					if (hasCPU) 
+//						pcb.setPageTable(cpu.getMMU().getPageTable());
+					
+					
+					
+					
+//					  -Look at the page table at LRU[3] and see if it's dirty
+//					  - Look at swaptracks in the PCB for the victim page and see if it has a track associated with it				
+//	 				  -If the LRU page is not dirty and the page has a track associated with it in memory then it doesn't need to be swapped out				
+//					    -store the track (rather than the frame) in page table entry for the victim
+//					    -set swapped flag for the victim page
+//					    -set process state to IO_LOADINST
+//					  If the LRU page does need to be written to the drum:, set state = swap_out
+//					  - look at swaptracks in the PCB for the new page and see if it's been swapped out
+//					       If yes, next state = swap_in
+//						   If no, next state = IO-read
+					
+						
+					
+					
+					p.setSwapOut(true);		// so the Kernel knows this process is on the swapq for swap out
+					pcb.setState(ProcessStates.SWAP_OUT,ProcessStates.READY);
 				}
 				else
 				{
@@ -887,10 +919,14 @@ public class Kernel {
 
 		trace.finest("<--");
 	}
-
+	//Housekeeping to be done after swap out has been done
 	private void swapOutTask() {
+		//TODO: make this work
+		//***AMC***
 		PCB swapPCB = swapQueue.remove();
-		PageTable pt = swapPCB.getPageTable();
+//		PageTable pt = swapPCB.getPageTable();
+		PageTable pt = CPU.getInstance().getMMU().getPageTable(swapPCB.getCPUState().getPtr());
+		trace.info("AMC ** page table in swap out task:"+pt.toString());
 
 		int drumTrack = ch3.getTask().getTrack();
 		int victimPage = (Integer) ch3.getTask().getMisc();
@@ -900,14 +936,18 @@ public class Kernel {
 		// clear dirty bit in PTE
 		pt.getEntry(victimPage).setDirty(false);
 		pt.getEntry(victimPage).setSwap();
-		swapPCB.setPageTable(pt);
-		swapPCB.setState(null,ProcessStates.SWAP_IN);
+//		swapPCB.setPageTable(pt);
+		CPU.getInstance().getMMU().getRam().write(0, swapPCB.getCPUState().getPtr(), pt.toString());
+//		swapPCB.setState(null,ProcessStates.SWAP_IN);
 		schedule(swapPCB);
 	}
 
+	//Housekeeping to be done after swap in has been done
 	private void swapInTask() {
+		//TODO: make this work
+		//***AMC***
 		PCB swapPCB = swapQueue.remove();
-		PageTable pt = swapPCB.getPageTable();
+		PageTable pt = CPU.getInstance().getMMU().getPageTable(swapPCB.getCPUState().getPtr());
 
 		int newPage = (Integer) ch3.getTask().getMisc();
 		int victimFrame = ch3.getTask().getFrame();
@@ -917,8 +957,8 @@ public class Kernel {
 		pt.getEntry(newPage).setSwap(false);
 		// write frame num to PTE
 		pt.getEntry(newPage).setBlockNum(victimFrame);
-		swapPCB.setPageTable(pt);
-		swapPCB.setState(null,ProcessStates.READY);
+		CPU.getInstance().getMMU().getRam().write(0, swapPCB.getCPUState().getPtr(), pt.toString());
+//		swapPCB.setState(null,ProcessStates.READY);
 		schedule(swapPCB);
 	}
 
@@ -1048,50 +1088,67 @@ public class Kernel {
 		}
 
 		else if (swapQueue.size() > 0) {
+			//***AMC***
 			PCB swapPCB = swapQueue.peek();
 			trace.info("  "+swapPCB.getId() + ": assign a swap task to channel 3");
-			PageTable pt = swapPCB.getPageTable();
-			//trace.info(pt.toString());
-			int newPage = swapPCB.getCPUState().getOperand() / 10;
-			// Find victim page: LRU[3]
+			
+//			PageTable pt = swapPCB.getPageTable();
+			PageTable pt = CPU.getInstance().getMMU().getPageTable(swapPCB.getCPUState().getPtr());
+			trace.info("AMC** "+pt.toString());
+
 			int victimPage = pt.getVictim();
+//			int newPage = swapPCB.getCPUState().getOperand() / 10;
 			//trace.info("victimPage = " + victimPage);
 			// Find victim frame to swap out
 			int victimFrame = pt.getEntry(victimPage).getBlockNum();
-			// if dirty bit for victim page is on, call proc SwapOut to swap out victim
-			if (pt.getEntry(victimPage).isDirty()) {
+			
+			if (swapPCB.getSwapOut() == true) {
+			// Find victim page: LRU[3]
+
+			int drumTrack = -1;
+			if (swapPCB.getSwapTrack(victimPage) != -1)
+				drumTrack = swapPCB.getSwapTrack(victimPage);
+				else {	
+			// if dirty bit for victim page is on, swap out
+//			if (pt.getEntry(victimPage).isDirty()) {
 				// Get a free drum track
 				Random generator = new Random();
 				Drum drum = cpu.getMMU().getDrum();
 				// assignSwapOut(task,pt,victimPage,victimFrame);
-				int drumTrack = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
+				drumTrack = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
+				}
 				// write victim page to drum track -- this will get queued up on the swap queue
 				task.setType(TaskType.SWAP_OUT);
 				task.setTrack(drumTrack);
 				task.setFrame(victimFrame);
 				task.setMisc(victimPage);
+				swapPCB.setSwapOut(false);
 			}
-			else
+			else	//else we've already swapped out (or don't need to swap out), now we need to swap in
 			{
-				pt.getEntry(victimPage).setSwap();
+				//***AMC***
+
+				int newPage = swapPCB.getCPUState().getOperand() / 10;
+//				pt.getEntry(victimPage).setSwap();
 				// call proc SwapIn to swap in the new page
-				if (pt.getEntry(newPage).isSwapped()) {
+//				if (pt.getEntry(newPage).isSwapped()) {
 					task.setType(TaskType.SWAP_IN);
 					task.setFrame(victimFrame);
 					task.setMisc(newPage);				
 					task.setTrack(pt.getEntry(newPage).getBlockNum());
-				}
-				else {
-					swapPCB = swapQueue.remove();
-					// clear swapped/dirty bits in PTE
-					pt.getEntry(newPage).setDirty(false);
-					pt.getEntry(newPage).setSwap(false);
-					// write frame num to PTE
-					pt.getEntry(newPage).setBlockNum(victimFrame);
-					swapPCB.setPageTable(pt);
-					swapPCB.setState(ProcessStates.READY, null);
-					schedule(swapPCB);
-				}
+//				}
+//				else {
+//					//***AMC***
+//					swapPCB = swapQueue.remove();
+//					// clear swapped/dirty bits in PTE
+//					pt.getEntry(newPage).setDirty(false);
+//					pt.getEntry(newPage).setSwap(false);
+//					// write frame num to PTE
+//					pt.getEntry(newPage).setBlockNum(victimFrame);
+//					swapPCB.setPageTable(pt);
+//					swapPCB.setState(ProcessStates.READY, null);
+////					schedule(swapPCB);
+//				}
 			}
 		}
 		else if (terminateQueue.size() > 0 &&							//if there's a process that needs to be terminated AND						
@@ -1146,6 +1203,8 @@ public class Kernel {
 				trace.fine("Instruction track for "+ioPCB.getCPUState().getIc()+": "+track);
 				frame = cpu.getMMU().getFrame(ioPCB.getCPUState().getPtr(),ioPCB.getCPUState().getIc());
 				trace.fine("Frame for "+ioPCB.getCPUState().getIc()+": "+frame);
+				ioPCB.setSwapTrack(ioPCB.getCPUState().getIc()/10, track);
+				trace.info("***AMC: Swap tracks: "+ioPCB.printSwapTracks());
 				task.setTrack(track);
 				task.setFrame(frame);
 				task.setType(TaskType.GD);
@@ -1174,6 +1233,8 @@ public class Kernel {
 				}
 				finally {
 					frame = cpu.getMMU().getFrame(ioPCB.getCPUState().getPtr(),irValue);
+					ioPCB.setSwapTrack(irValue/10, track);
+					trace.info("***AMC: Swap tracks: "+ioPCB.printSwapTracks());
 					//trace.info("using frame " + frame);
 				}
 
@@ -1444,6 +1505,7 @@ public class Kernel {
 	 * @param frame
 	 */
 	public void assignSwapIn(ChannelTask task,PageTable pt, int newPage, int frame) {
+		//***AMC***
 		// write new page to specified frame if it's on the drum -- this will get queued on the swap queue
 		if (pt.getEntry(newPage).isSwapped()) {
 			task.setType(TaskType.SWAP_IN);
@@ -1711,8 +1773,9 @@ public class Kernel {
 
 			ioQueue.add(pcb);
 		}
-		else if(pcb.getNextState().equals(ProcessStates.SWAP.getName())) {
-			pcb.setState(ProcessStates.SWAP,ProcessStates.READY);
+		//***AMC***
+		else if(pcb.getNextState().equals(ProcessStates.SWAP_OUT.getName())) {
+			pcb.setState(ProcessStates.SWAP_OUT,ProcessStates.READY);
 			swapQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.SWAP_IN.getName())) {
@@ -1749,26 +1812,26 @@ public class Kernel {
 		case READYQ: 
 			movePCB.resetCurrentQuantum();
 			readyQueue.add(movePCB);
-			trace.fine("Swap to end of ReadyQ. ReadyQ contains "+readyQueue.size()+" processes");
+			trace.fine("Move to end of ReadyQ. ReadyQ contains "+readyQueue.size()+" processes");
 			break;
 		case IOQ:
 			ioQueue.add(movePCB);
-			trace.fine("Swap to IOQ. ReadyQ now contains "+readyQueue.size()+" processes. IOQ contains "+ioQueue.size()+" processes");
+			trace.fine("Move to IOQ. ReadyQ now contains "+readyQueue.size()+" processes. IOQ contains "+ioQueue.size()+" processes");
 			break;
 		case MEMORYQ:
 			memoryQueue.add(movePCB);
-			trace.fine("Swap to MemoryQ. ReadyQ now contains "+readyQueue.size()+" processes. MemoryQ contains "+memoryQueue.size()+" processes");
+			trace.fine("Move to MemoryQ. ReadyQ now contains "+readyQueue.size()+" processes. MemoryQ contains "+memoryQueue.size()+" processes");
 			break;
 		case SWAPQ:
 			swapQueue.add(movePCB);
-			trace.info("Swap to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
-			trace.fine("Swap to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
+			trace.info("Move to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
+			trace.fine("Move to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
 			break;
 		case TERMINATEQ:
 			terminateQueue.add(movePCB);
 			trace.finer("To TerminateQ: "+movePCB.toString());
-			trace.info("Swap to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
-			trace.fine("Swap to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
+			trace.info("Move to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
+			trace.fine("Move to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
 
 			break;
 		}
@@ -1821,7 +1884,8 @@ public class Kernel {
 					|| pcb.getState().equals(ProcessStates.IO_LOADINST.getName())) {
 				contextSwitch(ProcessQueues.IOQ);
 			}
-			else if(pcb.getState().equals(ProcessStates.SWAP.getName())) {
+			//***AMC***
+			else if(pcb.getState().equals(ProcessStates.SWAP_OUT.getName())) {
 				contextSwitch(ProcessQueues.SWAPQ);
 			}
 			else if(pcb.getState().equals(ProcessStates.READY.getName())) {
