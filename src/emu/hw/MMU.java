@@ -282,15 +282,17 @@ public class MMU implements MemoryUnit {
 	 * @return The frame number
 	 */
 	public int allocatePage(int pageNumber) {
-
+		//Read the current page table
+		PT = getPageTable();
+		trace.finer("Pages in memory: "+PT.pagesInMemory());
 		//If we haven't already allocated 4 frames in memory (page table plus 3 frames
-		if (CPU.getInstance().getPtl() < pagesAllowedInMemory) { 
+		if (PT.pagesInMemory() < pagesAllowedInMemory) { 
 			System.out.println("Allocating a page");
 			// Allocate a frame. Frame # returned
 			int frame = allocateFrame();
 			// Update page table entry.
 			//Read the current page table
-			PT = getPageTable();
+//			PT = getPageTable();
 			//stick the new frame number in the correct PTE
 			PT.getEntry(pageNumber).setBlockNum(frame);
 			//indicate that it's been recently used
@@ -328,7 +330,7 @@ public class MMU implements MemoryUnit {
 	 */
 	public boolean validatePageFault(int ptr,String ir) {
 		trace.info("Validating page fault for "+ir);
-		setPageTable(ptr);
+//		setPageTable(ptr);
 		if (ir == null
 				|| ir.startsWith(CPU.GET)
 				|| ir.startsWith(CPU.STORE)
@@ -341,7 +343,7 @@ public class MMU implements MemoryUnit {
 				|| ir.startsWith(CPU.COMPARE)) {
 			int targetPage = Integer.parseInt(ir.substring(2,3));
 			System.out.println("Page: "+targetPage);
-			PT = getPageTable();
+			PT = getPageTable(ptr);
 			System.out.println("PTE: "+PT.getEntry(targetPage).toString());
 			if (PT.getEntry(targetPage).isSwapped()) {
 				trace.info("valid page fault on IR="+ir);

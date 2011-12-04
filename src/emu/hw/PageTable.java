@@ -93,8 +93,9 @@ public class PageTable {
 			return;
 		}
 		for (int i = 0; i < entries; i++) {
-			if (pageTable[i].getLRU() == 3)
+			if (pageTable[i].getLRU() == 3) {
 				pageTable[i].setLRU(0);
+			}
 			else if (pageTable[i].getLRU() == 2)
 				pageTable[i].setLRU(3);
 			else if (pageTable[i].getLRU() == 1)
