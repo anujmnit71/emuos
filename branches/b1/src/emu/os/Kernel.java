@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import emu.hw.Buffer;
 import emu.hw.Buffer.BufferState;
 import emu.hw.CPU;
+import emu.hw.CPU.CPUStep;
 import emu.hw.CPUState;
 import emu.hw.CPUState.Interrupt;
 import emu.hw.Channel1;
@@ -364,7 +365,7 @@ public class Kernel {
 			cpu.setIOi(Interrupt.IO_CHANNEL_1.getValue());
 			mainLoop();
 		} catch (Exception e) {
-			trace.log(Level.SEVERE, "Uncaught execption in mainLoop", e);
+			trace.log(Level.SEVERE, "Uncaught exception in mainLoop", e);
 		} finally {
 			ch1.close();
 			ch2.close();
@@ -669,10 +670,34 @@ public class Kernel {
 		boolean valid = false;
 		int pageNumber,frame,ptr;
 		pageNumber = frame = ptr = 0;
-
+		
 		PCB pcb = p;
 		if (pcb == null)
 			pcb = getCurrentProcess();
+		
+		if (cpu.getStep() == CPUStep.FETCH) {
+			//Page fault in fetch is always valid
+			//get the page from the IC
+			//Allocate a frame for the new instruction page
+			//If we couldn't allocate a frame then swap with the LRU frame
+			//write the instruction card from the current PCB to the newly allocated page
+			trace.info("Page fault during fetch");
+			pageNumber = cpu.getIc() / 10;
+			frame = cpu.allocatePage(pageNumber);
+			if (frame == 99) {
+				trace.info("  Need to do some swapping");
+				p.setState(ProcessStates.SWAP,ProcessStates.READY);
+			}
+			else
+			{
+				trace.fine("frame "+frame+" allocated for page "+pageNumber);
+				//cpu.decrement();
+			}
+			p.setState(ProcessStates.IO_LOADINST,ProcessStates.READY);
+			return;
+		}
+
+
 
 		String ir;
 
@@ -702,7 +727,8 @@ public class Kernel {
 					pageNumber = pcb.getCPUState().getOperand() / 10;
 					frame = pcb.allocatePage(pageNumber); //TODO cleaner way to determine page #?
 				}
-
+				trace.info("Allocated a page to handle page fault");
+//				trace.info("Allocated a page to handle page fault"+cpu.getMMU().getRam().toString());
 				if (frame == 99) {
 					trace.info("  Need to do some swapping");
 					if (hasCPU) 
@@ -1108,7 +1134,23 @@ public class Kernel {
 			int irValue = 0;
 			int track = 0;
 			int frame = 0;
-			if (ioPCB.getState().equals(ProcessStates.IO_READ.getName()))
+			if (ioPCB.getState().equals(ProcessStates.IO_LOADINST.getName())) {
+				trace.info("Assign a load instruction card to channel 3");
+				irValue = ioPCB.getCPUState().getOperand();
+				cpu.setPi(irValue);
+				//if the state is IO_LOADINST then we need to copy an instruction card from the drum to 
+				//RAM because of pure demand paging.  
+				//the track we need to copy from is stored in the PCB in the instruction cards
+//				irValue = ioPCB.getCPUState().getOperand();
+				track = ioPCB.getNextInstruction(ioPCB.getCPUState().getIc());
+				trace.fine("Instruction track for "+ioPCB.getCPUState().getIc()+": "+track);
+				frame = cpu.getMMU().getFrame(ioPCB.getCPUState().getPtr(),ioPCB.getCPUState().getIc());
+				trace.fine("Frame for "+ioPCB.getCPUState().getIc()+": "+frame);
+				task.setTrack(track);
+				task.setFrame(frame);
+				task.setType(TaskType.GD);
+			}
+			else if (ioPCB.getState().equals(ProcessStates.IO_READ.getName()))
 			{
 				irValue = ioPCB.getCPUState().getOperand();
 				cpu.setPi(irValue);
@@ -1372,7 +1414,6 @@ public class Kernel {
 		String eojCard = b.getData();
 		String id = eojCard.substring(4, 8);
 		//trace.info("Finished spooling in job "+eojCard);
-		//AMC
 
 		//trace.info("***\n"+cpu.getMMU().toString());
 		//trace.info("***"+inputPCB.toString());
@@ -1743,8 +1784,10 @@ public class Kernel {
 			else {
 				trace.fine(cpu.getState().toString());
 				cpu.setState(currentPCB.getCPUState());
-				currentPCB.getPageTable().storePageTable();
-				trace.info("+++ in < " + currentPCB.getPageTable().toString());
+//				currentPCB.getPageTable().storePageTable();
+//				trace.info("+++ in < " + currentPCB.getPageTable().toString());	//AMC: I commented this out.  Storing a copy of the page table in the PCB is
+				//unnecessary. The PTR is stored in the CPU State in the PCB and the page table can be read from RAM using that.  Storing a copy of the page
+				//table was causing so many disjoint copies floating around I kept introducing new errors :(
 			}
 			currentPCB.setRunning(true);
 			//trace.info("*** " + getCurrentProcess().getPageTable().toString());
@@ -1774,7 +1817,8 @@ public class Kernel {
 				contextSwitch(ProcessQueues.MEMORYQ);
 			}
 			else if(pcb.getState().equals(ProcessStates.IO_READ.getName())
-					|| pcb.getState().equals(ProcessStates.IO_WRITE.getName())) {
+					|| pcb.getState().equals(ProcessStates.IO_WRITE.getName())
+					|| pcb.getState().equals(ProcessStates.IO_LOADINST.getName())) {
 				contextSwitch(ProcessQueues.IOQ);
 			}
 			else if(pcb.getState().equals(ProcessStates.SWAP.getName())) {
@@ -1802,13 +1846,14 @@ public class Kernel {
 		//Create a CPU state;
 		CPUState pcbCPUState = new CPUState();
 		cpu.setState(pcbCPUState);
+		cpu.setIr("0000");
 		cpu.initPageTable();
 
-		// load a page of instructions into memory
-		int frame = cpu.allocatePage(0);
-		int instruction = pcb.getNextInstruction(0);
-		String program = cpu.getMMU().getDrum().read(cpu.getPtr(),instruction);
-		cpu.getMMU().writeFrame(cpu.getPtr(),frame, program);
+//		// load a page of instructions into memory
+//		int frame = cpu.allocatePage(0);
+//		int instruction = pcb.getNextInstruction(0);
+//		String program = cpu.getMMU().getDrum().read(cpu.getPtr(),instruction);
+//		cpu.getMMU().writeFrame(cpu.getPtr(),frame, program);
 		pcb.startExecution();
 
 		//trace.info(cpu.getMMU().getRam().toString());

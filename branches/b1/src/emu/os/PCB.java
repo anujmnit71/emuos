@@ -134,6 +134,7 @@ public class PCB {
 		EXECUTE   ("execute"),
 		IO_READ   ("io-read"),
 		IO_WRITE  ("io-write"),
+		IO_LOADINST ("io-loadinst"),
 		MEMORY    ("memory"),
 		TERMINATE ("terminate"),
 		SWAP      ("swap"),
@@ -217,7 +218,8 @@ public class PCB {
 		int retval = -1;
 		//WM not sure about this
 		if (getNumInstructionTracks() > 0) {
-			int value = ic % getNumInstructionTracks();
+//			int value = ic % getNumInstructionTracks();
+			int value = ic / 10;		//if IC is 1 we want to get the 1st card at index=0; if IC is 50, we want to get the 6th card at index=5
 			retval = instructionTracks.get(value);
 		}
 		return retval;
@@ -520,16 +522,21 @@ public class PCB {
 	 * @return The frame number
 	 */
 	public int allocatePage(int pageNumber) {
+		//Read the current page table
+		pageTable = new PageTable(CPU.getInstance().getMMU().getRam().read(0,cpuState.getPtr()));
+		trace.finer("Pages in memory: "+pageTable.pagesInMemory());
 		//If we haven't already allocated 4 frames in memory (page table plus 3 frames
-		if (cpuState.getPtl() < pagesAllowedInMemory) { 
+		if (pageTable.pagesInMemory() < pagesAllowedInMemory) { 
 			System.out.println("Allocating a page");
 			// Allocate a frame. Frame # returned
 			int frame = MMU.getInstance().allocateFrame();
 			// Update page table entry.
 			//Read the current page table
-			pageTable = getPageTable();
+//			pageTable = new PageTable(CPU.getInstance().getMMU().getRam().read(0,cpuState.getPtr()));	//AMC: need to get page table from CPU
 			//stick the new frame number in the correct PTE
 			pageTable.getEntry(pageNumber).setBlockNum(frame);
+			//indicate that it's been recently used
+			pageTable.setLRU(pageTable.getEntry(pageNumber));
 			// store the updated page table
 			pageTable.storePageTable(cpuState.getPtr());
 			// update the PTL to the total number of pages in memory
@@ -539,7 +546,7 @@ public class PCB {
 		}
 		// else we have used up all 4 and we need to swap out the LRU one
 		else {
-			System.out.println("Swapping");
+			trace.info("Swapping");
 			//Swap(pageNumber);
 		}
 		return 99;

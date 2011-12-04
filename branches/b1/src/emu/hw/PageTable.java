@@ -62,6 +62,15 @@ public class PageTable {
 		return 0;
 	}
 	
+	public int pagesInMemory() {
+		int pages = 0;
+		for (int i=0; i < entries; i++) {
+			if (pageTable[i].isInMemory() == true)
+				pages++;
+		}
+		return pages;
+	}
+	
 	public void setLRU(PageTableEntry recentEntry) {
 		if (recentEntry.getLRU() == 1)
 			return;
@@ -114,7 +123,8 @@ public class PageTable {
 		
 		    //trace.info("pageTableFrame = " + pageTableFrame);
 			trace.finest("Storing page table: "+toString()+" at frame: "+pageTableFrame);
-			MMU.getInstance().getRam().write(0,pageTableFrame, toString());
+//			MMU.getInstance().getRam().write(0,pageTableFrame, toString());
+			CPU.getInstance().getMMU().getRam().write(0,pageTableFrame, toString());
 	}
 
 	public void storePageTable(int ptr,PageTable pt) {

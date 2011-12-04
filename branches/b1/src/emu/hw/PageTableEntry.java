@@ -24,6 +24,16 @@ public class PageTableEntry {
 		blockNum = "  ";
 	}
 	
+	public boolean isInMemory() {
+		try {
+			getBlockNum();
+		}
+		catch (NumberFormatException e) {
+			return false;
+		}
+		return true;
+	}
+	
 	public int getLRU() {
 		try {
 			return Integer.parseInt(LRU);
