@@ -127,7 +127,10 @@ public class PCB {
 	 * flag indicating whether this PCB is on the swapq for swap out or swap in
 	 */
 	boolean swapOut;
-
+	/*
+	 * flag indication whether the PCB has been scheduled
+	 */
+	boolean scheduled;
 
 	/**
 	 * Control Flags for processing PCBs
@@ -176,6 +179,7 @@ public class PCB {
 		this.instructionTracks = new ArrayList<Integer>();
 		this.dataTracks = new LinkedList<Integer>();
 		this.state = new State();
+		this.scheduled = false;
 		state.setCurrent(ProcessStates.SPOOL.getName());
 		this.swapTracks = new int[10];
 		for (int i=0; i<swapTracks.length; i++) {
@@ -457,6 +461,13 @@ public class PCB {
 		currentQuantum = 0;
 	}
 
+	public boolean isScheduled() {
+		return scheduled;
+	}
+	
+	public void setScheduled(boolean schedule ) {
+		scheduled = schedule;
+	}
 	public String toString() {
 		return "PCB for process "+id+": " + 
 				"\n  maxTime = "+maxTime+"; currentTime = "+currentTime+
