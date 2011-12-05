@@ -53,7 +53,7 @@ public class PageTable {
 		pageTable[entryNum] = newEntry;
 	}
 	
-	public int getVictim() {
+	public int getVictimPage() {
 		for (int i=0; i < entries; i++) {
 			if (pageTable[i].getLRU() == 3)
 				return i;
@@ -134,5 +134,13 @@ public class PageTable {
 	
 	public void storePageTable(PageTable pt) {
 		pt.getInstance().storePageTable(-1);
+	}
+
+	public int getVictimFrame() {
+        return getEntry(getVictimPage()).getBlockNum();
+	}
+
+	public boolean isVictimDirty() {
+		return getEntry(getVictimPage()).isDirty();
 	}
 }

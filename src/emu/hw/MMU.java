@@ -35,7 +35,6 @@ public class MMU implements MemoryUnit {
 	}
 
 	public static MMU getInstance() {
-
 		if (ref == null) {
 			ref = new MMU();
 		}
@@ -383,7 +382,7 @@ public class MMU implements MemoryUnit {
 
 	public void Swap(int ptr, int newPage) {
 		// Find victim page: LRU[3]
-		int victimPage = PT.getVictim();
+		int victimPage = PT.getVictimPage();
 		// Find victim frame to swap out
 		int victimFrame = PT.getEntry(victimPage).getBlockNum();
 		trace.info("swapping page "+newPage+", victimPage="+victimPage+", victimFrame="+victimFrame);
