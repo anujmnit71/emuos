@@ -1067,21 +1067,21 @@ public class Kernel {
 		putOutputFullBuffer(ch3.getTask().getBuffer());
 		
 		//Check if output spooling is complete.
-//		if (p.outputComplete()) {
-//			trace.fine("Output Spooling complete for pid:"+p.getId());
-//			Buffer b = getEmptyBuffer();
-//			if (b != null) {
-//				//Prepare blank lines for print in between program output
-//				b.setData("-\n-");					
-//				b.setOutputFull();
-//				putOutputFullBuffer(b);
-//				dumpBuffers();
-//			}
-//			else {
-//				trace.warning("no empty buffers!");
-//				//TODO Need to handle this somehow. Otherwise these lines done get outputted.
-//			}
-//		}	
+		if (p.outputComplete()) {
+			trace.fine("Output Spooling complete for pid:"+p.getId());
+			Buffer b = getEmptyBuffer();
+			if (b != null) {
+				//Prepare blank lines for print in between program output
+				b.setData("-\n-");				
+				b.setOutputFull();
+				putOutputFullBuffer(b);
+				dumpBuffers();
+			}
+		}
+		else {
+			trace.warning("no empty buffers!");
+			//TODO Need to handle this somehow. Otherwise these lines done get outputted.
+		}
 //		else {
 //			putOutputFullBuffer(ch3.getTask().getBuffer());
 //		}
@@ -1200,7 +1200,7 @@ public class Kernel {
 				PCB termPCB = terminateQueue.peek();
 				if (termPCB.getHeaderLinedPrinted() == 0) {
 					trace.info("  "+termPCB.getId()+": assign header line 1 to channel 3");
-					eb.setData("-\n-\n"+termPCB.getId()+" "+termPCB.getTerminationStatus());
+					eb.setData(termPCB.getId()+" "+termPCB.getTerminationStatus());
 					termPCB.incrementHeaderLinedPrinted();
 					eb.setOutputFull();
 					putOutputFullBuffer(eb);
