@@ -215,6 +215,10 @@ public class CPUState implements Cloneable {
 	public int getIc() {
 		return ic;
 	}
+	
+	public int getPage() {
+		return ic / 10;
+	}
 
 	/**
 	 * set the instruction count

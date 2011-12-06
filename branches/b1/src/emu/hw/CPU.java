@@ -262,6 +262,9 @@ public class CPU implements Cloneable {
 		return state.ic;
 	}
 
+	public int getPage() {
+		return state.ic / 10;
+	}
 	/**
 	 * set the instruction count
 	 * @param ic
