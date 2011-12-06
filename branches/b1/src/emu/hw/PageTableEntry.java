@@ -1,7 +1,9 @@
 package emu.hw;
 
+import java.util.logging.Logger;
+
 public class PageTableEntry {
-	
+	static Logger trace = Logger.getLogger("emuos");
 	private String dirtySwap;
 	private String LRU;
 	private String blockNum;
@@ -87,7 +89,7 @@ public class PageTableEntry {
 	}
 	
 	public String toString() {
-//		System.out.println("PTE::"+dirtyBit+swapBit+String.format("%02d", blockNum));
+		trace.fine("PTE::"+dirtySwap+":"+LRU+":"+blockNum);
 		return ""+dirtySwap+LRU+blockNum;
 	}
 }

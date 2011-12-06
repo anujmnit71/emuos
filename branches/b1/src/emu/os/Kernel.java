@@ -732,9 +732,9 @@ public class Kernel {
 
 						PageTable pt = MMU.getInstance().getPageTable(ptr);
 						int victimPage = pt.getVictimPage();
-						int victimFrame = pt.getVictimFrame();
+						int victimFrame = pt.getVictimFrame(victimPage);
 
-						if (pt.isVictimDirty() == false && pcb.getSwapTrack(victimPage) != -1) { 	//victim page doesn't need to be swapped out
+						if (pt.isVictimDirty(victimPage) == false && pcb.getSwapTrack(victimPage) != -1) { 	//victim page doesn't need to be swapped out
 
 							trace.info("AMC*** page table before swap:"+pt.toString());
 							trace.info("AMC: RAM before swap:"+MMU.getInstance().toString());
@@ -819,9 +819,12 @@ public class Kernel {
 
 			PageTable pt = MMU.getInstance().getPageTable(ptr);
 			int victimPage = pt.getVictimPage();
-			int victimFrame = pt.getVictimFrame();
-
-			if (pt.isVictimDirty() == false && p.getSwapTrack(victimPage) != -1) { 	//victim page doesn't need to be swapped out
+			int victimFrame = pt.getVictimFrame(victimPage);
+			
+			/*
+			 * we need to make room for a new instruction page but the target page isn't dirty:
+			 */
+			if (pt.isVictimDirty(victimPage) == false && p.getSwapTrack(victimPage) != -1) { 	//victim page doesn't need to be swapped out
 
 				trace.info("AMC*** page table before swap:"+pt.toString());
 				trace.info("AMC: RAM before swap:"+MMU.getInstance().toString());
@@ -840,7 +843,10 @@ public class Kernel {
 				trace.fine("frame "+victimFrame+" being used for page "+pageNumber);
 				p.setState(ProcessStates.IO_LOADINST,ProcessStates.READY);
 			}
-			else {					//victim page does need to be swapped out
+			else {	
+				/*
+				 * we're swapping a page out to make room for a new instruction page:
+				 */
 				trace.info("AMC*** page table before swap:"+pt.toString());
 				trace.info("AMC: RAM before swap:"+MMU.getInstance().toString());
 
@@ -1020,15 +1026,16 @@ public class Kernel {
 		trace.finer("page table in swap out task:"+pt.toString());
 
 		int drumTrack = ch3.getTask().getTrack();
-		int victimPage = pt.getVictimPage();
-		victimPage = (Integer) ch3.getTask().getMisc();
-
+		int frame = ch3.getTask().getFrame();
+		int victimPage = (Integer) ch3.getTask().getMisc();
+		trace.fine("SWAP_OUT victimPage  ="+victimPage+"<- ch3.getTask().getMisc()");
+		trace.fine("SWAP_OUT victimFrame ="+frame);
+		trace.fine("SWAP_OUT drumTrack   ="+drumTrack);
 		// write drum track to PTE
 		pt.getEntry(victimPage).setBlockNum(drumTrack);
 		// clear dirty bit in PTE
 		pt.getEntry(victimPage).setDirty(false);
 		pt.getEntry(victimPage).setSwap();
-		//		swapPCB.setPageTable(pt);
 		MMU.getInstance().getRam().write(0, ptr, pt.toString());
 		//swapPCB.setState(Proc,ProcessStates.SWAP);
 		swapPCB.setSwapOut(false);
@@ -1194,7 +1201,7 @@ public class Kernel {
 			//			int newPage = swapPCB.getCPUState().getOperand() / 10;
 			//trace.info("victimPage = " + victimPage);
 			// Find victim frame to swap out
-			int victimFrame = pt.getVictimFrame();
+			int victimFrame = pt.getVictimFrame(victimPage);
 			trace.fine("victimFrame="+victimFrame+", victimPage="+victimPage);
 
 			if (swapPCB.getSwapOut() == true) {
@@ -1212,6 +1219,9 @@ public class Kernel {
 					// assignSwapOut(task,pt,victimPage,victimFrame);
 					drumTrack = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
 				}
+				trace.fine("set SWAP_OUT victimPage  ="+victimPage);
+				trace.fine("set SWAP_OUT victimFrame ="+victimFrame);
+				trace.fine("set SWAP_OUT track       ="+drumTrack);
 				// write victim page to drum track -- this will get queued up on the swap queue
 				task.setType(TaskType.SWAP_OUT);
 				task.setTrack(drumTrack);
@@ -1223,12 +1233,15 @@ public class Kernel {
 				//***AMC***
 
 				int newPage = swapPCB.getCPUState().getOperand() / 10;
+				trace.fine("set SWAP_IN newPage     ="+newPage);
+				trace.fine("set SWAP_IN victimFrame ="+victimFrame);
+				trace.fine("set SWAP_IN track       ="+pt.getEntry(newPage).getBlockNum());
 				//				pt.getEntry(victimPage).setSwap();
 				// call proc SwapIn to swap in the new page
 				//				if (pt.getEntry(newPage).isSwapped()) {
 				task.setType(TaskType.SWAP_IN);
-				task.setFrame(victimFrame);
-				task.setMisc(newPage);				
+				task.setFrame(newPage);
+				task.setMisc(victimPage);				
 				task.setTrack(pt.getEntry(newPage).getBlockNum());
 				//				}
 				//				else {
@@ -1287,6 +1300,8 @@ public class Kernel {
 			int track = 0;
 			int frame = 0;
 			if (ioPCB.getState().equals(ProcessStates.IO_LOADINST.getName())) {
+				int ic = ioPCB.getCPUState().getIc();
+				int page = ioPCB.getCPUState().getPage();
 				trace.info("    Assign a load instruction card to channel 3");
 				//irValue = ioPCB.getCPUState().getOperand();
 				//cpu.setPi(irValue);
@@ -1294,14 +1309,14 @@ public class Kernel {
 				//RAM because of pure demand paging.  
 				//the track we need to copy from is stored in the PCB in the instruction cards
 				//				irValue = ioPCB.getCPUState().getOperand();
-				track = ioPCB.getNextInstruction(ioPCB.getCPUState().getIc());
-				trace.fine("Instruction track for "+ioPCB.getCPUState().getIc()+": "+track);
-				frame = MMU.getInstance().getFrame(ptr,ioPCB.getCPUState().getIc());
-				trace.fine("Frame for "+ioPCB.getCPUState().getIc()+": "+frame);
-				ioPCB.setSwapTrack(ioPCB.getCPUState().getPage(), track);
+				track = ioPCB.getNextInstruction(ic);
+				trace.fine("Instruction track for "+ic+": "+track);
+				frame = MMU.getInstance().getFrame(ptr,ic);
+				trace.fine("Frame for "+ic+": "+frame);
+				ioPCB.setSwapTrack(page, track);
 				trace.finer("Swap tracks: "+ioPCB.printSwapTracks());
 				PageTable pt = MMU.getInstance().getPageTable(ptr);
-				pt.setLRU(pt.getEntry(ioPCB.getCPUState().getPage()));
+				pt.setLRU(pt.getEntry(page));
 				MMU.getInstance().getRam().write(0,ptr,pt.toString());
 				task.setTrack(track);
 				task.setFrame(frame);
@@ -1309,11 +1324,10 @@ public class Kernel {
 			}
 			else if (ioPCB.getState().equals(ProcessStates.IO_READ.getName()))
 			{
-
 				trace.info("    Assign an IO read to channel 3");
 				irValue = ioPCB.getCPUState().getOperand();
 				cpu.setPi(irValue);
-				trace.fine("pcb:\n"+ioPCB.toString());
+				trace.fine("pcb:irValue="+irValue+"\n"+ioPCB.toString());
 				track = ioPCB.getNextDataTrack();
 
 				trace.fine("next data track:"+track);
@@ -1353,6 +1367,7 @@ public class Kernel {
 					setError(ioPCB,ErrorMessages.OUT_OF_DATA.getErrCode());
 					ioPCB.setState(null,ProcessStates.TERMINATE);
 					//throw new RuntimeException("BREAK");
+					schedule(ioQueue);
 				}
 				else
 				{

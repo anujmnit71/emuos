@@ -654,8 +654,7 @@ public class CPU implements Cloneable {
 	 * Free the allocated pages and page table itself.
 	 */
 	public void freePageTable() {
-		mmu.freePageTable();
-		
+		mmu.freePageTable(state.ptr);		
 	}
 
 //	/**

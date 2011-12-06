@@ -140,7 +140,15 @@ public class PageTable {
         return getEntry(getVictimPage()).getBlockNum();
 	}
 
+	public int getVictimFrame(int victim) {
+        return getEntry(victim).getBlockNum();
+	}
+	
 	public boolean isVictimDirty() {
 		return getEntry(getVictimPage()).isDirty();
+	}
+	
+	public boolean isVictimDirty(int victim) {
+		return getEntry(victim).isDirty();
 	}
 }
