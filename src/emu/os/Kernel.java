@@ -403,9 +403,7 @@ public class Kernel {
 				assignChannel2();
 			}
 
-			slaveMode();
-
-			simulateHardware();
+			simulateHardware(slaveMode());
 
 			trace.info("End cycle "+cycleCount);
 			trace.info("Loaded processes = " + processCount);
@@ -444,7 +442,13 @@ public class Kernel {
 		return false;
 	}
 
-	public void slaveMode() throws HardwareInterruptException {
+	/**
+	 * Slave Execution
+	 * @return True if completed a full cycle, or if no work to do. 
+	 * False indicates exception during instruction fetch.
+	 * @throws HardwareInterruptException
+	 */
+	public boolean slaveMode() throws HardwareInterruptException {
 		trace.info("Start slave mode");
 		trace.fine("raised interrupts = " + raisedInterrupts + "");
 		if (readyQueue.size() >= 1) // if there's a process to run this cycle
@@ -457,7 +461,7 @@ public class Kernel {
 			catch (HardwareInterruptException hie) {
 				raisedInterrupts++;
 				trace.info("  CPU fetch raised interrupt");
-				return;
+				return false;
 			}
 			cpu.increment();
 			try {
@@ -470,13 +474,15 @@ public class Kernel {
 		}
 		else
 			trace.info("  No process to run this cycle");
+		
+		return true;
 	}
 
 	/**
 	 * simulate Hardware cycle
 	 * @throws HardwareInterruptException
 	 */
-	public void simulateHardware() throws HardwareInterruptException {
+	public void simulateHardware(boolean fullSlaveCycle) throws HardwareInterruptException {
 		trace.info("Simulate hardware");
 
 		// This is needed to get the OS started.
@@ -515,7 +521,7 @@ public class Kernel {
 
 		try {
 			PCB p = getCurrentProcess();
-			if (p != null) {
+			if (p != null && fullSlaveCycle) {
 				p.incrementTimeCount();			
 			}
 		}
