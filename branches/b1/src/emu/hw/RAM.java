@@ -170,6 +170,7 @@ public class RAM implements MemoryUnit {
 		int blockAddr = frame*10;
 //		int blockAddr = frame;
 
+		trace.info("  Writing frame#"+frame+"; data: "+data);
 		for (int i = 0 ; i < 10 ; i++) {
 			String word = data.substring(0,wordLength);
 			store(ptr,blockAddr+i, word);
