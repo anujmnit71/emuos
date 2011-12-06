@@ -151,8 +151,7 @@ public class PCB {
 		IO_LOADINST ("io-loadinst"),
 		MEMORY    ("memory"),
 		TERMINATE ("terminate"),
-		SWAP_OUT      ("swap-out"),
-		SWAP_IN   ("swap-in"),
+		SWAP      ("swap"),
 		SPOOL     ("spool");
 
 		String name;
@@ -243,7 +242,6 @@ public class PCB {
 		int retval = -1;
 		//WM not sure about this
 		if (getNumInstructionTracks() > 0) {
-//			int value = ic % getNumInstructionTracks();
 			int value = ic / 10;		//if IC is 1 we want to get the 1st card at index=0; if IC is 50, we want to get the 6th card at index=5
 			retval = instructionTracks.get(value);
 		}
@@ -460,6 +458,12 @@ public class PCB {
 	public void resetCurrentQuantum() {
 		currentQuantum = 0;
 	}
+	
+	public boolean isQuantumExpired() {
+		if (currentQuantum > maxQuantum) 
+			return true;
+		return false;
+	}
 
 	public boolean isScheduled() {
 		return scheduled;
@@ -469,6 +473,10 @@ public class PCB {
 		scheduled = schedule;
 	}
 	public String toString() {
+		String cpu = new String();
+		if (cpuState != null)
+			cpu = cpuState.toString();
+		
 		return "PCB for process "+id+": " + 
 				"\n  maxTime = "+maxTime+"; currentTime = "+currentTime+
 				"\n  maxPrints = "+maxPrints+"; currentPrints = "+currPrints+
@@ -478,7 +486,9 @@ public class PCB {
 				"\n  instructionTracks:"+instructionTracks.toString()+
 				"\n  dataTracks:"+dataTracks.toString()+
 				"\n  swapTracks:"+printSwapTracks()+
+				"\n  cpuState:"+cpu+
 				"\n";
+		
 	}
 	
 	public String printSwapTracks() {

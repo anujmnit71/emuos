@@ -141,7 +141,7 @@ public class MMU implements MemoryUnit {
 		int logicalPageNum = logicalAddr / 10;
 		int displacement = logicalAddr % 10;
 		Integer frameNum;
-		trace.finer("-->");
+		trace.finer("--> ptr="+ptr+",logicalAddr="+logicalAddr);
 		// Get page table from memory. Note that this fills in variable PT with
 		// the page table.
 		// It is used in read/write/load/store to set the LRU/dirty bit of the

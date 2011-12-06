@@ -56,10 +56,6 @@ public class Kernel {
 	 */
 	CPU cpu;
 	/**
-	 * Dummy Kernel process
-	 */
-	PCB dummyPCB;
-	/**
 	 * Reads data from input file (card reader)
 	 */
 	Channel1 ch1;
@@ -295,11 +291,7 @@ public class Kernel {
 		trace.info("Initializing EmuOS:");
 		cpu = CPU.getInstance();
 		cpu.setState(new CPUState());
-		//		cpu.initPageTable();       // why?
-
-		dummyPCB = new PCB("kernel process", -1, -1);
-		dummyPCB.setCpuState((CPUState) cpu.getCPUState().clone());
-
+		
 		processCount = 0;
 
 		//Init I/O
@@ -759,9 +751,8 @@ public class Kernel {
 							trace.info("AMC*** page table after swap:"+pt.toString());
 							trace.info("AMC: RAM after swap:"+MMU.getInstance().toString());
 							trace.fine("frame "+victimFrame+" being used for page "+pageNumber);
-							p.setState(ProcessStates.IO_LOADINST,ProcessStates.READY);
-							pcb.setSwapOut(false);		// so the Kernel knows this process is on the ioq for swap out
-						} else {
+							p.setState(null,ProcessStates.IO_LOADINST);
+						} else { //victim page needs to be swapped out
 							
 							pt.getEntry(pageNumber).setDirty(false);
 							pt.getEntry(pageNumber).setSwap(false);
@@ -774,9 +765,9 @@ public class Kernel {
 
 							MMU.getInstance().getRam().write(0,ptr,pt.toString());
 							if (pcb.getSwapTrack(pageNumber) != -1) {
-								pcb.setState(ProcessStates.SWAP_OUT, ProcessStates.SWAP_IN);
+								pcb.setState(null,ProcessStates.SWAP);
 							} else {
-								pcb.setState(ProcessStates.SWAP_OUT, ProcessStates.IO_READ);
+								pcb.setState(ProcessStates.SWAP, ProcessStates.IO_READ);
 							}
 							pcb.setSwapOut(true);		// so the Kernel knows this process is on the swapq for swap out
 						}
@@ -810,7 +801,7 @@ public class Kernel {
 		 */
 		trace.info("Page fault during fetch");
 		ptr = cpu.getPtr();
-		pageNumber = cpu.getIc() / 10;
+		pageNumber = cpu.getPage();
 		frame = cpu.allocatePage(pageNumber);
 		if (frame == 99) {
 			trace.info("  Need to do some swapping");
@@ -865,7 +856,7 @@ public class Kernel {
 				MMU.getInstance().getRam().write(0,ptr,pt.toString());
 
 				//put the process on the swap q so the victim page can get written to the drum
-				p.setState(ProcessStates.SWAP_OUT,ProcessStates.IO_LOADINST);
+				p.setState(ProcessStates.SWAP,ProcessStates.IO_LOADINST);
 				p.setSwapOut(true);		// so the Kernel knows this process is on the swapq for swap out
 			}
 		}
@@ -1029,7 +1020,8 @@ public class Kernel {
 		trace.finer("page table in swap out task:"+pt.toString());
 
 		int drumTrack = ch3.getTask().getTrack();
-		int victimPage = (Integer) ch3.getTask().getMisc();
+		int victimPage = pt.getVictimPage();
+		victimPage = (Integer) ch3.getTask().getMisc();
 
 		// write drum track to PTE
 		pt.getEntry(victimPage).setBlockNum(drumTrack);
@@ -1038,8 +1030,9 @@ public class Kernel {
 		pt.getEntry(victimPage).setSwap();
 		//		swapPCB.setPageTable(pt);
 		MMU.getInstance().getRam().write(0, ptr, pt.toString());
-		//		swapPCB.setState(null,ProcessStates.SWAP_IN);
-		schedule(swapQueue);
+		//swapPCB.setState(Proc,ProcessStates.SWAP);
+		swapPCB.setSwapOut(false);
+		//schedule(swapQueue);
 	}
 
 	//Housekeeping to be done after swap in has been done
@@ -1059,7 +1052,7 @@ public class Kernel {
 		// write frame num to PTE
 		pt.getEntry(newPage).setBlockNum(victimFrame);
 		MMU.getInstance().getRam().write(0, ptr, pt.toString());
-		//		swapPCB.setState(null,ProcessStates.READY);
+		swapPCB.setState(ProcessStates.READY,null);
 		schedule(swapQueue);
 	}
 
@@ -1168,7 +1161,7 @@ public class Kernel {
 	 * @throws IOException 
 	 */
 	private void assignChannel3 () throws HardwareInterruptException, IOException {
-		//		trace.finest("-->");
+		trace.finest("-->");
 
 		if (ch3.isBusy()) {
 			trace.info("  Channel 3 is busy");
@@ -1223,7 +1216,6 @@ public class Kernel {
 				task.setTrack(drumTrack);
 				task.setFrame(victimFrame);
 				task.setMisc(victimPage);
-				swapPCB.setSwapOut(false);
 			}
 			else	//else we've already swapped out (or don't need to swap out), now we need to swap in
 			{
@@ -1295,8 +1287,8 @@ public class Kernel {
 			int frame = 0;
 			if (ioPCB.getState().equals(ProcessStates.IO_LOADINST.getName())) {
 				trace.info("    Assign a load instruction card to channel 3");
-				irValue = ioPCB.getCPUState().getOperand();
-				cpu.setPi(irValue);
+				//irValue = ioPCB.getCPUState().getOperand();
+				//cpu.setPi(irValue);
 				//if the state is IO_LOADINST then we need to copy an instruction card from the drum to 
 				//RAM because of pure demand paging.  
 				//the track we need to copy from is stored in the PCB in the instruction cards
@@ -1305,10 +1297,10 @@ public class Kernel {
 				trace.fine("Instruction track for "+ioPCB.getCPUState().getIc()+": "+track);
 				frame = MMU.getInstance().getFrame(ptr,ioPCB.getCPUState().getIc());
 				trace.fine("Frame for "+ioPCB.getCPUState().getIc()+": "+frame);
-				ioPCB.setSwapTrack(ioPCB.getCPUState().getIc()/10, track);
+				ioPCB.setSwapTrack(ioPCB.getCPUState().getPage(), track);
 				trace.finer("Swap tracks: "+ioPCB.printSwapTracks());
 				PageTable pt = MMU.getInstance().getPageTable(ptr);
-				pt.setLRU(pt.getEntry(ioPCB.getCPUState().getIc()/10));
+				pt.setLRU(pt.getEntry(ioPCB.getCPUState().getPage()));
 				MMU.getInstance().getRam().write(0,ptr,pt.toString());
 				task.setTrack(track);
 				task.setFrame(frame);
@@ -1320,6 +1312,7 @@ public class Kernel {
 				trace.info("    Assign an IO read to channel 3");
 				irValue = ioPCB.getCPUState().getOperand();
 				cpu.setPi(irValue);
+				trace.fine("pcb:\n"+ioPCB.toString());
 				track = ioPCB.getNextDataTrack();
 
 				trace.fine("next data track:"+track);
@@ -1348,7 +1341,7 @@ public class Kernel {
 					ioPCB.setSwapTrack(irValue/10, track);
 					trace.finer("Swap tracks: "+ioPCB.printSwapTracks());
 					PageTable pt = MMU.getInstance().getPageTable(ptr);
-					pt.setLRU(pt.getEntry(ioPCB.getCPUState().getIc()/10));
+					pt.setLRU(pt.getEntry(ioPCB.getCPUState().getPage()));
 					MMU.getInstance().getRam().write(0,ptr,pt.toString());
 					//trace.info("using frame " + frame);
 
@@ -1398,14 +1391,14 @@ public class Kernel {
 						}
 					}
 					finally {
-						if (ioPCB.getState().equals(ProcessStates.IO_WRITE)) {
+						if (!ioPCB.getState().equals(ProcessStates.IO_WRITE)) {
 							schedule(ioQueue);
 							return;
 						}
 						
 						frame = MMU.getInstance().getFrame(ptr,irValue);
 						PageTable pt = MMU.getInstance().getPageTable(ptr);
-						pt.setLRU(pt.getEntry(ioPCB.getCPUState().getIc()/10));
+						pt.setLRU(pt.getEntry(ioPCB.getCPUState().getPage()));
 						MMU.getInstance().getRam().write(0,ptr,pt.toString());
 					}
 
@@ -1884,22 +1877,24 @@ public class Kernel {
 		PCB pcb = queue.remove();	
 		
 		if(pcb.getState().equals(ProcessStates.IO_LOADINST)) {
+			trace.info(pcb.getId()+": add to io queue :"+pcb.getCPUState().toString());
 			ioQueue.add(pcb);
-		} else if (pcb.getState().equals(ProcessStates.SWAP_OUT)
-				|| pcb.getState().equals(ProcessStates.SWAP_IN)) {
+		} else if (pcb.getState().equals(ProcessStates.SWAP)) {
 			swapQueue.add(pcb);
 		} else if(pcb.getNextState().equals(ProcessStates.TERMINATE.getName())) {
+			trace.info(pcb.getId()+": add to terminate queue :"+pcb.getCPUState().toString());
 			pcb.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 			terminateQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.MEMORY.getName())) {
+			trace.info(pcb.getId()+": add to memory queue :"+pcb.getCPUState().toString());
 			pcb.setState(ProcessStates.MEMORY,ProcessStates.READY);
 			memoryQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.IO_READ.getName())
 				|| pcb.getNextState().equals(ProcessStates.IO_WRITE.getName())
 				|| pcb.getNextState().equals(ProcessStates.IO_LOADINST.getName())) {
-
+			trace.info(pcb.getId()+": add to io queue :"+pcb.getCPUState().toString());
 			if (pcb.getNextState().equals(ProcessStates.IO_READ.getName()))
 				pcb.setState(ProcessStates.IO_READ,ProcessStates.READY);
 			else if (pcb.getNextState().equals(ProcessStates.IO_WRITE.getName()))
@@ -1910,16 +1905,14 @@ public class Kernel {
 			ioQueue.add(pcb);
 		}
 		//***AMC***
-		else if(pcb.getNextState().equals(ProcessStates.SWAP_OUT.getName())) {
-			pcb.setState(ProcessStates.SWAP_OUT,ProcessStates.READY);
+		else if(pcb.getNextState().equals(ProcessStates.SWAP.getName())) {
+			trace.info(pcb.getId()+": add to swap queue :"+pcb.getCPUState().toString());
+			pcb.setState(ProcessStates.SWAP,ProcessStates.READY);
 			swapQueue.add(pcb);
 		}
-		else if(pcb.getNextState().equals(ProcessStates.SWAP_IN.getName())) {
-			pcb.setState(ProcessStates.SWAP_IN,ProcessStates.READY);
-			swapQueue.add(pcb);
-		}		
 		else if(pcb.getNextState().equals(ProcessStates.READY.getName())) {
-			pcb.setState(ProcessStates.READY,ProcessStates.READY);
+			pcb.setState(ProcessStates.READY,null);
+			trace.info(pcb.getId()+": add to ready queue :"+pcb.getCPUState().toString());
 			readyQueue.add(pcb);
 		}
 	}
@@ -1932,16 +1925,15 @@ public class Kernel {
 		// Stores CPU status to the PCB that is being switched
 		try {
 			if (movePCB.getCPUState() == null || readyQueue.size() != 0) {
-				movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
-				movePCB.setPageTable(MMU.getInstance().getPageTable());
+				//movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
+				//movePCB.setPageTable(MMU.getInstance().getPageTable());
 			}
-
+			movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
 
 			trace.fine("+++ out "+ movePCB.getId() +"> " + movePCB.getState() + ":" + movePCB.getCPUState().toString());
 			trace.fine("+++ out pcb> " + movePCB.getPageTable().toString());
 			trace.fine("+++ out cpu> " + MMU.getInstance().getPageTable().toString());
 			//trace.info(MMU.getInstance().getRam().toString());
-			movePCB.setRunning(false);
 		} catch (CloneNotSupportedException e) {
 			trace.log(Level.WARNING, "Failed to clone current CPU state", e);
 		}
@@ -1989,14 +1981,6 @@ public class Kernel {
 			currentPCB.setRunning(true);
 			//trace.info("*** " + getCurrentProcess().getPageTable().toString());
 		}
-		else
-		{
-			dummyPCB.getCPUState().setIc(0);
-			cpu.setState(dummyPCB.getCPUState());
-			dummyPCB.getPageTable().storePageTable();
-			trace.fine("+++ kernal < " + dummyPCB.getId());
-			trace.fine("+++ kernal < " + dummyPCB.getCPUState().toString());
-		}
 	}
 
 	private void dispatch() throws HardwareInterruptException, CloneNotSupportedException, IOException {
@@ -2019,11 +2003,12 @@ public class Kernel {
 				contextSwitch(ProcessQueues.IOQ);
 			}
 			//***AMC***
-			else if(pcb.getState().equals(ProcessStates.SWAP_OUT.getName())) {
+			else if(pcb.getState().equals(ProcessStates.SWAP.getName())) {
 				contextSwitch(ProcessQueues.SWAPQ);
 			}
 			else if(pcb.getState().equals(ProcessStates.READY.getName())) {
-				contextSwitch(ProcessQueues.READYQ);
+				if (pcb.isQuantumExpired())
+					contextSwitch(ProcessQueues.READYQ);
 			}
 			else if(pcb.getState().equals(ProcessStates.SPOOL.getName())) {
 				initialProcessLoad();
@@ -2034,7 +2019,7 @@ public class Kernel {
 	private void initialProcessLoad() throws HardwareInterruptException, CloneNotSupportedException, IOException {
 		trace.finer("-->");
 		PCB pcb = getCurrentProcess();
-		pcb.setState(ProcessStates.READY,ProcessStates.READY);
+		pcb.setState(ProcessStates.READY,null);
 		trace.fine(pcb.getId());
 		if (readyQueue.size() == 1) {
 			inputSpoolingComplete = true;
