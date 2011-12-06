@@ -42,6 +42,9 @@ public class Channel1 extends Channel {
 		try {
 			//Read block from input file (card reader)
 			String data = cardReader.readLine();
+			while(data.startsWith("#")) {
+				data = cardReader.readLine();
+			}
 			if (data.length() > 40) {
 				data = data.substring(0,40);
 			}
