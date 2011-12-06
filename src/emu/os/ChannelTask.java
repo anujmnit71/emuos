@@ -75,6 +75,6 @@ public class ChannelTask {
 		misc = obj;
 	}
 	public String toString() {
-		return "[ ChannelTask :: task="+type+", buffer="+buffer+", frame="+frame+", track="+track+" ]";
+		return "[ ChannelTask :: task="+type+", frame="+frame+", track="+track+", buffer="+buffer+" ]";
 	}
 }

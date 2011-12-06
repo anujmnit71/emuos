@@ -402,7 +402,7 @@ public class CPU implements Cloneable {
 	 * @param value
 	 */
 	public void setIOi(int value) {
-		trace.info("    Setting IOi="+value);
+		trace.info("    IOi+="+value);
 		int newVal = state.ioi.getValue() | value;
 		setIOi(Interrupt.getIOi(newVal));
 	}

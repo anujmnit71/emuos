@@ -13,7 +13,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.logging.FileHandler;
@@ -21,7 +20,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import emu.hw.Buffer;
-import emu.hw.Buffer.BufferState;
 import emu.hw.CPU;
 import emu.hw.CPU.CPUStep;
 import emu.hw.CPUState;
@@ -356,6 +354,7 @@ public class Kernel {
 			//trace.info("starting boot process");
 			trace.finer("Start cycle "+cycleCount);
 			cpu.setIOi(Interrupt.IO_CHANNEL_1.getValue());
+			raisedInterrupts++;
 			mainLoop();
 		} catch (Exception e) {
 			trace.log(Level.SEVERE, "Uncaught exception in mainLoop", e);
@@ -450,6 +449,7 @@ public class Kernel {
 		trace.fine("raised interrupts = " + raisedInterrupts + "");
 		if (readyQueue.size() >= 1) // if there's a process to run this cycle
 		{
+			trace.info("Execution for process:"+readyQueue.peek().getId());
 			trace.info("CPU State:"+cpu.toString());
 			try {
 				cpu.fetch();
@@ -1122,7 +1122,7 @@ public class Kernel {
 
 		//Check if output spooling is complete.
 		if (p.outputComplete()) {
-			trace.fine("Output Spooling complete for pid:"+p.getId());
+			trace.info("Output Spooling complete for process:"+p.getId());
 			Buffer b = getEmptyBuffer();
 			if (b != null) {
 				//Prepare blank lines for print in between program output
@@ -1195,6 +1195,7 @@ public class Kernel {
 			//trace.info("victimPage = " + victimPage);
 			// Find victim frame to swap out
 			int victimFrame = pt.getVictimFrame();
+			trace.fine("victimFrame="+victimFrame+", victimPage="+victimPage);
 
 			if (swapPCB.getSwapOut() == true) {
 				// Find victim page: LRU[3]
@@ -1418,7 +1419,7 @@ public class Kernel {
 			}
 		}
 		else {
-			trace.fine("  Nothing to do for channel 3");
+			trace.info("  Nothing to do for channel 3");
 		}
 
 		//If a task type was set, start the channel
@@ -1539,7 +1540,7 @@ public class Kernel {
 			ch2.start(task);
 		}
 		else {
-			trace.warning("Nothing to do for channel 2!");
+			trace.fine("Nothing to do for channel 2!");
 			PCB terminatedPCB = terminateQueue.peek();
 			if (terminatedPCB.headerLinedPrinted == 2 
 					&& terminatedPCB.outputComplete()) {

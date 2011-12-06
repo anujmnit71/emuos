@@ -37,7 +37,7 @@ public class Channel1 extends Channel {
 	}
 	@Override
 	void run() {
-		trace.info("    Running channel 1, Task: "+task.getType());
+		trace.info("    Running channel 1, "+task);
 		
 		try {
 			//Read block from input file (card reader)

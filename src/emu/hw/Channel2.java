@@ -37,12 +37,12 @@ public class Channel2 extends Channel {
 	}
 	@Override
 	void run() {
-		trace.info("    Running channel 2, Task: "+task);
+		trace.info("    Running channel 2, "+task);
 		
 		try {
 			//Read block from input file (card reader) to the buffer.
 			String data = task.getBuffer().getData();
-			trace.info("    Printing:'"+data+"'");
+			trace.info("    Printing line:'"+data.replace("\n", "")+"'");
 			printer.write(data);
 			printer.newLine();
 			printer.flush();

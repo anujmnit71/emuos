@@ -312,13 +312,13 @@ public class PCB {
 			trace.fine("pid: "+id+", currentQuantum: "+currentQuantum);
 		}
 		else {
-			trace.info("  Quantum reached for "+id);
+			trace.info("  Quantum reached for process: "+id);
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_QUANTUM);
 			retval = false;
 		}
 
 		if (currentTime <= maxTime) {
-			trace.fine("curr time: "+currentTime+", max time="+maxTime);
+			trace.info("  Process "+id+" currentTime="+currentTime+", quantum="+currentQuantum+", maxTime="+maxTime);
 		} else {
 			if (maxTime >= 0) {
 				trace.severe("max time ("+maxTime+") exceeded");
