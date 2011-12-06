@@ -189,23 +189,23 @@ public class MMU implements MemoryUnit {
 	 * Free the frames pointed to by the page table and free the page table itself
 	 * when a process is terminating
 	 */
-	public void freePageTable() {
+	public void freePageTable(int ptr) {
 		//Read the current page table			
 		PageTable PT = getPageTable();
-		freePageTable(PT);
+		freePageTable(ptr,PT);
 	}
 	/**
 	 * Free the page table at the given frame
 	 * @param ptFrame
 	 */
-	public void freePageTable(int ptFrame) {
-		freePageTable(getPageTable(ptFrame));
+	public void freePageTable(int ptr, int ptFrame) {
+		freePageTable(ptr, getPageTable(ptFrame));
 	}
 	/**
 	 * Free the given PageTable
 	 * @param PT
 	 */
-	public void freePageTable(PageTable PT) {
+	public void freePageTable(int ptr,PageTable PT) {
 		int frameNum = 0;
 		trace.finest("Page table: "+PT.toString());
 
@@ -213,7 +213,10 @@ public class MMU implements MemoryUnit {
 		for (int i=0; i<numPages; i++) {
 			try {
 				frameNum = PT.getEntry(i).getBlockNum();
-				ram.markFree(frameNum);
+				if(!PT.getEntry(i).isSwapped()){
+					trace.fine("frame="+frameNum);
+					ram.markFree(frameNum);
+				}
 			}
 			catch (NumberFormatException e) {
 				trace.finest(i + " wasn't backed by a frame");
@@ -235,8 +238,12 @@ public class MMU implements MemoryUnit {
 		//So to randomly select one of them, use the generator to grab a random int <= the size of the List
 		//and select frameNum to be the int located at that randomly selected index
 		//so we don't have to check to see if it's allocated and keep trying again. When there is only one free frame
-		//that could take a long time and this is very fast.  
-		int frameNum = ram.getFreeFrames().get(generator.nextInt(ram.getFreeFrames().size()));
+		//that could take a long time and this is very fast.
+		int rand = generator.nextInt(ram.getFreeFrames().size());
+		trace.fine("free ram fremes size = "+ram.getFreeFrames().size());
+		trace.fine("random value         = "+rand);
+		int frameNum = ram.getFreeFrames().get(rand);
+		trace.fine("free ram frames      = "+ram.getFreeFrames().toString());
 		trace.info("  Frame allocated: "+frameNum);
 		//Clear any residual data from the frame
 		String spaces = Utilities.padStringToLength(new String("")," ",40,false);

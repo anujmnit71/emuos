@@ -412,15 +412,15 @@ public class PCB {
 
 		//Free instruction tracks
 		for (int t : instructionTracks) {
-			CPU.getInstance().getMMU().getDrum().freeTrack(t);
+			MMU.getInstance().getDrum().freeTrack(t);
 		}
 
 		//Free data tracks
 		for (int d : dataTracks) {
-			CPU.getInstance().getMMU().getDrum().freeTrack(d);
+			MMU.getInstance().getDrum().freeTrack(d);
 		}
 
-		CPU.getInstance().getMMU().freePageTable(cpuState.getPtr());
+		MMU.getInstance().freePageTable(cpuState.getPtr());
 	}
 
 	public CPUState getCPUState() {
@@ -582,7 +582,7 @@ public class PCB {
 	 */
 	public int allocatePage(int pageNumber) {
 		//Read the current page table
-		pageTable = new PageTable(CPU.getInstance().getMMU().getRam().read(0,cpuState.getPtr()));
+		pageTable = new PageTable(MMU.getInstance().getRam().read(0,cpuState.getPtr()));
 		trace.finer("Pages in memory: "+pageTable.pagesInMemory());
 		//If we haven't already allocated 4 frames in memory (page table plus 3 frames
 		if (pageTable.pagesInMemory() < pagesAllowedInMemory) { 
@@ -592,7 +592,7 @@ public class PCB {
 			trace.info("  Allocating frame "+frame+" for page " + pageNumber);
 			// Update page table entry.
 			//Read the current page table
-//			pageTable = new PageTable(CPU.getInstance().getMMU().getRam().read(0,cpuState.getPtr()));	//AMC: need to get page table from CPU
+//			pageTable = new PageTable(MMU.getInstance().getRam().read(0,cpuState.getPtr()));	//AMC: need to get page table from CPU
 			//stick the new frame number in the correct PTE
 			pageTable.getEntry(pageNumber).setBlockNum(frame);
 			//indicate that it's been recently used
