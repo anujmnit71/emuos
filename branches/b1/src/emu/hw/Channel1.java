@@ -18,6 +18,7 @@ public class Channel1 extends Channel {
 	 * The input file (card reader)
 	 */
 	BufferedReader cardReader;
+	boolean blockComment = false;
 	
 	private Channel1(int cycleTime, CPU cpu) {
 		super(cycleTime, cpu);
@@ -42,7 +43,13 @@ public class Channel1 extends Channel {
 		try {
 			//Read block from input file (card reader)
 			String data = cardReader.readLine();
-			while(data.startsWith("#")) {
+			while(data.startsWith("#") || blockComment == true) {
+				if (data.startsWith("##")) {
+					if (blockComment != true)
+						blockComment = true;
+					else 
+						blockComment = false;
+				}
 				data = cardReader.readLine();
 			}
 			if (data.length() > 40) {
