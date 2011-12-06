@@ -124,9 +124,18 @@ public class PCB {
 	
 	boolean eojReached = true;
 	/*
-	 * flag indicating whether this PCB is on the swapq for swap out or swap in
+	 * flags indicating whether this PCB is on the swapq for swap out or swap in (or both)
 	 */
-	boolean swapOut;
+	public boolean swapOut;
+	public boolean swapIn;
+	
+	/* Variables to use in swap out and swap in task */
+	public int swapFrame;
+	public int swapOutTrack;
+	public int swapInTrack;
+	public int swapVictimPage;
+	public int swapInPage; 
+	
 	/*
 	 * flag indication whether the PCB has been scheduled
 	 */
@@ -437,6 +446,15 @@ public class PCB {
 
 		if (next != null)
 			this.state.setNext(next.getName());
+	}
+	
+	public void setState(ProcessStates state,String next) {
+		this.state.setCurrent(state.getName());
+		this.state.setNext(next);
+	}
+	
+	public void setState(ProcessStates state) {
+		this.state.setCurrent(state.getName());
 	}
 
 	public String getState() {
