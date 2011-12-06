@@ -84,6 +84,6 @@ public class Buffer {
 	public String toString() {
 		String dataNoEnline = null;
 		if (data != null) { dataNoEnline = data.replace("\n", "");}
-		return "[ Buffer :: id="+id+", data="+dataNoEnline+", state="+state+" ]";
+		return "[ id="+id+", data="+dataNoEnline+", state="+state+" ]";
 	}
 }

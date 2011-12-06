@@ -384,8 +384,10 @@ public class CPU implements Cloneable {
 	public void setIOi(Interrupt ioi) {
 		if (ioi.getType().equals(InterruptType.IO)
 				|| ioi.getType().equals(InterruptType.MASTER) 
-				|| ioi.equals(Interrupt.CLEAR))
+				|| ioi.equals(Interrupt.CLEAR)) {
 			state.ioi = ioi;
+			trace.fine("Raising IO interrupt: "+state.ioi);
+		}
 		else {
 			trace.log(Level.SEVERE,"You tried to set the incorrect interrupt for IO Interrupt: " +ioi);
 			state.ioi = Interrupt.WRONGTYPE;
@@ -397,7 +399,7 @@ public class CPU implements Cloneable {
 	 * @param value
 	 */
 	public void setIOi(int value) {
-		trace.info("    Setting ioi="+value);
+		trace.info("    Setting IOi="+value);
 		int newVal = state.ioi.getValue() | value;
 		setIOi(Interrupt.getIOi(newVal));
 	}
@@ -407,7 +409,7 @@ public class CPU implements Cloneable {
 	 * @param value
 	 */
 	public void clearIOi(int value) {
-		trace.info("    Clearing ioi="+value);
+		trace.info("    Clearing IOi="+value);
 		int newVal = (Interrupt.IO_CHANNEL_123.getValue() - value) & state.ioi.getValue();
 		setIOi(Interrupt.getIOi(newVal));
 	}
@@ -442,11 +444,12 @@ public class CPU implements Cloneable {
 	public void execute() throws HardwareInterruptException {
 		step = CPUStep.EXECUTE;
 //		trace.finer("-->");
-		trace.info("CPU execution: "+toString());
+		trace.info("  CPU State: "+toString());
+		trace.info("  Executing instruction "+state.ir.toString());
 		state.clock++;
 		int logicalAddr = 0;
 		if (state.ir == null) {
-			trace.info("NoOp");
+			trace.info("  NoOp");
 		}
 		else if (state.ir.startsWith(LOAD)) {
 			logicalAddr = getOperand();
@@ -497,7 +500,7 @@ public class CPU implements Cloneable {
 		 * exception
 		 */
 
-		trace.info(toString());
+		trace.info("  CPU State: "+toString());
 		if (state.si != Interrupt.CLEAR
 				|| state.pi != Interrupt.CLEAR){
 			trace.finer("<--");
@@ -514,7 +517,7 @@ public class CPU implements Cloneable {
 	public void fetch() throws HardwareInterruptException {
 		step = CPUStep.FETCH;
 		state.ir = mmu.load(state.ptr,state.ic);
-		trace.info("  "+state.ir+" from logical address "+state.ic);
+		trace.info("  Fetched instruction "+state.ir+" from logical address "+state.ic);
 	}
 	
 	/**
@@ -523,7 +526,7 @@ public class CPU implements Cloneable {
 	public void increment() {
 		step = CPUStep.INCREMENT;
 		state.ic++;
-		trace.info("  ic<-"+state.ic);
+		trace.info("  Incremented IC: ic<-"+state.ic);
 	}
 
 	/**
@@ -531,7 +534,7 @@ public class CPU implements Cloneable {
 	 */
 	public void decrement() {
 		 state.ic--;
-		 trace.info("  ic<-"+state.ic);
+		 trace.info("  Decremented IC: ic<-"+state.ic);
 	}
 	
 	/**
@@ -575,7 +578,7 @@ public class CPU implements Cloneable {
 	public void writeFrame(int frame, String data) throws HardwareInterruptException {
 //		trace.finer("-->");
 		mmu.writeFrame(state.ptr,frame, data);
-		trace.info(frame+"<-"+data);
+		trace.info("  "+frame+"<-"+data);
 //		trace.finer("<--");
 	}
 	
@@ -589,7 +592,7 @@ public class CPU implements Cloneable {
 			throws HardwareInterruptException {
 //		trace.finer("-->");
 		mmu.write(state.ptr,logicalAddr,data);
-		trace.info(logicalAddr + "<-" + data);
+		trace.info("  "+logicalAddr + "<-" + data);
 //		trace.finer("<--");
 	}
 
@@ -640,7 +643,7 @@ public class CPU implements Cloneable {
 	public void initPageTable() {
 		setPtr(mmu.initPageTable());
 		setPtl(0);
-		trace.info("ptr="+getPtr()+", ptl="+getPtl());
+		trace.info("  PTR="+getPtr()+", PTL="+getPtl());
 
 	}
 

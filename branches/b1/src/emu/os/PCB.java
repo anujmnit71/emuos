@@ -171,7 +171,7 @@ public class PCB {
 	 * @param maxPrints
 	 */
 	public PCB(String id, int maxTime, int maxPrints) {
-		trace.info("init PCB, id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints);
+		trace.info("  Init PCB, id="+id+", maxTime="+maxTime+", maxPrints="+maxPrints);
 		this.id = id;
 		this.maxTime = maxTime;
 		this.maxPrints = maxPrints;
@@ -275,7 +275,7 @@ public class PCB {
 	 */
 	public void startExecution() throws IOException {
 //		trace.fine("-->");
-		trace.info("starting process "+id);
+		trace.info("  Starting process "+id);
 		running = true;
 		Kernel.getInstance().getCpu().setIc(0);
 		Kernel.getInstance().getCpu().setSi(Interrupt.CLEAR);
@@ -314,7 +314,7 @@ public class PCB {
 			trace.fine("pid: "+id+", currentQuantum: "+currentQuantum);
 		}
 		else {
-			trace.info("quantum reached for "+id);
+			trace.info("  Quantum reached for "+id);
 			Kernel.getInstance().getCpu().setTi(Interrupt.TIME_QUANTUM);
 			retval = false;
 		}
@@ -409,7 +409,7 @@ public class PCB {
 	 * Free resources allocated by this process.
 	 */
 	public void terminate() {
-		trace.info("terminating process "+id);
+		trace.info("  Terminating process "+id);
 		setRunning(false);
 
 		//Free instruction tracks
@@ -579,6 +579,7 @@ public class PCB {
 			System.out.println("Allocating a page");
 			// Allocate a frame. Frame # returned
 			int frame = MMU.getInstance().allocateFrame();
+			trace.info("  Allocating frame "+frame+" for page " + pageNumber);
 			// Update page table entry.
 			//Read the current page table
 //			pageTable = new PageTable(CPU.getInstance().getMMU().getRam().read(0,cpuState.getPtr()));	//AMC: need to get page table from CPU
@@ -590,12 +591,11 @@ public class PCB {
 			pageTable.storePageTable(cpuState.getPtr());
 			// update the PTL to the total number of pages in memory
 			cpuState.setPtl(Math.min(CPU.getInstance().getPtl() + 1, pagesAllowedInMemory));
-			trace.info("page->frame : " + pageNumber + "->" + frame);
 			return frame;
 		}
 		// else we have used up all 4 and we need to swap out the LRU one
 		else {
-			trace.info("Swapping");
+			trace.info("  Max pages already in memory for this process. Swapping");
 			//Swap(pageNumber);
 		}
 		return 99;

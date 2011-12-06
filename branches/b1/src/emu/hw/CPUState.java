@@ -141,7 +141,7 @@ public class CPUState implements Cloneable {
 		Random generator = new Random();
 		id = generator.nextInt();
 		clearInterrupts();
-		trace.info(dumpInterrupts());
+		trace.finer(dumpInterrupts());
 	}
 	
 	/**
@@ -350,7 +350,7 @@ public class CPUState implements Cloneable {
 	 * @param value
 	 */
 	public void setIOi(int value) {
-		trace.info("setting ioi="+value);
+		trace.info("  Setting ioi="+value);
 		int newVal = ioi.getValue() | value;
 		setIOi(Interrupt.getIOi(newVal));
 	}
@@ -360,7 +360,7 @@ public class CPUState implements Cloneable {
 	 * @param value
 	 */
 	public void clearIOi(int value) {
-		trace.info("clearing ioi="+value);
+		trace.info("  Clearing ioi="+value);
 		int newVal = (Interrupt.IO_CHANNEL_123.getValue() - value) & ioi.getValue();
 		setIOi(Interrupt.getIOi(newVal));
 	}
@@ -390,7 +390,9 @@ public class CPUState implements Cloneable {
 	 * String representation of the the current state.
 	 */
 	public String toString() {
-		return "id="+id+", ptr="+ptr+" ptl="+ptl+" ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
+//		return "id="+id+", ptr="+ptr+" ptl="+ptl+" ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
+
+		return "ptr="+ptr+" ptl="+ptl+" ic="+ic+" ir="+ir+" gr="+gr+" c="+getCString()+" "+dumpInterrupts();
 		
 	}
 	

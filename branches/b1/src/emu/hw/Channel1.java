@@ -37,7 +37,7 @@ public class Channel1 extends Channel {
 	}
 	@Override
 	void run() {
-		trace.info("    Running channel 1, task:"+task.getType());
+		trace.info("    Running channel 1, Task: "+task.getType());
 		
 		try {
 			//Read block from input file (card reader)
@@ -52,12 +52,12 @@ public class Channel1 extends Channel {
 
 			cpu.setIOi(Interrupt.IO_CHANNEL_1.getValue());
 
-			trace.info("Buffer:"+task.getBuffer());
+			trace.info("    Buffer: "+task.getBuffer());
 		} catch (IOException e) {
 			//What TODO here?
 			trace.log(Level.WARNING, "Failed to read from card reader.", e);
 		} catch (NullPointerException e) {
-			trace.info("End of input file");
+			trace.info("    End of input file");
 		}
 		
 		busy = false;

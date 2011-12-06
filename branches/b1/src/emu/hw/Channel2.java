@@ -37,12 +37,12 @@ public class Channel2 extends Channel {
 	}
 	@Override
 	void run() {
-		trace.info("running channel 2, task:"+task);
+		trace.info("    Running channel 2, Task: "+task);
 		
 		try {
 			//Read block from input file (card reader) to the buffer.
 			String data = task.getBuffer().getData();
-			trace.info("printing:'"+data+"'");
+			trace.info("    Printing:'"+data+"'");
 			printer.write(data);
 			printer.newLine();
 			printer.flush();
@@ -51,7 +51,7 @@ public class Channel2 extends Channel {
 			//Set CPU interrupt
 			cpu.setIOi(Interrupt.IO_CHANNEL_2.getValue());
 
-			trace.info("Buffer:"+task.getBuffer());
+			trace.info("    Buffer: "+task.getBuffer());
 			
 		} catch (IOException e) {
 			//What TODO here?
@@ -64,7 +64,7 @@ public class Channel2 extends Channel {
 	@Override
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
-		trace.info("starting channel 2");
+		trace.info("    Starting channel 2");
 		trace.fine(task.toString());
 	}
 

@@ -34,7 +34,7 @@ public class Channel3 extends Channel {
 	@Override
 	void run() throws HardwareInterruptException {
 		
-		trace.info("running channel 3, task:"+task);
+		trace.info("    Running channel 3, Task: "+task);
 		
 		//Switch over the possible tasks
 		switch (task.getType()) {
@@ -59,13 +59,14 @@ public class Channel3 extends Channel {
 			default:
 				trace.severe("Unknown task");
 		}
-		
+
+		trace.info("    Buffer: "+task.getBuffer());
 		//Set CPU interrupt
 		cpu.setIOi(Interrupt.IO_CHANNEL_3.getValue());
 		
 		busy = false;
 		
-		trace.info("ran channel 3, task:"+task);
+		trace.finer("ran channel 3, task:"+task);
 		trace.finer(drum.toString());
 		trace.finer(memory.toString());
 
@@ -74,7 +75,7 @@ public class Channel3 extends Channel {
 	@Override
 	public void start(ChannelTask task) throws HardwareInterruptException {
 		super.start(task);
-		trace.info("starting channel 3");
+		trace.info("    Starting channel 3");
 	}
 	
 	/**

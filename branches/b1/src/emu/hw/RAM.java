@@ -102,7 +102,7 @@ public class RAM implements MemoryUnit {
 	 */
 	public void markFree(int frame) {
 //		trace.finer("-->");
-		trace.info("Freed frame "+frame);
+		trace.fine("Freed frame "+frame);
 		freeFrames.add(frame);
 //		trace.finer("<--");
 	}
