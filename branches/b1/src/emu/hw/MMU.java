@@ -163,7 +163,7 @@ public class MMU implements MemoryUnit {
 		} catch (NumberFormatException e) {
 			trace.finer("NumberFormatException:"+e.getMessage());
 			// Does page being referenced have a frame allocated for it?
-			trace.warning("page fault on addr " + logicalAddr);
+			trace.info("Page fault on addr " + logicalAddr);
 			CPU.getInstance().setPi(Interrupt.PAGE_FAULT);
 			trace.finer("<--");
 			throw new HardwareInterruptException();
