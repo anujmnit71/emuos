@@ -42,7 +42,7 @@ public abstract class Channel {
 	 * @param cpu 
 	 */
 	public Channel(int cycleTime, CPU cpu) {
-		trace.info("  Init channel, cycleTime:"+cycleTime);
+		trace.info("  Init channel, cycleTime = "+cycleTime);
 		this.cycleTime = cycleTime;
 		this.cpu = cpu;
 	}
@@ -99,7 +99,7 @@ public abstract class Channel {
 		}
 		
 		currCycleTime++;
-		trace.info("  "+this.getClass().getSimpleName()+": Count="+currCycleTime);
+		trace.info("  "+this.getClass().getSimpleName()+": Count = "+currCycleTime);
 		
 		if (currCycleTime == cycleTime) {
 			trace.fine("running "+task.getType());

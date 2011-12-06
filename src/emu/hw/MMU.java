@@ -169,7 +169,7 @@ public class MMU implements MemoryUnit {
 			throw new HardwareInterruptException();
 		}
 		int realAddr = frameNum * 10 + displacement;
-		trace.info("logical->real : " + logicalAddr + "->" + realAddr);
+		trace.info("  Address translation: Logical " + logicalAddr + " = real " + realAddr);
 		trace.finer("<--");
 		return realAddr;
 	}
@@ -237,7 +237,7 @@ public class MMU implements MemoryUnit {
 		//so we don't have to check to see if it's allocated and keep trying again. When there is only one free frame
 		//that could take a long time and this is very fast.  
 		int frameNum = ram.getFreeFrames().get(generator.nextInt(ram.getFreeFrames().size()));
-		trace.info("Frame allocated: "+frameNum);
+		trace.info("  Frame allocated: "+frameNum);
 		//Clear any residual data from the frame
 		String spaces = Utilities.padStringToLength(new String("")," ",40,false);
 		ram.write(0,frameNum,spaces);
@@ -254,7 +254,7 @@ public class MMU implements MemoryUnit {
 		Random generator = new Random();
 		try {
 			int trackNum = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
-			trace.info("track allocated: "+trackNum);
+			trace.info("  Track allocated: "+trackNum);
 			//Clear any residual data from the frame
 			String spaces = Utilities.padStringToLength(new String("")," ",40,false);
 			drum.write(0,trackNum,spaces);
@@ -286,9 +286,10 @@ public class MMU implements MemoryUnit {
 		trace.finer("Pages in memory: "+PT.pagesInMemory());
 		//If we haven't already allocated 4 frames in memory (page table plus 3 frames
 		if (PT.pagesInMemory() < pagesAllowedInMemory) { 
-			System.out.println("Allocating a page");
+			trace.fine("Allocating a page");
 			// Allocate a frame. Frame # returned
 			int frame = allocateFrame();
+			trace.info("  Allocating frame "+frame+" for page " + pageNumber);
 			// Update page table entry.
 			//Read the current page table
 //			PT = getPageTable();
@@ -300,12 +301,11 @@ public class MMU implements MemoryUnit {
 			PT.storePageTable(CPU.getInstance().getPtr());
 			// update the PTL to the total number of pages in memory
 			CPU.getInstance().setPtl(Math.min(CPU.getInstance().getPtl() + 1, pagesAllowedInMemory));
-			trace.info("page->frame : " + pageNumber + "->" + frame);
 			return frame;
 		}
 		// else we have used up all 4 and we need to swap out the LRU one
 		else {
-			System.out.println("Swapping");
+			trace.info("  Max pages already in memory for this process. Swapping");
 			//Swap(pageNumber);
 		}
 		return 99;
@@ -328,13 +328,13 @@ public class MMU implements MemoryUnit {
 	 * @return
 	 */
 	public boolean validatePageFault(int ptr,String ir) {
-		trace.info("Validating page fault for "+ir);
+		trace.info("  Validating page fault for "+ir);
 //		setPageTable(ptr);
 		if (ir == null
 				|| ir.startsWith(CPU.GET)
 				|| ir.startsWith(CPU.STORE)
 				|| ir.startsWith(CPU.BRANCH)) {
-			trace.info("valid page fault on IR="+ir);
+			trace.info("  Valid page fault on IR="+ir);
 			return true;
 		}
 		else if (ir.startsWith(CPU.PUT)
@@ -345,15 +345,15 @@ public class MMU implements MemoryUnit {
 			PT = getPageTable(ptr);
 			System.out.println("PTE: "+PT.getEntry(targetPage).toString());
 			if (PT.getEntry(targetPage).isSwapped()) {
-				trace.info("valid page fault on IR="+ir);
+				trace.info("  Valid page fault on IR="+ir);
 				return true;
 			}
 			else {
-				trace.info("invalid page fault on IR="+ir+", page "+PT.getEntry(targetPage)+" not swapped!");
+				trace.warning("  Invalid page fault on IR="+ir+", page "+PT.getEntry(targetPage)+" not swapped!");
 			}
 		}
 		else {
-			trace.info("invalid page fault on IR="+ir);
+			trace.info("  Invalid page fault on IR="+ir);
 		}
 		return false;
 	}

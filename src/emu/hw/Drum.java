@@ -101,7 +101,7 @@ public class Drum implements MemoryUnit {
 	 */
 	public void markFree(int frame) {
 //		trace.finer("-->");
-		trace.info("Freed frame "+frame);
+		trace.fine("Freed frame "+frame);
 		freeTracks.add(frame);
 //		trace.finer("<--");
 	}
@@ -123,7 +123,7 @@ public class Drum implements MemoryUnit {
 	 */
 	public String read(int ptr, int track) {
 		String block = memory[track];
-		trace.info("Reading track# " + track+"; data: "+block);
+		trace.info("    Reading track# " + track+"; data: "+block);
 		return block;
 	}
 	
