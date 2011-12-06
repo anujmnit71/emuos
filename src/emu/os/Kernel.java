@@ -1265,6 +1265,7 @@ public class Kernel {
 			Buffer eb = getEmptyBuffer();
 			if (eb != null) {
 				PCB termPCB = terminateQueue.peek();
+				trace.finer("AMC: "+termPCB.toString());
 				if (termPCB.getHeaderLinedPrinted() == 0) {
 					trace.info("  "+termPCB.getId()+": assign header line 1 to channel 3");
 					eb.setData(termPCB.getId()+" "+termPCB.getTerminationStatus());
@@ -1407,8 +1408,9 @@ public class Kernel {
 						}
 					}
 					finally {
-						if (!ioPCB.getState().equals(ProcessStates.IO_WRITE)) {
+						if (!ioPCB.getState().equals(ProcessStates.IO_WRITE.getName())) {
 							schedule(ioQueue);
+							trace.info("AMC::: Scheduling, not starting IO write!");
 							return;
 						}
 						
