@@ -62,7 +62,7 @@ public class Channel1 extends Channel {
 
 			cpu.setIOi(Interrupt.IO_CHANNEL_1.getValue());
 
-			trace.info("    Buffer: "+task.getBuffer());
+			trace.info("    Buffered: "+task.getBuffer());
 		} catch (IOException e) {
 			//What TODO here?
 			trace.log(Level.WARNING, "Failed to read from card reader.", e);

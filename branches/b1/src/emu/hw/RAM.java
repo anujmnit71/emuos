@@ -103,9 +103,9 @@ public class RAM implements MemoryUnit {
 	public void markFree(int frame) {
 //		trace.finer("-->");
 		if (freeFrames.contains(frame))
-			trace.info("AMC:::Freeing already free frame");
+			trace.fine("AMC:::Freeing already free frame");
 		else {
-		trace.info("AMC::Freed frame "+(frame));
+		trace.fine("Freed frame:"+frame);
 		freeFrames.add(frame);
 		}
 		trace.fine(freeFrames.toString());
@@ -174,7 +174,7 @@ public class RAM implements MemoryUnit {
 		int blockAddr = frame*10;
 //		int blockAddr = frame;
 
-		trace.info("  Writing frame#"+frame+"; data: "+data);
+		trace.fine("  Writing frame#"+frame+"; data: "+data);
 		for (int i = 0 ; i < 10 ; i++) {
 			String word = data.substring(0,wordLength);
 			store(ptr,blockAddr+i, word);

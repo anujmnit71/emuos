@@ -284,7 +284,7 @@ public class Kernel {
 	private Kernel(String inputFile, String outputFile) throws IOException, CloneNotSupportedException {
 
 		trace.info("Input file:"+inputFile);
-		trace.info("Output file:"+outputFile+"\n");
+		trace.info("Output file:"+outputFile);
 
 		//Init HW
 		trace.info("Initializing EmuOS:");
@@ -421,7 +421,9 @@ public class Kernel {
 				done = queuesEmpty();
 				trace.finer("Are all queues empty and input spooling complete ? " + done);
 				if (done)
-					trace.info("Processing complete");
+					trace.info("Processing complete.");
+					trace.info("RAM Dump:\n"+MMU.getInstance().getRam().toString());
+					trace.info("Drum Dump:\n"+MMU.getInstance().getDrum().toString());
 			}
 
 			incrementCycleCount();
@@ -743,7 +745,7 @@ public class Kernel {
 					}
 					//				trace.info("Allocated a page to handle page fault"+MMU.getInstance().getRam().toString());
 					if (frame == 99) {
-						trace.info("  Need to do some swapping");
+						trace.fine("  Need to do some swapping");
 						//**AMC**
 						//					if (hasCPU) 
 						//						pcb.setPageTable(MMU.getInstance().getPageTable());
@@ -816,8 +818,8 @@ public class Kernel {
 							MMU.getInstance().getRam().write(0,ptr,pt.toString());
 							String spaces = Utilities.padStringToLength(new String("")," ",40,false);
 							MMU.getInstance().getRam().write(0,victimFrame,spaces);
-							trace.info("AMC*** page table after swap:"+pt.toString());
-							trace.info("AMC: RAM after swap:"+MMU.getInstance().toString());
+							trace.info("Page table after swap:"+pt.toString());
+							trace.fine("AMC: RAM after swap:"+MMU.getInstance().toString());
 							trace.fine("frame "+victimFrame+" being used for page "+pageNumber);
 						}
 						
@@ -892,7 +894,7 @@ public class Kernel {
 		pageNumber = cpu.getPage();
 		frame = cpu.allocatePage(pageNumber);
 		if (frame == 99) {
-			trace.info("  Need to do some swapping");
+			trace.fine("  Need to do some swapping");
 
 			/*
 			 * **AMC** -Look at the page table at LRU[3] and see if it's dirty
@@ -917,7 +919,7 @@ public class Kernel {
 			if (pt.isVictimDirty(victimPage)) {
 				p.swapOut = true;
 			}
-			trace.info("AMC::: Swaptracks:: "+p.printSwapTracks());
+			trace.fine("AMC::: Swaptracks:: "+p.printSwapTracks());
 			if (p.getSwapTrack(victimPage) == -1) {
 				p.swapOut = true;
 				p.swapOutTrack = cpu.getMMU().allocateFrame();
@@ -960,11 +962,10 @@ public class Kernel {
 				// indicate that the new page is the LRU
 				pt.setLRU(pt.getEntry(pageNumber));
 				MMU.getInstance().getRam().write(0, ptr, pt.toString());
-				trace.info("AMC*** page table after swap:" + pt.toString());
-				trace.info("AMC: RAM after swap:"
+				trace.fine("AMC*** page table after swap:" + pt.toString());
+				trace.fine("AMC: RAM after swap:"
 						+ MMU.getInstance().toString());
-				trace.fine("frame " + victimFrame + " being used for page "
-						+ pageNumber);
+				trace.info("  VictimFrame frame " + victimFrame + " being used for page "+ pageNumber);
 				p.setState(ProcessStates.IO_LOADINST, ProcessStates.READY);
 			}
 			trace.fine(p.toString());
@@ -1175,7 +1176,7 @@ public class Kernel {
 		int ptr = swapPCB.getCPUState().getPtr();
 		//		PageTable pt = swapPCB.getPageTable();
 		PageTable pt = MMU.getInstance().getPageTable(ptr);
-		trace.info("AMC:: page table in swap out task:"+pt.toString());
+		trace.fine("AMC:: page table in swap out task:"+pt.toString());
 
 		pt.getEntry(swapPCB.swapInPage).setDirty(false);
 		pt.getEntry(swapPCB.swapInPage).setSwap(false);
@@ -1185,8 +1186,8 @@ public class Kernel {
 		//indicate that the new page is the LRU
 		pt.setLRU(pt.getEntry(swapPCB.swapInPage));
 		MMU.getInstance().getRam().write(0,ptr,pt.toString());
-		trace.info("AMC*** page table after swap-out with no swap in:"+pt.toString());
-		trace.info("AMC: RAM after swap-out with no swap in:"+MMU.getInstance().toString());
+		trace.fine("AMC*** page table after swap-out with no swap in:"+pt.toString());
+		trace.fine("AMC: RAM after swap-out with no swap in:"+MMU.getInstance().toString());
 		trace.fine("frame "+swapPCB.swapFrame+" being used for page "+swapPCB.swapInPage);
 		swapPCB.swapInPage = -1;
 		swapPCB.swapVictimPage =-1;
@@ -1236,7 +1237,7 @@ public class Kernel {
 		int ptr = swapPCB.getCPUState().getPtr();
 		//		PageTable pt = swapPCB.getPageTable();
 		PageTable pt = MMU.getInstance().getPageTable(ptr);
-		trace.info("AMC:: page table in swap out task:"+pt.toString());
+		trace.fine("AMC:: page table in swap out task:"+pt.toString());
 
 		pt.getEntry(swapPCB.swapInPage).setDirty(false);
 		pt.getEntry(swapPCB.swapInPage).setSwap(false);
@@ -1246,8 +1247,8 @@ public class Kernel {
 		//indicate that the new page is the LRU
 		pt.setLRU(pt.getEntry(swapPCB.swapInPage));
 		MMU.getInstance().getRam().write(0,ptr,pt.toString());
-		trace.info("AMC*** page table after swap-out with no swap in:"+pt.toString());
-		trace.info("AMC: RAM after swap-out with no swap in:"+MMU.getInstance().toString());
+		trace.fine("AMC*** page table after swap-out with no swap in:"+pt.toString());
+		trace.fine("AMC: RAM after swap-out with no swap in:"+MMU.getInstance().toString());
 		trace.fine("frame "+swapPCB.swapFrame+" being used for page "+swapPCB.swapInPage);
 		swapPCB.swapInPage = -1;
 		swapPCB.swapVictimPage =-1;
@@ -1481,7 +1482,7 @@ public class Kernel {
 				trace.finer("AMC: "+termPCB.toString());
 				if (termPCB.getHeaderLinedPrinted() == 0) {
 					trace.info("  "+termPCB.getId()+": assign header line 1 to channel 3");
-					eb.setData(termPCB.getId()+" "+termPCB.getTerminationStatus());
+					eb.setData(""+termPCB.getId()+" "+termPCB.getTerminationStatus());
 					termPCB.incrementHeaderLinedPrinted();
 					eb.setOutputFull();
 					putOutputFullBuffer(eb);
@@ -1600,7 +1601,7 @@ public class Kernel {
 					trace.info("    No data tracks remaining for pid "+ioPCB.getId());
 					setError(ioPCB,ErrorMessages.OUT_OF_DATA.getErrCode());
 					ioPCB.setState(null,ProcessStates.TERMINATE);
-					trace.info("PCB: "+ioPCB.toString());
+					trace.fine("PCB: "+ioPCB.toString());
 					//throw new RuntimeException("BREAK");
 					schedule(ioQueue);
 				}
@@ -1625,7 +1626,7 @@ public class Kernel {
 					ioPCB.decrementPrintCount();	//don't include the line that put us over the limit in the final count
 					setError(ioPCB,ErrorMessages.LINE_LIMIT_EXCEEDED.getErrCode());
 					ioPCB.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
-					trace.info("AMC::: "+ioPCB.toString());
+					trace.fine("AMC::: "+ioPCB.toString());
 					schedule(ioQueue);
 				} else {
 					// get memory location and set exception if one exists
@@ -1647,8 +1648,8 @@ public class Kernel {
 					}
 					finally {
 						if (!ioPCB.getState().equals(ProcessStates.IO_WRITE.getName())) {
-							trace.info("AMC::: Scheduling, not starting IO write!");
-							trace.info(""+ioPCB.getState()+", next="+ioPCB.getNextState());
+							trace.fine("  Scheduling swap, not starting IO write!");
+							trace.fine(""+ioPCB.getState()+", next="+ioPCB.getNextState());
 							ioPCB.decrementPrintCount();
 							schedule(ioQueue);
 							
@@ -2134,26 +2135,30 @@ public class Kernel {
 
 	private void schedule(Queue<PCB> queue) {
 		PCB pcb = queue.remove();	
-		trace.info("schedule:current="+pcb.getState()+", next="+pcb.getNextState());
+		trace.info("Scheduling "+pcb.getId()+": current="+pcb.getState()+", next="+pcb.getNextState());
 		if(pcb.getState().equals(ProcessStates.IO_LOADINST.getName())) {
-			trace.info(pcb.getId()+": add to io queue :"+pcb.getCPUState().toString());
+			trace.fine(pcb.getId()+": add to io queue :"+pcb.getCPUState().toString());
+			trace.info("  Moving "+pcb.getId()+" to IOQ");
 			ioQueue.add(pcb);
 		} else if (pcb.getState().equals(ProcessStates.SWAP.getName())) {
 			swapQueue.add(pcb);
 		} else if(pcb.getNextState().equals(ProcessStates.TERMINATE.getName())) {
-			trace.info(pcb.getId()+": add to terminate queue :"+pcb.getCPUState().toString());
+			trace.fine(pcb.getId()+": add to terminate queue :"+pcb.getCPUState().toString());
+			trace.info("  Moving "+pcb.getId()+" to TerminateQ");
 			pcb.setState(ProcessStates.TERMINATE,ProcessStates.TERMINATE);
 			terminateQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.MEMORY.getName())) {
-			trace.info(pcb.getId()+": add to memory queue :"+pcb.getCPUState().toString());
+			trace.fine(pcb.getId()+": add to memory queue :"+pcb.getCPUState().toString());
+			trace.info("  Moving "+pcb.getId()+" to MemoryQ");
 			pcb.setState(ProcessStates.MEMORY,ProcessStates.READY);
 			memoryQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.IO_READ.getName())
 				|| pcb.getNextState().equals(ProcessStates.IO_WRITE.getName())
 				|| pcb.getNextState().equals(ProcessStates.IO_LOADINST.getName())) {
-			trace.info(pcb.getId()+": add to io queue :"+pcb.getCPUState().toString());
+			trace.fine(pcb.getId()+": add to io queue :"+pcb.getCPUState().toString());
+			trace.info("  Moving "+pcb.getId()+" to IOQ");
 			if (pcb.getNextState().equals(ProcessStates.IO_READ.getName()))
 				pcb.setState(ProcessStates.IO_READ,ProcessStates.READY);
 			else if (pcb.getNextState().equals(ProcessStates.IO_WRITE.getName()))
@@ -2165,25 +2170,35 @@ public class Kernel {
 		}
 		//***AMC***
 		else if(pcb.getNextState().equals(ProcessStates.SWAP.getName())) {
-			trace.info(pcb.getId()+": add to swap queue :"+pcb.getCPUState().toString());
+			trace.fine(pcb.getId()+": add to swap queue :"+pcb.getCPUState().toString());
+			trace.info("  Moving "+pcb.getId()+" to SwapQ");
 			pcb.setState(ProcessStates.SWAP,ProcessStates.READY);
 			swapQueue.add(pcb);
 		}
 		else if(pcb.getNextState().equals(ProcessStates.READY.getName())) {
 			pcb.setState(ProcessStates.READY);
-			trace.info(pcb.getId()+": add to ready queue :"+pcb.getCPUState().toString());
+			trace.fine(pcb.getId()+": add to ready queue :"+pcb.getCPUState().toString());
+			trace.info("  Moving "+pcb.getId()+" to ReadyQ");
 			readyQueue.add(pcb);
 		}
 	}
 
 	private void contextSwitch(ProcessQueues targetQ) throws IOException, HardwareInterruptException, CloneNotSupportedException {
 
-		trace.info("Performing Context Switch");
 		// Switches currently running process from head of ready queue to tail of the target queue
 		PCB movePCB = readyQueue.remove();
+		
+		trace.info("Performing Context Switch. Current process: "+movePCB.getId());
 		// Stores CPU status to the PCB that is being switched
 //		try {
 			
+			/*
+			 * BJD The statement below doesnt explicitly have to happen because when setting the CPUState below,
+			 * both the CPU and PCB have the same reference to a single CPUState instance.  So theres no need to 
+			 * set that to the PCB.  The trace entry is just to make reflect that the current state is saved somehow.
+			 */
+			trace.info("  CPU State written to PCB for proccess: "+movePCB.getId()); 
+		
 			//BJD The CPUState in PCB should never be null, right?
 			if (movePCB.getCPUState() == null) {
 				trace.fine(movePCB.toString());
@@ -2210,24 +2225,29 @@ public class Kernel {
 		case READYQ: 
 			movePCB.resetCurrentQuantum();
 			readyQueue.add(movePCB);
-			trace.info("  Move process to end of ReadyQ. ReadyQ contains "+readyQueue.size()+" processes");
+			trace.fine("  Move process to end of ReadyQ. ReadyQ contains "+readyQueue.size()+" processes");
+			trace.info("  Move process "+movePCB.getId()+" to end of ReadyQ.");
 			break;
 		case IOQ:
 			ioQueue.add(movePCB);
-			trace.info("Move process to IOQ. ReadyQ now contains "+readyQueue.size()+" processes. IOQ contains "+ioQueue.size()+" processes");
+			trace.fine("Move process to IOQ. ReadyQ now contains "+readyQueue.size()+" processes. IOQ contains "+ioQueue.size()+" processes");
+			trace.info("  Move process "+movePCB.getId()+" to IOQ.");
 			break;
 		case MEMORYQ:
 			memoryQueue.add(movePCB);
-			trace.info("Move process to MemoryQ. ReadyQ now contains "+readyQueue.size()+" processes. MemoryQ contains "+memoryQueue.size()+" processes");
+			trace.fine("Move to MemoryQ. ReadyQ now contains "+readyQueue.size()+" processes. MemoryQ contains "+memoryQueue.size()+" processes");
+			trace.info("  Move process "+movePCB.getId()+" to MemoryQ.");
 			break;
 		case SWAPQ:
 			swapQueue.add(movePCB);
-			trace.info("Move process to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
+			trace.fine("Move to SwapQ. ReadyQ now contains "+readyQueue.size()+" processes. SwapQ contains "+swapQueue.size()+" processes");
+			trace.info("  Move process "+movePCB.getId()+" to SwapQ.");
 			break;
 		case TERMINATEQ:
 			terminateQueue.add(movePCB);
 			trace.finer("To TerminateQ: "+movePCB.toString());
-			trace.info("Move process to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
+			trace.fine("Move process to TerminateQ. ReadyQ now contains "+readyQueue.size()+" processes. TerminateQ contains "+terminateQueue.size()+" processes");
+			trace.info("  Move process "+movePCB.getId()+" to TerminateQ.");
 			break;
 		}
 
@@ -2243,6 +2263,7 @@ public class Kernel {
 			}
 			else {
 				trace.fine(cpu.getState().toString());
+				trace.info("  Restoring CPU State from process: "+currentPCB.getId());
 				cpu.setState(currentPCB.getCPUState());
 				//				currentPCB.getPageTable().storePageTable();
 				//				trace.info("+++ in < " + currentPCB.getPageTable().toString());	//AMC: I commented this out.  Storing a copy of the page table in the PCB is
@@ -2251,6 +2272,9 @@ public class Kernel {
 			}
 			currentPCB.setRunning(true);
 			//trace.info("*** " + getCurrentProcess().getPageTable().toString());
+		}
+		else {
+			trace.info("  Nothing on ReadyQ");
 		}
 	}
 
@@ -2306,7 +2330,7 @@ public class Kernel {
 			inputSpoolingComplete = true;
 		}
 		//trace.info("initialize PCB: " + pcb.getId());
-		trace.info("PCB"+pcb.toString());
+		trace.fine("PCB"+pcb.toString());
 		//Create a CPU state;
 		CPUState pcbCPUState = new CPUState();
 		//pcbCPUState.setIr("0000");
@@ -2316,7 +2340,7 @@ public class Kernel {
 		cpu.setState(pcbCPUState);
 		cpu.setIr("0000");
 		cpu.initPageTable();
-		trace.info("Free frames" +cpu.getMMU().getRam().getFreeFrames());
+		trace.fine("Free frames" +cpu.getMMU().getRam().getFreeFrames());
 
 		//		// load a page of instructions into memory
 		//		int frame = cpu.allocatePage(0);
