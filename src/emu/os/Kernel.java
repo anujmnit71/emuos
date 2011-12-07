@@ -2132,16 +2132,24 @@ public class Kernel {
 
 	private void contextSwitch(ProcessQueues targetQ) throws IOException, HardwareInterruptException, CloneNotSupportedException {
 
-
+		trace.info("Performing Context Switch");
 		// Switches currently running process from head of ready queue to tail of the target queue
 		PCB movePCB = readyQueue.remove();
 		// Stores CPU status to the PCB that is being switched
 		try {
-			if (movePCB.getCPUState() == null || readyQueue.size() != 0) {
-				//movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
-				//movePCB.setPageTable(MMU.getInstance().getPageTable());
+			
+			//BJD The CPUState in PCB should never be null, right?
+			if (movePCB.getCPUState() == null) {
+				trace.fine(movePCB.toString());
+				throw new HardwareInterruptException("Null CPUState in PCB!");
 			}
-			movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
+
+			//BJD Only grab the CPUState from the CPU if the process was previously executing.
+			//Is there a better way to determine this other than an empty readyQ?
+			if (!readyQueue.isEmpty()) {
+				movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
+				movePCB.setPageTable(MMU.getInstance().getPageTable());
+			}
 
 			trace.fine("+++ out "+ movePCB.getId() +"> " + movePCB.getState() + ":" + movePCB.getCPUState().toString());
 			trace.fine("+++ out pcb> " + movePCB.getPageTable().toString());
@@ -2181,8 +2189,10 @@ public class Kernel {
 			PCB currentPCB = getCurrentProcess();
 
 			trace.fine("+++ in " + currentPCB.getId() + "< " + currentPCB.getState() + ":" + cpu.getCPUState().toString());
-			if (currentPCB.getState().equals(ProcessStates.SPOOL.getName()))
+			if (currentPCB.getState().equals(ProcessStates.SPOOL.getName())) {
 				initialProcessLoad();
+				cpu.setState(currentPCB.getCPUState()); //BJD Not sure about this.
+			}
 			else {
 				trace.fine(cpu.getState().toString());
 				cpu.setState(currentPCB.getCPUState());
@@ -2200,7 +2210,7 @@ public class Kernel {
 		PCB pcb = getCurrentProcess();
 
 		if (pcb != null) {
-			trace.fine("Dispatch "+pcb.getId()+ ":" +pcb.getState() + ":" + pcb.getNextState());
+			trace.info("Dispatch "+pcb.getId()+ ": current=" +pcb.getState() + ", next=" + pcb.getNextState());
 			//if (pcb.getCPUState() != null)
 			//trace.info("+++ "+pcb.getCPUState().toString());
 			if(pcb.getState().equals(ProcessStates.TERMINATE.getName())) {
@@ -2220,12 +2230,20 @@ public class Kernel {
 				contextSwitch(ProcessQueues.SWAPQ);
 			}
 			else if(pcb.getState().equals(ProcessStates.READY.getName())) {
-				if (pcb.isQuantumExpired())
+				//BJD The original logic was putting the PCB on the readyQ if the time slice was up, is this right?
+				if (!pcb.isQuantumExpired()) {
 					contextSwitch(ProcessQueues.READYQ);
+				} else {
+					//TODO What to do here?
+				}
+					
 			}
 			else if(pcb.getState().equals(ProcessStates.SPOOL.getName())) {
 				initialProcessLoad();
 			}
+		}
+		else {
+			trace.info("Nothing to dispatch");
 		}
 	}
 
@@ -2241,6 +2259,10 @@ public class Kernel {
 		trace.fine("***\n"+pcb.toString());
 		//Create a CPU state;
 		CPUState pcbCPUState = new CPUState();
+		//pcbCPUState.setIr("0000");
+		//pcbCPUState.setPtr(MMU.getInstance().initPageTable());
+		pcb.setCpuState(pcbCPUState);
+
 		cpu.setState(pcbCPUState);
 		cpu.setIr("0000");
 		cpu.initPageTable();
