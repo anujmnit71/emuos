@@ -515,7 +515,8 @@ public class PCB {
 				"\n  dataTracks:"+dataTracks.toString()+
 				"\n  swapTracks:"+printSwapTracks()+
 				"\n  swapIn:"+swapIn+",  swapOut:"+swapOut+
-				"\n  swapInTrack:"+swapInPage+",  swapInTrack:"+swapInTrack+
+				"\n  swapInPage:"+swapInPage+",  swapInTrack:"+swapInTrack+
+				"\n  swapVictimPage:"+swapVictimPage+",  swapFrame:"+swapFrame+
 				"\n  cpuState:"+cpu+
 				"\n";
 		
