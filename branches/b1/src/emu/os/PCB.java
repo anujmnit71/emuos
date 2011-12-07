@@ -372,6 +372,12 @@ public class PCB {
 		currPrints--;
 	}
 
+	public void decrementTimeCount() {
+
+		currentTime--;
+	}
+
+	
 	/**
 	 * get the number of printed lines of a process
 	 * @return
