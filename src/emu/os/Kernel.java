@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.Random;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -27,7 +26,6 @@ import emu.hw.CPUState.Interrupt;
 import emu.hw.Channel1;
 import emu.hw.Channel2;
 import emu.hw.Channel3;
-import emu.hw.Drum;
 import emu.hw.HardwareInterruptException;
 import emu.hw.MMU;
 import emu.hw.PageTable;
@@ -89,11 +87,6 @@ public class Kernel {
 	private int cycleCount;
 
 	/**
-	 * Buffers the last line read from the input stream
-	 */
-	private String lastLineRead;
-
-	/**
 	 * Check if the last line has been used yet.
 	 */
 	boolean lineBuffered = false;
@@ -140,7 +133,11 @@ public class Kernel {
 	/**
 	 * Maximum number of buffers
 	 */
-	private int maxBuffers = 10;
+	private int maxBuffers = 8;
+	/**
+	 * Maximum number of OS cycles
+	 */
+	private int maxCycles = 50000;
 
 	/** 
 	 * Raised interrupts
@@ -432,7 +429,7 @@ public class Kernel {
 			dumpBuffers();
 			
 			//Infinite loop protection
-			if (cycleCount > 2000) {
+			if (cycleCount > maxCycles) {
 				throw new HardwareInterruptException("Cycle count = "+cycleCount+"!!");
 			}
 		}
@@ -725,22 +722,24 @@ public class Kernel {
 					if (hasCPU) {
 						pageNumber = cpu.getOperand() / 10;
 						frame = cpu.allocatePage(pageNumber); //TODO cleaner way to determine page #?
-						if (cpu.getIr().startsWith(cpu.LOAD) ||
-							cpu.getIr().startsWith(cpu.STORE) ||
-							cpu.getIr().startsWith(cpu.BRANCH) ||
-							cpu.getIr().startsWith(cpu.COMPARE)) {
+						if (cpu.getIr().startsWith(CPU.LOAD) ||
+							cpu.getIr().startsWith(CPU.STORE) ||
+							cpu.getIr().startsWith(CPU.BRANCH) ||
+							cpu.getIr().startsWith(CPU.COMPARE)) {
 								trace.finer("AMC::: decrementing IC");
 								cpu.decrement();
+								pcb.decrementTimeCount();
 						}
 					} else {
 						pageNumber = pcb.getCPUState().getOperand() / 10;
 						frame = pcb.allocatePage(pageNumber); //TODO cleaner way to determine page #?
-						if (pcb.getCPUState().getIr().startsWith(cpu.LOAD) ||
-							pcb.getCPUState().getIr().startsWith(cpu.STORE) ||
-							pcb.getCPUState().getIr().startsWith(cpu.BRANCH) ||
-							pcb.getCPUState().getIr().startsWith(cpu.COMPARE)) {
+						if (pcb.getCPUState().getIr().startsWith(CPU.LOAD) ||
+							pcb.getCPUState().getIr().startsWith(CPU.STORE) ||
+							pcb.getCPUState().getIr().startsWith(CPU.BRANCH) ||
+							pcb.getCPUState().getIr().startsWith(CPU.COMPARE)) {
 									trace.finer("AMC::: decrementing IC");
 									cpu.decrement();
+									pcb.decrementTimeCount();
 							}
 					}
 					//				trace.info("Allocated a page to handle page fault"+MMU.getInstance().getRam().toString());
@@ -785,8 +784,8 @@ public class Kernel {
 						
 						pcb.swapIn = true;	// initialize; assume we do need to swap in
 						
-						if ((hasCPU && cpu.getIr().startsWith(cpu.GET)) ||
-						   (!hasCPU && pcb.getCPUState().getIr().startsWith(cpu.GET))) { 	// if this is a GD request the pcb will go to the IOQ next so we don't need to swap in a page (even if there is one)
+						if ((hasCPU && cpu.getIr().startsWith(CPU.GET)) ||
+						   (!hasCPU && pcb.getCPUState().getIr().startsWith(CPU.GET))) { 	// if this is a GD request the pcb will go to the IOQ next so we don't need to swap in a page (even if there is one)
 							pcb.swapIn = false;
 						}
 						if (pcb.getSwapTrack(pageNumber) == -1) {		// if there's nowhere to swap the page in from, it's from a GD or pure demand paging
@@ -799,12 +798,12 @@ public class Kernel {
 						if (pcb.swapIn || pcb.swapOut) {		//if we need to swap in or swap out
 							String nextState = pcb.getNextState(); 
 							
-							if ((hasCPU && cpu.getIr().startsWith(cpu.GET)) ||
-									   (!hasCPU && pcb.getCPUState().getIr().startsWith(cpu.GET))) {
+							if ((hasCPU && cpu.getIr().startsWith(CPU.GET)) ||
+									   (!hasCPU && pcb.getCPUState().getIr().startsWith(CPU.GET))) {
 								nextState = ProcessStates.IO_READ.getName();
 							}
-							else if ((hasCPU && cpu.getIr().startsWith(cpu.PUT)) ||
-									   (!hasCPU && pcb.getCPUState().getIr().startsWith(cpu.PUT))) {
+							else if ((hasCPU && cpu.getIr().startsWith(CPU.PUT)) ||
+									   (!hasCPU && pcb.getCPUState().getIr().startsWith(CPU.PUT))) {
 								nextState = ProcessStates.IO_WRITE.getName();
 							}
 							pcb.setState(ProcessStates.SWAP,nextState);	
