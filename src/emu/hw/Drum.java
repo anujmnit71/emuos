@@ -52,7 +52,7 @@ public class Drum implements MemoryUnit {
 	 * Constructor 
 	 */
 	public Drum() {
-		trace.info("Initializing drum: tracks="+numTracks+"; track size="+trackSize);
+		trace.fine("Initializing drum: tracks="+numTracks+"; track size="+trackSize);
 		freeTracks = new ArrayList<Integer>(numTracks);
 		for (int i=0; i<numTracks; i++)
 			freeTracks.add(i);
@@ -77,8 +77,8 @@ public class Drum implements MemoryUnit {
 		    markFree(track);
 		}
 		else
-			trace.info("AMC:::::::::::"+track);
-		trace.info("$$Free tracks: "+freeTracks.toString());
+			trace.fine("AMC:::::::::::"+track);
+		trace.fine("$$Free tracks: "+freeTracks.toString());
 //		trace.finer("<--");
 	}
 	
@@ -128,7 +128,7 @@ public class Drum implements MemoryUnit {
 	 */
 	public String read(int ptr, int track) {
 		String block = memory[track];
-		trace.info("    Reading track# " + track+"; data: "+block);
+		trace.fine("    Reading track# " + track+"; data: "+block);
 		return block;
 	}
 	
