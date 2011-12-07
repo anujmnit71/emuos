@@ -10,6 +10,8 @@ import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import emu.hw.CPU.CPUStep;
+
 /**
  * CPU Data Structure
  * @author b.j.drew@gmail.com
@@ -67,6 +69,14 @@ public class CPUState implements Cloneable {
 	 */
 	Interrupt ioi;
 	private int id;
+	
+	
+    CPUStep step;
+    
+    public CPUStep getStep() {
+    	return step;
+    }
+	
 	/**
 	 * All interrupts are grouped together. Their types are verified upon setting when set.
 	 * value represents what is specified in the phase 2 doc
@@ -462,5 +472,6 @@ public class CPUState implements Cloneable {
 		this.ti = cpu.ti;
 		this.pi = cpu.pi;
 		this.ioi = cpu.ioi;
+		this.step = cpu.step;
 	}
 }
