@@ -51,7 +51,7 @@ public class Channel2 extends Channel {
 			//Set CPU interrupt
 			cpu.setIOi(Interrupt.IO_CHANNEL_2.getValue());
 
-			trace.info("    Buffer: "+task.getBuffer());
+			trace.info("    Buffered: "+task.getBuffer());
 			
 		} catch (IOException e) {
 			//What TODO here?

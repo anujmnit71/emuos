@@ -60,7 +60,7 @@ public class Channel3 extends Channel {
 				trace.severe("Unknown task");
 		}
 
-		trace.fine("    Buffer: "+task.getBuffer());
+		trace.info("    Buffered: "+task.getBuffer());
 		//Set CPU interrupt
 		cpu.setIOi(Interrupt.IO_CHANNEL_3.getValue());
 		

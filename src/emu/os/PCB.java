@@ -447,7 +447,15 @@ public class PCB {
 		for (int d : dataTracks) {
 			MMU.getInstance().getDrum().freeTrack(d);
 		}
-
+		
+		//Free swapped tracks
+		for (int s : swapTracks) {
+			if (s > 0) {
+				MMU.getInstance().getDrum().freeTrack(s);
+			}
+			
+		}
+		
 //		MMU.getInstance().freePageTable(cpuState.getPtr());
 		CPU.getInstance().getMMU().freePageTable(cpuState.getPtr());
 	}

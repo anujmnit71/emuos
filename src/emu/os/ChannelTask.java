@@ -75,6 +75,18 @@ public class ChannelTask {
 		misc = obj;
 	}
 	public String toString() {
-		return "[ ChannelTask :: task="+type+", frame="+frame+", track="+track+", buffer="+buffer+" ]";
+		
+		String s = "task="+type+", ";
+
+		if (frame > 0) {
+			s +="frame="+frame+", ";
+		}
+		if (track > 0) {
+			s +="track="+track+", ";
+		}
+		
+		//s += "buffer: "+buffer;
+		
+		return s;
 	}
 }
