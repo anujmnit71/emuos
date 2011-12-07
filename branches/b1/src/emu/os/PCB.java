@@ -170,6 +170,14 @@ public class PCB {
 		public String getName() {
 			return name;
 		}
+		public static ProcessStates getByName(String name) {
+			for (ProcessStates p : values()) {
+				if (p.getName().equals(name)) {
+					return p;
+				}
+			}
+			return null;
+		}
 	}
 
 	/**
@@ -497,6 +505,7 @@ public class PCB {
 			cpu = cpuState.toString();
 		
 		return "PCB for process "+id+": " + 
+				"\n  state = "+state.toString()+""+
 				"\n  maxTime = "+maxTime+"; currentTime = "+currentTime+
 				"\n  maxPrints = "+maxPrints+"; currentPrints = "+currPrints+
 				"\n  maxQuantum = "+maxQuantum+"; currentQuantum = "+currentQuantum+
@@ -505,6 +514,8 @@ public class PCB {
 				"\n  instructionTracks:"+instructionTracks.toString()+
 				"\n  dataTracks:"+dataTracks.toString()+
 				"\n  swapTracks:"+printSwapTracks()+
+				"\n  swapIn:"+swapIn+",  swapOut:"+swapOut+
+				"\n  swapInTrack:"+swapInPage+",  swapInTrack:"+swapInTrack+
 				"\n  cpuState:"+cpu+
 				"\n";
 		

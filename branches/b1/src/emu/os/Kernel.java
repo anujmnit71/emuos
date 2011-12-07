@@ -789,18 +789,15 @@ public class Kernel {
 							pcb.swapInTrack = pt.getEntry(pageNumber).getBlockNum();
 						}
 						
-						
-						String nextState = pcb.getNextState(); 
-						
-						if (cpu.getIr().startsWith(CPU.GET)) {
-							nextState = ProcessStates.IO_READ.getName();
-						}
-						else if (cpu.getIr().startsWith(CPU.PUT)) {
-							nextState = ProcessStates.IO_WRITE.getName();
-						}
-						
-						
 						if (pcb.swapIn || pcb.swapOut) {		//if we need to swap in or swap out
+							String nextState = pcb.getNextState(); 
+							
+							if (cpu.getIr().startsWith(CPU.GET)) {
+								nextState = ProcessStates.IO_READ.getName();
+							}
+							else if (cpu.getIr().startsWith(CPU.PUT)) {
+								nextState = ProcessStates.IO_WRITE.getName();
+							}
 							pcb.setState(ProcessStates.SWAP,nextState);	
 						}
 						else {	//we don't need to actually swap, we just need to update the page table
@@ -858,7 +855,7 @@ public class Kernel {
 //							}
 //							pcb.setSwapOut(true);		// so the Kernel knows this process is on the swapq for swap out
 //						}
-
+						trace.fine(pcb.toString());
 					}
 					else
 					{
@@ -875,16 +872,15 @@ public class Kernel {
 	}
 
 	private void fetchPageFault() {
-		int pageNumber,frame,ptr;
+		int pageNumber, frame, ptr;
 		pageNumber = frame = ptr = 0;
 		PCB p = getCurrentProcess();
 
 		/**
-		 * Page fault in fetch is always valid
-		 * get the page from the IC
-		 * Allocate a frame for the new instruction page
-		 * If we couldn't allocate a frame then swap with the LRU frame
-		 * write the instruction card from the current PCB to the newly allocated page
+		 * Page fault in fetch is always valid get the page from the IC Allocate
+		 * a frame for the new instruction page If we couldn't allocate a frame
+		 * then swap with the LRU frame write the instruction card from the
+		 * current PCB to the newly allocated page
 		 */
 		trace.info("Page fault during fetch");
 		ptr = cpu.getPtr();
@@ -894,71 +890,79 @@ public class Kernel {
 			trace.info("  Need to do some swapping");
 
 			/*
-			 ***AMC**
-			 *  -Look at the page table at LRU[3] and see if it's dirty
-			 * 	-Look at swaptracks in the PCB for the target page and see if it has a track associated with it
-			 *  If the LRU page is not dirty and the page has a track associated with it in memory then it doesn't need to be swapped out
-			 *    -store the track (rather than the frame) in page table entry for the victim
-			 *    -set swapped flag for the victim page
-			 *    -set process state to IO_LOADINST
-			 *  If the LRU page does need to be written to the drum:, set state = swap_out, next = loadinst
+			 * **AMC** -Look at the page table at LRU[3] and see if it's dirty
+			 * -Look at swaptracks in the PCB for the target page and see if it
+			 * has a track associated with it If the LRU page is not dirty and
+			 * the page has a track associated with it in memory then it doesn't
+			 * need to be swapped out -store the track (rather than the frame)
+			 * in page table entry for the victim -set swapped flag for the
+			 * victim page -set process state to IO_LOADINST If the LRU page
+			 * does need to be written to the drum:, set state = swap_out, next
+			 * = loadinst
 			 */
 
 			PageTable pt = MMU.getInstance().getPageTable(ptr);
 			int victimPage = pt.getVictimPage();
 			int victimFrame = pt.getVictimFrame(victimPage);
-			
+
 			p.swapVictimPage = victimPage;
 			p.swapFrame = pt.getVictimFrame(victimPage);
 			p.swapInPage = pageNumber;
-			
+
 			if (pt.isVictimDirty(victimPage)) {
 				p.swapOut = true;
 			}
-			trace.finer("AMC::: Swaptracks:: "+p.printSwapTracks());
+			trace.finer("AMC::: Swaptracks:: " + p.printSwapTracks());
 			if (p.getSwapTrack(victimPage) == -1) {
 				p.swapOut = true;
 				p.swapOutTrack = cpu.getMMU().allocateFrame();
 				p.setSwapTrack(victimPage, p.swapOutTrack);
-			}
-			else
+			} else
 				p.swapOutTrack = p.getSwapTrack(victimPage);
-			
-			p.swapIn = true;	// initialize; assume we do need to swap in
-			
-			if (p.getSwapTrack(pageNumber) == -1) {		// if there's nowhere to swap the page in from, it's from a GD or pure demand paging
+
+			p.swapIn = true; // initialize; assume we do need to swap in
+
+			if (p.getSwapTrack(pageNumber) == -1) { // if there's nowhere to
+													// swap the page in from,
+													// it's from a GD or pure
+													// demand paging
 				p.swapIn = false;
 			}
-			
+
 			if (p.swapIn == true)
 				p.swapInTrack = p.getSwapTrack(pageNumber);
-			
-			
-			if (p.swapOut) {		//if we need to swap out
-				if (p.swapIn) {		//if the page has already been loaded in memory but is swapped out, the pcb goes back on ready q after swap out/in
-					p.setState(ProcessStates.SWAP,ProcessStates.READY);
+
+			if (p.swapOut) { // if we need to swap out
+				if (p.swapIn) { // if the page has already been loaded in memory
+								// but is swapped out, the pcb goes back on
+								// ready q after swap out/in
+					p.setState(ProcessStates.SWAP, ProcessStates.READY);
+				} else { // else the victim needs to be swapped out but then the
+							// target inst. card needs to be loaded on the IOQ
+					p.setState(ProcessStates.SWAP, ProcessStates.IO_LOADINST);
 				}
-				else	{			//else the victim needs to be swapped out but then the target inst. card needs to be loaded on the IOQ
-				p.setState(ProcessStates.SWAP,ProcessStates.IO_LOADINST);
-				}
-			}
-		else if (p.swapIn) {		//we don't need to swap out the victim, but we do need to swap the target page in from the drum
-			p.setState(ProcessStates.SWAP,ProcessStates.READY);
-		}
-			else {	//we don't need to actually swap, we just need to update the page table
+			} else if (p.swapIn) { // we don't need to swap out the victim, but
+									// we do need to swap the target page in
+									// from the drum
+				p.setState(ProcessStates.SWAP, ProcessStates.READY);
+			} else { // we don't need to actually swap, we just need to update
+						// the page table
 				pt.getEntry(pageNumber).setDirty(false);
 				pt.getEntry(pageNumber).setSwap(false);
 				pt.getEntry(pageNumber).setBlockNum(victimFrame);
 				pt.getEntry(victimPage).setSwap(true);
 				pt.getEntry(victimPage).setBlockNum(p.getSwapTrack(victimPage));
-				//indicate that the new page is the LRU
+				// indicate that the new page is the LRU
 				pt.setLRU(pt.getEntry(pageNumber));
-				MMU.getInstance().getRam().write(0,ptr,pt.toString());
-				trace.info("AMC*** page table after swap:"+pt.toString());
-				trace.info("AMC: RAM after swap:"+MMU.getInstance().toString());
-				trace.fine("frame "+victimFrame+" being used for page "+pageNumber);
-				p.setState(ProcessStates.IO_LOADINST,ProcessStates.READY);
+				MMU.getInstance().getRam().write(0, ptr, pt.toString());
+				trace.info("AMC*** page table after swap:" + pt.toString());
+				trace.info("AMC: RAM after swap:"
+						+ MMU.getInstance().toString());
+				trace.fine("frame " + victimFrame + " being used for page "
+						+ pageNumber);
+				p.setState(ProcessStates.IO_LOADINST, ProcessStates.READY);
 			}
+			trace.fine(p.toString());
 		}
 //			
 //			/*
@@ -1373,9 +1377,20 @@ public class Kernel {
 		}
 
 		else if (swapQueue.size() > 0) {
-			//***AMC***
+			
 			PCB swapPCB = swapQueue.peek();
+			
+			if (!swapPCB.swapIn && !swapPCB.swapOut) {
+				trace.fine("Nothing to swap, moving to next queue");
+				swapPCB.setState(ProcessStates.getByName(swapPCB.getNextState()), ProcessStates.READY);
+				schedule(swapQueue);
+				return;
+				
+			}
+			//***AMC***
+
 			trace.info("  "+swapPCB.getId() + ": assign a swap task to channel 3");
+			trace.fine(swapPCB.toString());
 
 			//			PageTable pt = swapPCB.getPageTable();
 //			PageTable pt = MMU.getInstance().getPageTable(swapPCB.getCPUState().getPtr());
@@ -1448,6 +1463,8 @@ public class Kernel {
 				task.setFrame(swapPCB.swapFrame);
 				task.setMisc(swapPCB.swapInPage);
 			}
+			
+			trace.fine(task.toString());
 		}
 		else if (terminateQueue.size() > 0 &&							//if there's a process that needs to be terminated AND						
 				(terminateQueue.peek().getHeaderLinedPrinted() != 2 ||	//both header lines have not been printed OR 
