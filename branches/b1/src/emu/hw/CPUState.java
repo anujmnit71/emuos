@@ -33,7 +33,7 @@ public class CPUState implements Cloneable {
 	/**
 	 * Page Table Register
 	 */
-	int ptr;
+	int ptr = -1; //This is sure to catch a bug or 2.
 	/**
 	 * Page Table Length
 	 */

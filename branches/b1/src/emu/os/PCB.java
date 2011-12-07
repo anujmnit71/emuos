@@ -126,15 +126,15 @@ public class PCB {
 	/*
 	 * flags indicating whether this PCB is on the swapq for swap out or swap in (or both)
 	 */
-	public boolean swapOut;
-	public boolean swapIn;
+	boolean swapOut;
+	boolean swapIn;
 	
 	/* Variables to use in swap out and swap in task */
-	public int swapFrame;
-	public int swapOutTrack;
-	public int swapInTrack;
-	public int swapVictimPage;
-	public int swapInPage; 
+	int swapFrame;
+	int swapOutTrack;
+	int swapInTrack;
+	int swapVictimPage;
+	int swapInPage; 
 	
 	/*
 	 * flag indication whether the PCB has been scheduled
@@ -437,6 +437,7 @@ public class PCB {
 	}
 
 	public void setCpuState(CPUState cpu) {
+		trace.fine("Setting CPUState for "+id+"="+cpu);
 		this.cpuState = cpu;
 	}
 
@@ -635,6 +636,62 @@ public class PCB {
 	 */
 	public int getCurrOutputTrack() {
 		return currOutputTrack;
+	}
+
+	public int[] getSwapTracks() {
+		return swapTracks;
+	}
+
+	public void setSwapTracks(int[] swapTracks) {
+		this.swapTracks = swapTracks;
+	}
+
+	public boolean isSwapIn() {
+		return swapIn;
+	}
+
+	public void setSwapIn(boolean swapIn) {
+		this.swapIn = swapIn;
+	}
+
+	public int getSwapFrame() {
+		return swapFrame;
+	}
+
+	public void setSwapFrame(int swapFrame) {
+		this.swapFrame = swapFrame;
+	}
+
+	public int getSwapOutTrack() {
+		return swapOutTrack;
+	}
+
+	public void setSwapOutTrack(int swapOutTrack) {
+		this.swapOutTrack = swapOutTrack;
+	}
+
+	public int getSwapInTrack() {
+		return swapInTrack;
+	}
+
+	public void setSwapInTrack(int swapInTrack) {
+		this.swapInTrack = swapInTrack;
+	}
+
+	public int getSwapVictimPage() {
+		return swapVictimPage;
+	}
+
+	public void setSwapVictimPage(int swapVictimPage) {
+		this.swapVictimPage = swapVictimPage;
+	}
+
+	public int getSwapInPage() {
+		return swapInPage;
+	}
+
+	public void setSwapInPage(int swapInPage) {
+		this.swapInPage = swapInPage;
 	}
 
 //	public int getExpectedInstructionTracks() {
