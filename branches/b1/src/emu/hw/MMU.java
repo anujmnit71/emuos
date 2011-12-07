@@ -191,7 +191,7 @@ public class MMU implements MemoryUnit {
 	 */
 	public void freePageTable(int ptr) {
 		//Read the current page table			
-		PageTable PT = getPageTable();
+		PageTable PT = getPageTable(ptr);
 		freePageTable(ptr,PT);
 	}
 	/**
@@ -213,7 +213,8 @@ public class MMU implements MemoryUnit {
 		for (int i=0; i<numPages; i++) {
 			try {
 				frameNum = PT.getEntry(i).getBlockNum();
-				if(!PT.getEntry(i).isSwapped()){
+//				if(!PT.getEntry(i).isSwapped()){
+					if(PT.getEntry(i).isInMemory()){
 					trace.fine("frame="+frameNum);
 					ram.markFree(frameNum);
 				}
@@ -223,7 +224,7 @@ public class MMU implements MemoryUnit {
 			}
 		}
 		//Free the frame backing the page table
-		ram.markFree(CPU.getInstance().getPtr());
+		ram.markFree(ptr);
 		//Set the PTL to zero
 		CPU.getInstance().setPtl(0);
 	}

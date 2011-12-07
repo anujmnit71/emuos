@@ -92,7 +92,7 @@ public class RAM implements MemoryUnit {
 			if (isAllocated(i))
 				allocatedFrames = new String(allocatedFrames)+i+' ';
 		}
-		trace.fine("Allocated frames: [ "+allocatedFrames+']');
+		trace.info("Allocated frames: [ "+allocatedFrames+']');
 //		trace.finer("<--");
 	}
 	
@@ -102,8 +102,12 @@ public class RAM implements MemoryUnit {
 	 */
 	public void markFree(int frame) {
 //		trace.finer("-->");
-		trace.fine("Freed frame "+(frame));
+		if (freeFrames.contains(frame))
+			trace.info("AMC:::Freeing already free frame");
+		else {
+		trace.info("AMC::Freed frame "+(frame));
 		freeFrames.add(frame);
+		}
 		trace.fine(freeFrames.toString());
 //		trace.finer("<--");
 	}
