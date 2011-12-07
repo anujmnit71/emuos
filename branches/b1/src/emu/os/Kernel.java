@@ -1185,6 +1185,7 @@ public class Kernel {
 		swapPCB.swapOutTrack = -1;
 		swapPCB.swapInTrack = -1;	//reset
 		trace.fine("schedule after swap out");
+		swapPCB.setState(ProcessStates.READY);
 		schedule(swapQueue);
 		}
 //		int drumTrack = ch3.getTask().getTrack();
