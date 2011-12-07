@@ -448,7 +448,8 @@ public class PCB {
 			MMU.getInstance().getDrum().freeTrack(d);
 		}
 
-		MMU.getInstance().freePageTable(cpuState.getPtr());
+//		MMU.getInstance().freePageTable(cpuState.getPtr());
+		CPU.getInstance().getMMU().freePageTable(cpuState.getPtr());
 	}
 
 	public CPUState getCPUState() {
