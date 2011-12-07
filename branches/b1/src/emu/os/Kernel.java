@@ -719,7 +719,7 @@ public class Kernel {
 							cpu.getIr().startsWith(cpu.STORE) ||
 							cpu.getIr().startsWith(cpu.BRANCH) ||
 							cpu.getIr().startsWith(cpu.COMPARE)) {
-								trace.info("AMC::: decrementing IC");
+								trace.finer("AMC::: decrementing IC");
 								cpu.decrement();
 						}
 					} else {
@@ -729,7 +729,7 @@ public class Kernel {
 							pcb.getCPUState().getIr().startsWith(cpu.STORE) ||
 							pcb.getCPUState().getIr().startsWith(cpu.BRANCH) ||
 							pcb.getCPUState().getIr().startsWith(cpu.COMPARE)) {
-									trace.info("AMC::: decrementing IC");
+									trace.finer("AMC::: decrementing IC");
 									cpu.decrement();
 							}
 					}
@@ -786,7 +786,7 @@ public class Kernel {
 						
 						
 						if (pcb.swapIn || pcb.swapOut) {		//if we need to swap in or swap out
-							pcb.setState(ProcessStates.SWAP,pcb.getNextState());
+							pcb.setState(ProcessStates.SWAP,pcb.getNextState());	
 						}
 						else {	//we don't need to actually swap, we just need to update the page table
 							pt.getEntry(pageNumber).setDirty(false);
@@ -900,7 +900,7 @@ public class Kernel {
 			if (pt.isVictimDirty(victimPage)) {
 				p.swapOut = true;
 			}
-			trace.info("AMC::: Swaptracks:: "+p.printSwapTracks());
+			trace.finer("AMC::: Swaptracks:: "+p.printSwapTracks());
 			if (p.getSwapTrack(victimPage) == -1) {
 				p.swapOut = true;
 				p.swapOutTrack = cpu.getMMU().allocateFrame();
@@ -2136,7 +2136,7 @@ public class Kernel {
 		// Switches currently running process from head of ready queue to tail of the target queue
 		PCB movePCB = readyQueue.remove();
 		// Stores CPU status to the PCB that is being switched
-		try {
+//		try {
 			
 			//BJD The CPUState in PCB should never be null, right?
 			if (movePCB.getCPUState() == null) {
@@ -2147,17 +2147,19 @@ public class Kernel {
 			//BJD Only grab the CPUState from the CPU if the process was previously executing.
 			//Is there a better way to determine this other than an empty readyQ?
 			if (!readyQueue.isEmpty()) {
-				movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
-				movePCB.setPageTable(MMU.getInstance().getPageTable());
+//				trace.info("AMC::: CPU state for process "+movePCB.getId()+" was "+movePCB.getCPUState().toString());
+//				trace.info("AMC::: setting CPU state for process "+movePCB.getId()+" to "+cpu.getCPUState().toString());
+//				movePCB.setCpuState((CPUState) cpu.getCPUState().clone());
+//				movePCB.setPageTable(MMU.getInstance().getPageTable());
 			}
 
 			trace.fine("+++ out "+ movePCB.getId() +"> " + movePCB.getState() + ":" + movePCB.getCPUState().toString());
 			trace.fine("+++ out pcb> " + movePCB.getPageTable().toString());
 			trace.fine("+++ out cpu> " + MMU.getInstance().getPageTable().toString());
 			//trace.info(MMU.getInstance().getRam().toString());
-		} catch (CloneNotSupportedException e) {
-			trace.log(Level.WARNING, "Failed to clone current CPU state", e);
-		}
+//		} catch (CloneNotSupportedException e) {
+//			trace.log(Level.WARNING, "Failed to clone current CPU state", e);
+//		}
 		switch (targetQ) {
 		case READYQ: 
 			movePCB.resetCurrentQuantum();
@@ -2211,6 +2213,8 @@ public class Kernel {
 
 		if (pcb != null) {
 			trace.info("Dispatch "+pcb.getId()+ ": current=" +pcb.getState() + ", next=" + pcb.getNextState());
+			trace.finest("setRunning = false for PCB: "+pcb.getId());
+			pcb.setRunning(false);
 			//if (pcb.getCPUState() != null)
 			//trace.info("+++ "+pcb.getCPUState().toString());
 			if(pcb.getState().equals(ProcessStates.TERMINATE.getName())) {

@@ -336,6 +336,7 @@ public class MMU implements MemoryUnit {
 	 */
 	public boolean validatePageFault(int ptr,String ir) {
 		trace.info("  Validating page fault for "+ir);
+		trace.info("Page table reg used to validate page fault = "+ptr);
 //		setPageTable(ptr);
 		if (ir == null
 				|| ir.startsWith(CPU.GET)
