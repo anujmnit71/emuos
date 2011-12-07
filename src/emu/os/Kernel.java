@@ -428,6 +428,11 @@ public class Kernel {
 			//if (cycleCount > 450)
 			//	done = true;
 			dumpBuffers();
+			
+			//Infinite loop protection
+			if (cycleCount > 1000) {
+				throw new HardwareInterruptException("Cycle count = "+cycleCount+"!!");
+			}
 		}
 		//		trace.finer("<--");
 	}
@@ -785,8 +790,18 @@ public class Kernel {
 						}
 						
 						
+						String nextState = pcb.getNextState(); 
+						
+						if (cpu.getIr().startsWith(CPU.GET)) {
+							nextState = ProcessStates.IO_READ.getName();
+						}
+						else if (cpu.getIr().startsWith(CPU.PUT)) {
+							nextState = ProcessStates.IO_WRITE.getName();
+						}
+						
+						
 						if (pcb.swapIn || pcb.swapOut) {		//if we need to swap in or swap out
-							pcb.setState(ProcessStates.SWAP,pcb.getNextState());	
+							pcb.setState(ProcessStates.SWAP,nextState);	
 						}
 						else {	//we don't need to actually swap, we just need to update the page table
 							pt.getEntry(pageNumber).setDirty(false);
@@ -1306,14 +1321,11 @@ public class Kernel {
 				putOutputFullBuffer(b);
 				dumpBuffers();
 			}
+			else {
+				trace.warning("No empty buffers for OS output!");
+				//TODO Need to handle this somehow. Otherwise these lines done get outputted.
+			}
 		}
-		else {
-			trace.warning("no empty buffers!");
-			//TODO Need to handle this somehow. Otherwise these lines done get outputted.
-		}
-		//		else {
-		//			putOutputFullBuffer(ch3.getTask().getBuffer());
-		//		}
 	}
 
 	private void inputSpoolingTask() {
@@ -1604,8 +1616,10 @@ public class Kernel {
 					}
 					finally {
 						if (!ioPCB.getState().equals(ProcessStates.IO_WRITE.getName())) {
-							schedule(ioQueue);
 							trace.info("AMC::: Scheduling, not starting IO write!");
+							trace.info(""+ioPCB.getState()+", next="+ioPCB.getNextState());
+							schedule(ioQueue);
+							
 							return;
 						}
 						
@@ -2088,7 +2102,7 @@ public class Kernel {
 
 	private void schedule(Queue<PCB> queue) {
 		PCB pcb = queue.remove();	
-		
+		trace.info("schedule:current="+pcb.getState()+", next="+pcb.getNextState());
 		if(pcb.getState().equals(ProcessStates.IO_LOADINST)) {
 			trace.info(pcb.getId()+": add to io queue :"+pcb.getCPUState().toString());
 			ioQueue.add(pcb);
