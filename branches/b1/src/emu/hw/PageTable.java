@@ -96,12 +96,17 @@ public class PageTable {
 			if (pageTable[i].getLRU() == 3) {
 				pageTable[i].setLRU(0);
 			}
-			else if (pageTable[i].getLRU() == 2)
+			else if (pageTable[i].getLRU() == 2) {
+				if (pageTable[i].isSwapped())
+					trace.info("WWWWWWW");
 				pageTable[i].setLRU(3);
+			}
 			else if (pageTable[i].getLRU() == 1)
 				pageTable[i].setLRU(2);
 		}
 		recentEntry.setLRU(1);
+		if (recentEntry.isInMemory() == false)
+			trace.info("WWWW");
 		return;
 	}
 	

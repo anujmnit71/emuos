@@ -178,7 +178,10 @@ public class Drum implements MemoryUnit {
 					dump += memory[j].substring(i);					
 				}
 			}
-			dump += "|"+j+"\n";
+			if (freeTracks.contains(j))
+				dump += "|"+j+" FREE\n";
+			else
+				dump += "|"+j+" ALLOCATED\n";
 		}
 
 		return dump;

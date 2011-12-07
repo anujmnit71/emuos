@@ -272,8 +272,14 @@ public class PCB {
 	public int getNextDataTrack() {
 		int retval = -1;
 		if (getNumDataTracks() > 0)
-			retval = dataTracks.remove();
+			retval = dataTracks.peek();
 		return retval;
+	}
+	
+	public void removeNextDataTrack() {
+		int retval = -1;
+		if (getNumDataTracks() > 0)
+			retval = dataTracks.remove();
 	}
 
 	public int getNumInstructionTracks() {
@@ -359,6 +365,11 @@ public class PCB {
 		} 
 		trace.severe("max prints ("+maxPrints+") exceeded");
 		return false;
+	}
+	
+	public void decrementPrintCount() {
+
+		currPrints--;
 	}
 
 	/**

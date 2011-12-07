@@ -66,14 +66,20 @@ public class PageTableEntry {
 	}
 	
 	public void setSwap(boolean set) {
-		if (set == true)
+		if (set == true) {
 			dirtySwap = "S";
+
+		if (LRU=="3")
+			trace.info("FFFF");
+		}
 		else if (set == false)
 			dirtySwap = " ";
 	}
 	
 	public void setSwap() {
 		dirtySwap = "S";
+		if (LRU=="3")
+			trace.info("FFFF");
 	}
 	
 	public void setBlockNum(int set) {
