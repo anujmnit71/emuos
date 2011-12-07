@@ -72,8 +72,13 @@ public class Drum implements MemoryUnit {
 	 */
 	public void freeTrack(int track) {
 //		trace.finer("-->");
-		trace.fine("Freeing track:"+track+"->free");
-		markFree(track);
+		if (isAllocated(track)) {
+		    trace.fine("Freeing track:"+track+"->free");
+		    markFree(track);
+		}
+		else
+			trace.info("AMC:::::::::::"+track);
+		trace.info("$$Free tracks: "+freeTracks.toString());
 //		trace.finer("<--");
 	}
 	

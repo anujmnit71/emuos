@@ -234,7 +234,7 @@ public class MMU implements MemoryUnit {
 	 * @return The frame number.
 	 */
 	public int allocateFrame() {
-		Random generator = new Random();
+		Random generator = new Random(0);
 		//We keep track of which frames are free in the ArrayList freeFrames
 		//So to randomly select one of them, use the generator to grab a random int <= the size of the List
 		//and select frameNum to be the int located at that randomly selected index
@@ -259,7 +259,7 @@ public class MMU implements MemoryUnit {
 	 * @return The track number.
 	 */
 	public int allocateTrack() {
-		Random generator = new Random();
+		Random generator = new Random(0);
 		try {
 			int trackNum = drum.getFreeTracks().get(generator.nextInt(drum.getFreeTracks().size()));
 			trace.info("  Track allocated: "+trackNum);
