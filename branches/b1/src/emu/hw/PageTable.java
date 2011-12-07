@@ -98,7 +98,7 @@ public class PageTable {
 			}
 			else if (pageTable[i].getLRU() == 2) {
 				if (pageTable[i].isSwapped())
-					trace.info("WWWWWWW");
+					trace.info("ABCDEF");
 				pageTable[i].setLRU(3);
 			}
 			else if (pageTable[i].getLRU() == 1)
@@ -106,7 +106,7 @@ public class PageTable {
 		}
 		recentEntry.setLRU(1);
 		if (recentEntry.isInMemory() == false)
-			trace.info("WWWW");
+			trace.info("ABCDE");
 		return;
 	}
 	

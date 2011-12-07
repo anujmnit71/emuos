@@ -761,7 +761,8 @@ public class Kernel {
 						//					       If yes, next state = swap_in
 						//						   If no, next state = IO-read
 
-						PageTable pt = MMU.getInstance().getPageTable(ptr);
+//						PageTable pt = MMU.getInstance().getPageTable(ptr);
+						PageTable pt = CPU.getInstance().getMMU().getPageTable(ptr);
 						int victimPage = pt.getVictimPage();
 						int victimFrame = pt.getVictimFrame(victimPage);
 
@@ -775,7 +776,8 @@ public class Kernel {
 						
 						if (pcb.getSwapTrack(victimPage) == -1) {
 							pcb.swapOut = true;
-							pcb.swapOutTrack = cpu.getMMU().allocateFrame();
+//							pcb.swapOutTrack = cpu.getMMU().allocateFrame();
+							pcb.swapOutTrack = cpu.getMMU().allocateTrack();
 							pcb.setSwapTrack(victimPage, pcb.swapOutTrack);
 						}
 						else
@@ -815,9 +817,12 @@ public class Kernel {
 							pt.getEntry(victimPage).setBlockNum(pcb.getSwapTrack(victimPage));
 							//indicate that the new page is the LRU
 							pt.setLRU(pt.getEntry(pageNumber));
-							MMU.getInstance().getRam().write(0,ptr,pt.toString());
+//							MMU.getInstance().getRam().write(0,ptr,pt.toString());
+							CPU.getInstance().getMMU().getRam().write(0,ptr,pt.toString());
 							String spaces = Utilities.padStringToLength(new String("")," ",40,false);
-							MMU.getInstance().getRam().write(0,victimFrame,spaces);
+//							MMU.getInstance().getRam().write(0,victimFrame,spaces);
+
+							CPU.getInstance().getMMU().getRam().write(0,victimFrame,spaces);
 							trace.info("Page table after swap:"+pt.toString());
 							trace.fine("AMC: RAM after swap:"+MMU.getInstance().toString());
 							trace.fine("frame "+victimFrame+" being used for page "+pageNumber);
@@ -922,7 +927,8 @@ public class Kernel {
 			trace.fine("AMC::: Swaptracks:: "+p.printSwapTracks());
 			if (p.getSwapTrack(victimPage) == -1) {
 				p.swapOut = true;
-				p.swapOutTrack = cpu.getMMU().allocateFrame();
+//				p.swapOutTrack = cpu.getMMU().allocateFrame();
+				p.swapOutTrack = cpu.getMMU().allocateTrack();
 				p.setSwapTrack(victimPage, p.swapOutTrack);
 			} else
 				p.swapOutTrack = p.getSwapTrack(victimPage);
@@ -961,7 +967,8 @@ public class Kernel {
 				pt.getEntry(victimPage).setBlockNum(p.getSwapTrack(victimPage));
 				// indicate that the new page is the LRU
 				pt.setLRU(pt.getEntry(pageNumber));
-				MMU.getInstance().getRam().write(0, ptr, pt.toString());
+//				MMU.getInstance().getRam().write(0, ptr, pt.toString());
+				CPU.getInstance().getMMU().getRam().write(0, ptr, pt.toString());
 				trace.fine("AMC*** page table after swap:" + pt.toString());
 				trace.fine("AMC: RAM after swap:"
 						+ MMU.getInstance().toString());
@@ -1568,7 +1575,8 @@ public class Kernel {
 				trace.fine("next data track:"+track);
 
 				try {
-					frame = MMU.getInstance().getFrame(ptr,irValue);
+//					frame = MMU.getInstance().getFrame(ptr,irValue);
+					frame = CPU.getInstance().getMMU().getFrame(ptr,irValue);
 				}
 				catch(HardwareInterruptException hie) {
 					if ((cpu.getPi().equals(Interrupt.PAGE_FAULT)))
@@ -1587,12 +1595,16 @@ public class Kernel {
 						return;
 					}
 
-					frame = MMU.getInstance().getFrame(ptr,irValue);
+//					frame = MMU.getInstance().getFrame(ptr,irValue);
+					frame = CPU.getInstance().getMMU().getFrame(ptr,irValue);
 					ioPCB.setSwapTrack(irValue/10, track);
-					trace.finer("Swap tracks: "+ioPCB.printSwapTracks());
+					trace.finer("Swap tracks2: "+ioPCB.printSwapTracks());
 					PageTable pt = MMU.getInstance().getPageTable(ptr);
-					pt.setLRU(pt.getEntry(ioPCB.getCPUState().getPage()));
+//					pt.setLRU(pt.getEntry(ioPCB.getCPUState().getPage()));
+
+					pt.setLRU(pt.getEntry(irValue/10));
 					MMU.getInstance().getRam().write(0,ptr,pt.toString());
+					
 					//trace.info("using frame " + frame);
 
 				}
@@ -1633,7 +1645,8 @@ public class Kernel {
 					irValue = ioPCB.getCPUState().getOperand();
 
 					try {
-						frame = MMU.getInstance().getFrame(ptr,irValue);
+//						frame = MMU.getInstance().getFrame(ptr,irValue);
+						frame = CPU.getInstance().getMMU().getFrame(ptr,irValue);
 					}
 					catch(HardwareInterruptException hie) {
 						if ((cpu.getPi().equals(Interrupt.PAGE_FAULT)))
@@ -1656,7 +1669,8 @@ public class Kernel {
 							return;
 						}
 						
-						frame = MMU.getInstance().getFrame(ptr,irValue);
+//						frame = MMU.getInstance().getFrame(ptr,irValue);
+						frame = CPU.getInstance().getMMU().getFrame(ptr,irValue);
 //						PageTable pt = MMU.getInstance().getPageTable(ptr);
 //						pt.setLRU(pt.getEntry(ioPCB.getCPUState().getPage()));
 //						MMU.getInstance().getRam().write(0,ptr,pt.toString());

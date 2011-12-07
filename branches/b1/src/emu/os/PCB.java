@@ -450,7 +450,7 @@ public class PCB {
 		
 		//Free swapped tracks
 		for (int s : swapTracks) {
-			if (s > 0) {
+			if (s >= 0) {
 				MMU.getInstance().getDrum().freeTrack(s);
 			}
 			
