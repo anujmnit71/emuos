@@ -1329,7 +1329,7 @@ public class Kernel {
 			Buffer b = getEmptyBuffer();
 			if (b != null) {
 				//Prepare blank lines for print in between program output
-				b.setData("-\n-");				
+				b.setData("\n");				
 				b.setOutputFull();
 				putOutputFullBuffer(b);
 				dumpBuffers();
@@ -1488,7 +1488,7 @@ public class Kernel {
 				}
 				else if (termPCB.getHeaderLinedPrinted() == 1) {
 					trace.info(termPCB.getId()+": assign header line 2 to channel 3");
-					eb.setData(termPCB.getCPUState().getState()+"    "+termPCB.getCurrentTime()+"    "+termPCB.getLines()+"\n-");
+					eb.setData(termPCB.getCPUState().getState()+"    "+termPCB.getCurrentTime()+"    "+termPCB.getLines()+"\n");
 					termPCB.incrementHeaderLinedPrinted();
 					eb.setOutputFull();
 					putOutputFullBuffer(eb);
