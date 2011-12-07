@@ -1184,6 +1184,7 @@ public class Kernel {
 		swapPCB.swapFrame = -1;
 		swapPCB.swapOutTrack = -1;
 		swapPCB.swapInTrack = -1;	//reset
+		trace.fine("schedule after swap out");
 		schedule(swapQueue);
 		}
 //		int drumTrack = ch3.getTask().getTrack();
@@ -1243,6 +1244,8 @@ public class Kernel {
 		swapPCB.swapFrame = -1;
 		swapPCB.swapOutTrack = -1;
 		swapPCB.swapInTrack = -1;	//reset
+		trace.fine("schedule after swap in");
+		swapPCB.setState(ProcessStates.READY);
 		schedule(swapQueue);
 	}
 
@@ -2103,10 +2106,10 @@ public class Kernel {
 	private void schedule(Queue<PCB> queue) {
 		PCB pcb = queue.remove();	
 		trace.info("schedule:current="+pcb.getState()+", next="+pcb.getNextState());
-		if(pcb.getState().equals(ProcessStates.IO_LOADINST)) {
+		if(pcb.getState().equals(ProcessStates.IO_LOADINST.getName())) {
 			trace.info(pcb.getId()+": add to io queue :"+pcb.getCPUState().toString());
 			ioQueue.add(pcb);
-		} else if (pcb.getState().equals(ProcessStates.SWAP)) {
+		} else if (pcb.getState().equals(ProcessStates.SWAP.getName())) {
 			swapQueue.add(pcb);
 		} else if(pcb.getNextState().equals(ProcessStates.TERMINATE.getName())) {
 			trace.info(pcb.getId()+": add to terminate queue :"+pcb.getCPUState().toString());
