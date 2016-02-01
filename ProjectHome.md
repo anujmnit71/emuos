@@ -1,0 +1,1 @@
+A simple OS emulation impleted in Java. For educational purposes.
